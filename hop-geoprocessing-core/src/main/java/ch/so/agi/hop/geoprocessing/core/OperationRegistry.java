@@ -1,0 +1,402 @@
+package ch.so.agi.hop.geoprocessing.core;
+
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+public final class OperationRegistry {
+
+  private static final List<OperationDescriptor> ALL_OPERATIONS =
+      List.of(
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "buffer",
+              "Buffer",
+              OperationGroup.CONSTRUCTIVE,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY,
+              parameter(ParameterId.DISTANCE, "Distance", ParameterType.NUMBER, true)),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "buffer_extended",
+              "Buffer (Extended)",
+              OperationGroup.CONSTRUCTIVE,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY,
+              parameter(ParameterId.DISTANCE, "Distance", ParameterType.NUMBER, true),
+              parameter(ParameterId.BUFFER_SEGMENTS, "Quadrant segments", ParameterType.NUMBER, false),
+              parameter(ParameterId.BUFFER_CAP_STYLE, "Cap style", ParameterType.ENUM, false),
+              parameter(ParameterId.BUFFER_JOIN_STYLE, "Join style", ParameterType.ENUM, false),
+              parameter(ParameterId.BUFFER_SINGLE_SIDED, "Single sided", ParameterType.BOOLEAN, false)),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "centroid",
+              "Centroid",
+              OperationGroup.MEASURE,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "interior_point",
+              "Interior Point",
+              OperationGroup.MEASURE,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "boundary",
+              "Boundary",
+              OperationGroup.CONVERSION,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "convex_hull",
+              "Convex Hull",
+              OperationGroup.CONSTRUCTIVE,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "concave_hull",
+              "Concave Hull",
+              OperationGroup.CONSTRUCTIVE,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY,
+              parameter(ParameterId.DISTANCE, "Maximum edge length", ParameterType.NUMBER, true)),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "simplify",
+              "Simplify (Douglas-Peucker)",
+              OperationGroup.EDIT,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY,
+              parameter(ParameterId.DISTANCE, "Distance", ParameterType.NUMBER, true)),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "simplify_vw",
+              "Simplify (Visvalingam-Whyatt)",
+              OperationGroup.EDIT,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY,
+              parameter(ParameterId.DISTANCE, "Distance", ParameterType.NUMBER, true)),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "densify",
+              "Densify",
+              OperationGroup.EDIT,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY,
+              parameter(ParameterId.DISTANCE, "Distance", ParameterType.NUMBER, true)),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "reverse",
+              "Reverse",
+              OperationGroup.EDIT,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "explode",
+              "Explode",
+              OperationGroup.COLLECTION,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "line_merge",
+              "Line Merge",
+              OperationGroup.COLLECTION,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "polygonize",
+              "Polygonize",
+              OperationGroup.CONSTRUCTIVE,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "remove_holes",
+              "Remove Holes",
+              OperationGroup.EDIT,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY,
+              parameter(ParameterId.DISTANCE, "Area threshold", ParameterType.NUMBER, true)),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "to_2d",
+              "Force 2D",
+              OperationGroup.CONVERSION,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "to_multi",
+              "Force Multi Geometry",
+              OperationGroup.CONVERSION,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "extract_coordinates",
+              "Extract Coordinates",
+              OperationGroup.CONVERSION,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "mbr",
+              "Minimum Bounding Rectangle",
+              OperationGroup.MEASURE,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "mbc",
+              "Minimum Bounding Circle",
+              OperationGroup.MEASURE,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "linear_referencing",
+              "Linear Referencing",
+              OperationGroup.MEASURE,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY,
+              parameter(ParameterId.DISTANCE, "Distance", ParameterType.NUMBER, true)),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "intersection",
+              "Intersection",
+              OperationGroup.OVERLAY,
+              OperationArity.BINARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "difference",
+              "Difference",
+              OperationGroup.OVERLAY,
+              OperationArity.BINARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "sym_difference",
+              "Symmetric Difference",
+              OperationGroup.OVERLAY,
+              OperationArity.BINARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "union",
+              "Union",
+              OperationGroup.OVERLAY,
+              OperationArity.BINARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "snap",
+              "Snap",
+              OperationGroup.EDIT,
+              OperationArity.BINARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY,
+              parameter(ParameterId.DISTANCE, "Snap distance", ParameterType.NUMBER, true)),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "split",
+              "Split",
+              OperationGroup.EDIT,
+              OperationArity.BINARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY),
+          descriptor(
+              TransformFamily.SPATIAL_PREDICATE,
+              "intersects",
+              "Intersects",
+              OperationGroup.PREDICATE,
+              OperationArity.BINARY,
+              ExecutionMode.INDEXED_SECONDARY,
+              ResultMode.BOOLEAN),
+          descriptor(
+              TransformFamily.SPATIAL_PREDICATE,
+              "contains",
+              "Contains",
+              OperationGroup.PREDICATE,
+              OperationArity.BINARY,
+              ExecutionMode.INDEXED_SECONDARY,
+              ResultMode.BOOLEAN),
+          descriptor(
+              TransformFamily.SPATIAL_PREDICATE,
+              "within",
+              "Within",
+              OperationGroup.PREDICATE,
+              OperationArity.BINARY,
+              ExecutionMode.INDEXED_SECONDARY,
+              ResultMode.BOOLEAN),
+          descriptor(
+              TransformFamily.SPATIAL_PREDICATE,
+              "touches",
+              "Touches",
+              OperationGroup.PREDICATE,
+              OperationArity.BINARY,
+              ExecutionMode.INDEXED_SECONDARY,
+              ResultMode.BOOLEAN),
+          descriptor(
+              TransformFamily.SPATIAL_PREDICATE,
+              "crosses",
+              "Crosses",
+              OperationGroup.PREDICATE,
+              OperationArity.BINARY,
+              ExecutionMode.INDEXED_SECONDARY,
+              ResultMode.BOOLEAN),
+          descriptor(
+              TransformFamily.SPATIAL_PREDICATE,
+              "overlaps",
+              "Overlaps",
+              OperationGroup.PREDICATE,
+              OperationArity.BINARY,
+              ExecutionMode.INDEXED_SECONDARY,
+              ResultMode.BOOLEAN),
+          descriptor(
+              TransformFamily.SPATIAL_PREDICATE,
+              "disjoint",
+              "Disjoint",
+              OperationGroup.PREDICATE,
+              OperationArity.BINARY,
+              ExecutionMode.INDEXED_SECONDARY,
+              ResultMode.BOOLEAN),
+          descriptor(
+              TransformFamily.SPATIAL_PREDICATE,
+              "distance_lte",
+              "Distance <= (any match)",
+              OperationGroup.PREDICATE,
+              OperationArity.BINARY,
+              ExecutionMode.INDEXED_SECONDARY,
+              ResultMode.BOOLEAN,
+              parameter(ParameterId.DISTANCE, "Distance", ParameterType.NUMBER, true)),
+          descriptor(
+              TransformFamily.SPATIAL_PREDICATE,
+              "distance_gte",
+              "Distance >= (min distance)",
+              OperationGroup.PREDICATE,
+              OperationArity.BINARY,
+              ExecutionMode.INDEXED_SECONDARY,
+              ResultMode.BOOLEAN,
+              parameter(ParameterId.DISTANCE, "Distance", ParameterType.NUMBER, true)),
+          descriptor(
+              TransformFamily.LAYER_OVERLAY,
+              "intersection",
+              "Intersection",
+              OperationGroup.OVERLAY,
+              OperationArity.BINARY,
+              ExecutionMode.BLOCKING_LAYER,
+              ResultMode.JOIN),
+          descriptor(
+              TransformFamily.LAYER_OVERLAY,
+              "clip",
+              "Clip",
+              OperationGroup.OVERLAY,
+              OperationArity.BINARY,
+              ExecutionMode.BLOCKING_LAYER,
+              ResultMode.JOIN),
+          descriptor(
+              TransformFamily.LAYER_OVERLAY,
+              "erase",
+              "Erase",
+              OperationGroup.OVERLAY,
+              OperationArity.BINARY,
+              ExecutionMode.BLOCKING_LAYER,
+              ResultMode.JOIN),
+          descriptor(
+              TransformFamily.LAYER_OVERLAY,
+              "identity",
+              "Identity",
+              OperationGroup.OVERLAY,
+              OperationArity.BINARY,
+              ExecutionMode.BLOCKING_LAYER,
+              ResultMode.JOIN),
+          descriptor(
+              TransformFamily.LAYER_AGGREGATE,
+              "dissolve",
+              "Dissolve",
+              OperationGroup.AGGREGATE,
+              OperationArity.GROUP,
+              ExecutionMode.BLOCKING_LAYER,
+              ResultMode.AGGREGATE),
+          descriptor(
+              TransformFamily.LAYER_AGGREGATE,
+              "unary_union",
+              "Unary Union",
+              OperationGroup.AGGREGATE,
+              OperationArity.GROUP,
+              ExecutionMode.BLOCKING_LAYER,
+              ResultMode.AGGREGATE),
+          descriptor(
+              TransformFamily.LAYER_AGGREGATE,
+              "collect",
+              "Collect",
+              OperationGroup.AGGREGATE,
+              OperationArity.GROUP,
+              ExecutionMode.BLOCKING_LAYER,
+              ResultMode.AGGREGATE));
+
+  private static final Map<TransformFamily, List<OperationDescriptor>> BY_FAMILY =
+      ALL_OPERATIONS.stream().collect(Collectors.groupingBy(OperationDescriptor::family, () -> new EnumMap<>(TransformFamily.class), Collectors.toList()));
+
+  private OperationRegistry() {}
+
+  public static List<OperationDescriptor> list(TransformFamily family) {
+    return BY_FAMILY.getOrDefault(family, List.of());
+  }
+
+  public static Optional<OperationDescriptor> find(TransformFamily family, String operationId) {
+    return list(family).stream().filter(operation -> operation.id().equals(operationId)).findFirst();
+  }
+
+  private static OperationDescriptor descriptor(
+      TransformFamily family,
+      String id,
+      String label,
+      OperationGroup group,
+      OperationArity arity,
+      ExecutionMode executionMode,
+      ResultMode resultMode,
+      ParameterDescriptor... parameters) {
+    return new OperationDescriptor(family, id, label, group, arity, executionMode, List.of(parameters), resultMode);
+  }
+
+  private static ParameterDescriptor parameter(
+      ParameterId id, String label, ParameterType type, boolean required) {
+    return new ParameterDescriptor(id, label, type, required);
+  }
+}
