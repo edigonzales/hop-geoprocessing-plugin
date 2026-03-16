@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: ch.so.agi.hop.geoprocessing.core.GeometryOperationExecutorTest
--------------------------------------------------------------------------------
-Tests run: 11, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.048 s -- in ch.so.agi.hop.geoprocessing.core.GeometryOperationExecutorTest

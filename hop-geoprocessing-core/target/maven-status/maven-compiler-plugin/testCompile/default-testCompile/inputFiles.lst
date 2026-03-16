@@ -1,9 +1,0 @@
-/Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/test/java/ch/so/agi/hop/geoprocessing/core/GeometryFieldDetectorTest.java
-/Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/test/java/ch/so/agi/hop/geoprocessing/core/GeometryFieldSelectionResolverTest.java
-/Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/test/java/ch/so/agi/hop/geoprocessing/core/GeometryOperationExecutorTest.java
-/Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/test/java/ch/so/agi/hop/geoprocessing/core/GeometryValueParserTest.java
-/Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/test/java/ch/so/agi/hop/geoprocessing/core/LayerAggregateExecutorTest.java
-/Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/test/java/ch/so/agi/hop/geoprocessing/core/LayerOverlayExecutorTest.java
-/Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/test/java/ch/so/agi/hop/geoprocessing/core/OverlayExecutionTest.java
-/Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/test/java/ch/so/agi/hop/geoprocessing/core/OverlayResultRowBuilderTest.java
-/Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/test/java/ch/so/agi/hop/geoprocessing/core/SpatialPredicateExecutorTest.java
