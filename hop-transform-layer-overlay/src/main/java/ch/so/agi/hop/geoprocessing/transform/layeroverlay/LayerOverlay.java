@@ -6,6 +6,7 @@ import ch.so.agi.hop.geoprocessing.core.GeometryFieldSelectionResolver;
 import ch.so.agi.hop.geoprocessing.core.GeometryFieldValueHelper;
 import ch.so.agi.hop.geoprocessing.core.OverlayFragment;
 import ch.so.agi.hop.geoprocessing.core.OverlayResultRowBuilder;
+import ch.so.agi.hop.geoprocessing.core.OverlayMode;
 import ch.so.agi.hop.geoprocessing.core.SpatialIndexBuilder;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,7 +50,12 @@ public class LayerOverlay extends BaseTransform<LayerOverlayMeta, LayerOverlayDa
     FeatureRow primaryFeature =
         FeatureRow.fromRow(data.primaryRowMeta, data.primaryGeometryFieldIndex, primaryRow, getLinesRead());
     List<OverlayFragment> fragments =
-        data.executor.execute(meta.getOperationId(), primaryFeature, data.secondaryLayerCache);
+        data.executor.execute(
+            meta.getOperationId(),
+            primaryFeature,
+            data.secondaryLayerCache,
+            meta.getOverlayMode(),
+            data.staticPrecisionScale);
 
     for (OverlayFragment fragment : fragments) {
       putRow(
@@ -96,7 +102,18 @@ public class LayerOverlay extends BaseTransform<LayerOverlayMeta, LayerOverlayDa
       secondaryFeatures.add(
           FeatureRow.fromRow(data.secondaryRowMeta, data.secondaryGeometryFieldIndex, secondaryRow, featureId++));
     }
-    data.secondaryLayerCache = new SpatialIndexBuilder().build(secondaryFeatures, data.secondaryRowMeta, true);
+    data.staticPrecisionScale =
+        meta.getOverlayMode() == OverlayMode.FIXED_PRECISION
+            ? Double.parseDouble(resolve(meta.getPrecisionScale()))
+            : null;
+    data.secondaryLayerCache =
+        new SpatialIndexBuilder()
+            .build(
+                secondaryFeatures,
+                data.secondaryRowMeta,
+                true,
+                meta.getOverlayMode(),
+                data.staticPrecisionScale);
 
     OverlayResultRowBuilder outputRowBuilder =
         new OverlayResultRowBuilder(data.primaryRowMeta, data.secondaryRowMeta, meta.getFieldPrefix(), meta.getOutputFieldName());

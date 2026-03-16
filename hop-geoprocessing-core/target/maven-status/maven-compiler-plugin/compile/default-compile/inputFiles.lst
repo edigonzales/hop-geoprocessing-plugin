@@ -19,7 +19,9 @@
 /Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/main/java/ch/so/agi/hop/geoprocessing/core/OperationDescriptor.java
 /Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/main/java/ch/so/agi/hop/geoprocessing/core/OperationGroup.java
 /Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/main/java/ch/so/agi/hop/geoprocessing/core/OperationRegistry.java
+/Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/main/java/ch/so/agi/hop/geoprocessing/core/OverlayExecution.java
 /Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/main/java/ch/so/agi/hop/geoprocessing/core/OverlayFragment.java
+/Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/main/java/ch/so/agi/hop/geoprocessing/core/OverlayMode.java
 /Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/main/java/ch/so/agi/hop/geoprocessing/core/OverlayResultRowBuilder.java
 /Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/main/java/ch/so/agi/hop/geoprocessing/core/ParameterDescriptor.java
 /Users/stefan/sources/hop-geoprocessing-plugin/hop-geoprocessing-core/src/main/java/ch/so/agi/hop/geoprocessing/core/ParameterId.java

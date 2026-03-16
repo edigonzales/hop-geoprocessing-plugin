@@ -3,6 +3,8 @@ package ch.so.agi.hop.geoprocessing.transform.layeroverlay;
 import ch.so.agi.hop.geoprocessing.core.GeometryFieldSelection;
 import ch.so.agi.hop.geoprocessing.core.GeometryFieldSelectionResolver;
 import ch.so.agi.hop.geoprocessing.core.OperationDescriptor;
+import ch.so.agi.hop.geoprocessing.core.OverlayMode;
+import ch.so.agi.hop.geoprocessing.core.ParameterId;
 import ch.so.agi.hop.geoprocessing.core.RowMetaSupport;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +42,8 @@ public class LayerOverlayDialog extends BaseTransformDialog {
   private Text wInfoTransformName;
   private Combo wPrimaryGeometryField;
   private Combo wSecondaryGeometryField;
+  private Combo wOverlayMode;
+  private Text wPrecisionScale;
   private Text wOutputFieldName;
   private Text wFieldPrefix;
   private Label wFieldStatus;
@@ -116,17 +120,33 @@ public class LayerOverlayDialog extends BaseTransformDialog {
     wInfoTransformName = addReadOnlyText(content, "Secondary info transform");
     wPrimaryGeometryField = addCombo(content, "Primary geometry field");
     wSecondaryGeometryField = addCombo(content, "Secondary geometry field");
+    wOverlayMode = addCombo(content, "Overlay mode");
+    for (OverlayMode mode : OverlayMode.values()) {
+      wOverlayMode.add(mode.name());
+    }
+    wPrecisionScale = addText(content, "Precision scale");
     wOutputFieldName = addText(content, "Output geometry field");
     wFieldPrefix = addText(content, "Secondary field prefix");
     wFieldStatus = addInfoLabel(content, "");
 
     loadFieldChoices();
     getData();
+    refreshVisibility();
 
     wTransformName.addModifyListener(event -> input.setChanged());
-    wOperation.addModifyListener(event -> input.setChanged());
+    wOperation.addModifyListener(
+        event -> {
+          input.setChanged();
+          refreshVisibility();
+        });
     wPrimaryGeometryField.addModifyListener(event -> input.setChanged());
     wSecondaryGeometryField.addModifyListener(event -> input.setChanged());
+    wOverlayMode.addModifyListener(
+        event -> {
+          input.setChanged();
+          refreshVisibility();
+        });
+    wPrecisionScale.addModifyListener(event -> input.setChanged());
     wOutputFieldName.addModifyListener(event -> input.setChanged());
     wFieldPrefix.addModifyListener(event -> input.setChanged());
 
@@ -178,6 +198,8 @@ public class LayerOverlayDialog extends BaseTransformDialog {
     selectOperation(input.getOperationId());
     wExecutionMode.setText(input.descriptor().executionMode().getLabel());
     wInfoTransformName.setText(input.getInfoTransformName());
+    wOverlayMode.setText(input.getOverlayMode().name());
+    wPrecisionScale.setText(defaultText(input.getPrecisionScale()));
     wOutputFieldName.setText(defaultText(input.getOutputFieldName()));
     wFieldPrefix.setText(defaultText(input.getFieldPrefix()));
     wTransformName.selectAll();
@@ -196,6 +218,19 @@ public class LayerOverlayDialog extends BaseTransformDialog {
     }
   }
 
+  private void refreshVisibility() {
+    OperationDescriptor descriptor = operations.get(Math.max(0, wOperation.getSelectionIndex()));
+    wExecutionMode.setText(descriptor.executionMode().getLabel());
+    boolean showOverlayMode = descriptor.requires(ParameterId.OVERLAY_MODE);
+    boolean showPrecisionScale =
+        showOverlayMode
+            && OverlayMode.valueOf(defaultText(wOverlayMode.getText(), OverlayMode.STANDARD.name()))
+                == OverlayMode.FIXED_PRECISION;
+    toggleControl(wOverlayMode, showOverlayMode);
+    toggleControl(wPrecisionScale, showPrecisionScale);
+    content.layout(true, true);
+  }
+
   private void ok() {
     if (Utils.isEmpty(wTransformName.getText())) {
       return;
@@ -208,10 +243,18 @@ public class LayerOverlayDialog extends BaseTransformDialog {
       showValidationWarning("Please select a secondary geometry field.");
       return;
     }
+    if (OverlayMode.valueOf(defaultText(wOverlayMode.getText(), OverlayMode.STANDARD.name()))
+            == OverlayMode.FIXED_PRECISION
+        && wPrecisionScale.getText().isBlank()) {
+      showValidationWarning("Please enter a precision scale for FIXED_PRECISION overlay mode.");
+      return;
+    }
     transformName = wTransformName.getText();
     input.setOperationId(operations.get(Math.max(0, wOperation.getSelectionIndex())).id());
     input.setPrimaryGeometryFieldName(wPrimaryGeometryField.getText());
     input.setSecondaryGeometryFieldName(wSecondaryGeometryField.getText());
+    input.setOverlayMode(OverlayMode.valueOf(defaultText(wOverlayMode.getText(), OverlayMode.STANDARD.name())));
+    input.setPrecisionScale(wPrecisionScale.getText());
     input.setOutputFieldName(wOutputFieldName.getText());
     input.setFieldPrefix(wFieldPrefix.getText());
     dispose();
@@ -242,38 +285,58 @@ public class LayerOverlayDialog extends BaseTransformDialog {
   }
 
   private Combo addCombo(Composite parent, String labelText) {
-    addLabel(parent, labelText);
+    Label label = addLabel(parent, labelText);
     Combo combo = new Combo(parent, SWT.DROP_DOWN | SWT.READ_ONLY | SWT.BORDER);
     combo.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+    combo.setData("label", label);
     PropsUi.setLook(combo);
     return combo;
   }
 
   private Text addText(Composite parent, String labelText) {
-    addLabel(parent, labelText);
+    Label label = addLabel(parent, labelText);
     Text text = new Text(parent, SWT.SINGLE | SWT.BORDER);
     text.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+    text.setData("label", label);
     PropsUi.setLook(text);
     return text;
   }
 
   private Text addReadOnlyText(Composite parent, String labelText) {
-    addLabel(parent, labelText);
+    Label label = addLabel(parent, labelText);
     Text text = new Text(parent, SWT.SINGLE | SWT.BORDER | SWT.READ_ONLY);
     text.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false));
+    text.setData("label", label);
     PropsUi.setLook(text);
     return text;
   }
 
-  private void addLabel(Composite parent, String labelText) {
+  private void toggleControl(org.eclipse.swt.widgets.Control control, boolean visible) {
+    GridData gridData = (GridData) control.getLayoutData();
+    gridData.exclude = !visible;
+    control.setVisible(visible);
+    Object label = control.getData("label");
+    if (label instanceof Label controlLabel) {
+      GridData labelGridData = (GridData) controlLabel.getLayoutData();
+      labelGridData.exclude = !visible;
+      controlLabel.setVisible(visible);
+    }
+  }
+
+  private Label addLabel(Composite parent, String labelText) {
     Label label = new Label(parent, SWT.RIGHT);
     label.setText(labelText);
     label.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false));
     PropsUi.setLook(label);
+    return label;
   }
 
   private String defaultText(String value) {
     return value == null ? "" : value;
+  }
+
+  private String defaultText(String value, String fallback) {
+    return value == null || value.isBlank() ? fallback : value;
   }
 
   private void applySelection(Combo combo, GeometryFieldSelection selection) {

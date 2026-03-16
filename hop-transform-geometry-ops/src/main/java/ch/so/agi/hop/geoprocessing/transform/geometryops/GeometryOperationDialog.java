@@ -7,6 +7,7 @@ import ch.so.agi.hop.geoprocessing.core.GeometryFieldSelection;
 import ch.so.agi.hop.geoprocessing.core.GeometryFieldSelectionResolver;
 import ch.so.agi.hop.geoprocessing.core.GeometryOutputMode;
 import ch.so.agi.hop.geoprocessing.core.OperationDescriptor;
+import ch.so.agi.hop.geoprocessing.core.OverlayMode;
 import ch.so.agi.hop.geoprocessing.core.ParameterId;
 import ch.so.agi.hop.geoprocessing.core.RowMetaSupport;
 import java.util.ArrayList;
@@ -49,6 +50,8 @@ public class GeometryOperationDialog extends BaseTransformDialog {
   private Combo wDistanceMode;
   private TextVar wDistanceValue;
   private Combo wDistanceField;
+  private Combo wOverlayMode;
+  private TextVar wPrecisionScale;
   private Combo wOutputMode;
   private Text wOutputField;
   private Text wBufferSegments;
@@ -135,6 +138,11 @@ public class GeometryOperationDialog extends BaseTransformDialog {
     }
     wDistanceValue = addTextVar("Static distance");
     wDistanceField = addCombo("Distance field");
+    wOverlayMode = addCombo("Overlay mode");
+    for (OverlayMode mode : OverlayMode.values()) {
+      wOverlayMode.add(mode.name());
+    }
+    wPrecisionScale = addTextVar("Precision scale");
     wOutputMode = addCombo("Output mode");
     for (GeometryOutputMode mode : GeometryOutputMode.values()) {
       wOutputMode.add(mode.name());
@@ -180,6 +188,12 @@ public class GeometryOperationDialog extends BaseTransformDialog {
         });
     wDistanceValue.addModifyListener(event -> input.setChanged());
     wDistanceField.addModifyListener(event -> input.setChanged());
+    wOverlayMode.addModifyListener(
+        event -> {
+          input.setChanged();
+          refreshVisibility();
+        });
+    wPrecisionScale.addModifyListener(event -> input.setChanged());
     wOutputMode.addModifyListener(
         event -> {
           input.setChanged();
@@ -225,6 +239,8 @@ public class GeometryOperationDialog extends BaseTransformDialog {
     wDistanceMode.setText((input.getDistanceMode() == null ? DistanceMode.STATIC : input.getDistanceMode()).name());
     wDistanceValue.setText(defaultText(input.getDistanceValue()));
     wDistanceField.setText(defaultText(input.getDistanceFieldName()));
+    wOverlayMode.setText(input.getOverlayMode().name());
+    wPrecisionScale.setText(defaultText(input.getPrecisionScale()));
     wOutputMode.setText((input.getOutputMode() == null ? GeometryOutputMode.APPEND : input.getOutputMode()).name());
     wOutputField.setText(defaultText(input.getOutputFieldName()));
     wBufferSegments.setText(String.valueOf(input.getBufferSegments() == null ? 8 : input.getBufferSegments()));
@@ -252,7 +268,13 @@ public class GeometryOperationDialog extends BaseTransformDialog {
     wExecutionMode.setText(descriptor.executionMode().getLabel());
     boolean binary = descriptor.arity().name().equals("BINARY");
     boolean needsDistance = descriptor.requires(ParameterId.DISTANCE);
+    boolean overlayOperation = descriptor.requires(ParameterId.OVERLAY_MODE);
     boolean extendedBuffer = "buffer_extended".equals(descriptor.id());
+    boolean needsPrecisionScale =
+        "reduce_precision".equals(descriptor.id())
+            || (overlayOperation
+                && OverlayMode.valueOf(defaultText(wOverlayMode.getText(), OverlayMode.STANDARD.name()))
+                    == OverlayMode.FIXED_PRECISION);
     boolean appendMode = GeometryOutputMode.valueOf(wOutputMode.getText().isBlank() ? GeometryOutputMode.APPEND.name() : wOutputMode.getText())
         == GeometryOutputMode.APPEND;
 
@@ -260,6 +282,8 @@ public class GeometryOperationDialog extends BaseTransformDialog {
     toggleControl(wDistanceMode, needsDistance);
     toggleControl(wDistanceValue, needsDistance && DistanceMode.valueOf(defaultText(wDistanceMode.getText(), DistanceMode.STATIC.name())) == DistanceMode.STATIC);
     toggleControl(wDistanceField, needsDistance && DistanceMode.valueOf(defaultText(wDistanceMode.getText(), DistanceMode.STATIC.name())) == DistanceMode.FIELD);
+    toggleControl(wOverlayMode, overlayOperation);
+    toggleControl(wPrecisionScale, needsPrecisionScale);
     toggleControl(wOutputField, appendMode);
     toggleControl(wBufferSegments, extendedBuffer);
     toggleControl(wBufferCapStyle, extendedBuffer);
@@ -290,6 +314,17 @@ public class GeometryOperationDialog extends BaseTransformDialog {
       showValidationWarning("Please select a secondary geometry field.");
       return;
     }
+    if ("reduce_precision".equals(currentDescriptor().id()) && wPrecisionScale.getText().isBlank()) {
+      showValidationWarning("Please enter a precision scale.");
+      return;
+    }
+    if (currentDescriptor().requires(ParameterId.OVERLAY_MODE)
+        && OverlayMode.valueOf(defaultText(wOverlayMode.getText(), OverlayMode.STANDARD.name()))
+            == OverlayMode.FIXED_PRECISION
+        && wPrecisionScale.getText().isBlank()) {
+      showValidationWarning("Please enter a precision scale for FIXED_PRECISION overlay mode.");
+      return;
+    }
     transformName = wTransformName.getText();
     OperationDescriptor descriptor = currentDescriptor();
     input.setOperationId(descriptor.id());
@@ -298,6 +333,8 @@ public class GeometryOperationDialog extends BaseTransformDialog {
     input.setDistanceMode(DistanceMode.valueOf(defaultText(wDistanceMode.getText(), DistanceMode.STATIC.name())));
     input.setDistanceValue(wDistanceValue.getText());
     input.setDistanceFieldName(wDistanceField.getText());
+    input.setOverlayMode(OverlayMode.valueOf(defaultText(wOverlayMode.getText(), OverlayMode.STANDARD.name())));
+    input.setPrecisionScale(wPrecisionScale.getText());
     input.setOutputMode(GeometryOutputMode.valueOf(defaultText(wOutputMode.getText(), GeometryOutputMode.APPEND.name())));
     input.setOutputFieldName(wOutputField.getText());
     input.setBufferSegments(parseInteger(wBufferSegments.getText(), 8));

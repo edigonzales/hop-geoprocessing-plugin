@@ -4,6 +4,7 @@ import ch.so.agi.hop.geoprocessing.core.OperationDescriptor;
 import ch.so.agi.hop.geoprocessing.core.OperationRegistry;
 import ch.so.agi.hop.geoprocessing.core.OverlayResultRowBuilder;
 import ch.so.agi.hop.geoprocessing.core.GeometryFieldSelection;
+import ch.so.agi.hop.geoprocessing.core.OverlayMode;
 import ch.so.agi.hop.geoprocessing.core.RowMetaSupport;
 import ch.so.agi.hop.geoprocessing.core.TransformFamily;
 import java.util.List;
@@ -38,6 +39,8 @@ public class LayerOverlayMeta extends BaseTransformMeta<LayerOverlay, LayerOverl
   @HopMetadataProperty private String secondaryGeometryFieldName;
   @HopMetadataProperty private String outputFieldName;
   @HopMetadataProperty private String fieldPrefix;
+  @HopMetadataProperty private OverlayMode overlayMode;
+  @HopMetadataProperty private String precisionScale;
 
   @Override
   public void setDefault() {
@@ -46,6 +49,8 @@ public class LayerOverlayMeta extends BaseTransformMeta<LayerOverlay, LayerOverl
     secondaryGeometryFieldName = "";
     outputFieldName = "overlay_geometry";
     fieldPrefix = "b_";
+    overlayMode = OverlayMode.STANDARD;
+    precisionScale = "";
   }
 
   @Override
@@ -159,6 +164,10 @@ public class LayerOverlayMeta extends BaseTransformMeta<LayerOverlay, LayerOverl
       remarks.add(error("Output geometry field already exists on the primary input.", transformMeta));
       return;
     }
+    if (getOverlayMode() == OverlayMode.FIXED_PRECISION && !hasPositiveNumber(precisionScale, variables)) {
+      remarks.add(error("A positive precision scale is required in FIXED_PRECISION mode.", transformMeta));
+      return;
+    }
     remarks.add(ok("Layer overlay configuration looks valid.", transformMeta));
   }
 
@@ -193,6 +202,17 @@ public class LayerOverlayMeta extends BaseTransformMeta<LayerOverlay, LayerOverl
 
   private ICheckResult ok(String message, TransformMeta transformMeta) {
     return new CheckResult(ICheckResult.TYPE_RESULT_OK, message, transformMeta);
+  }
+
+  private boolean hasPositiveNumber(String value, IVariables variables) {
+    if (value == null || value.isBlank()) {
+      return false;
+    }
+    try {
+      return Double.parseDouble(variables.resolve(value)) > 0.0d;
+    } catch (Exception e) {
+      return false;
+    }
   }
 
   public String getOperationId() {
@@ -233,5 +253,21 @@ public class LayerOverlayMeta extends BaseTransformMeta<LayerOverlay, LayerOverl
 
   public void setFieldPrefix(String fieldPrefix) {
     this.fieldPrefix = fieldPrefix;
+  }
+
+  public OverlayMode getOverlayMode() {
+    return overlayMode == null ? OverlayMode.STANDARD : overlayMode;
+  }
+
+  public void setOverlayMode(OverlayMode overlayMode) {
+    this.overlayMode = overlayMode;
+  }
+
+  public String getPrecisionScale() {
+    return precisionScale;
+  }
+
+  public void setPrecisionScale(String precisionScale) {
+    this.precisionScale = precisionScale;
   }
 }

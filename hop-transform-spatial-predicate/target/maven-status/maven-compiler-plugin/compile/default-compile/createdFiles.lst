@@ -5,3 +5,4 @@ ch/so/agi/hop/geoprocessing/transform/spatialpredicate/SpatialPredicate.class
 ch/so/agi/hop/geoprocessing/transform/spatialpredicate/SecondaryRowJoinBuilder$FieldMapping.class
 ch/so/agi/hop/geoprocessing/transform/spatialpredicate/SpatialPredicateDialog.class
 ch/so/agi/hop/geoprocessing/transform/spatialpredicate/SpatialPredicate$1.class
+ch/so/agi/hop/geoprocessing/transform/spatialpredicate/SpatialPredicateMatcher.class

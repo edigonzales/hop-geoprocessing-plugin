@@ -10,17 +10,15 @@ import ch.so.agi.hop.geoprocessing.core.SpatialIndexBuilder;
 import ch.so.agi.hop.geoprocessing.core.SpatialPredicateResultMode;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.hop.core.IRowSet;
 import org.apache.hop.core.exception.HopException;
 import org.apache.hop.core.exception.HopTransformException;
 import org.apache.hop.core.row.IRowMeta;
 import org.apache.hop.core.row.RowDataUtil;
-import org.apache.hop.core.row.value.ValueMetaBoolean;
-import org.apache.hop.core.IRowSet;
 import org.apache.hop.pipeline.Pipeline;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.pipeline.transform.BaseTransform;
 import org.apache.hop.pipeline.transform.TransformMeta;
-import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 
 public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, SpatialPredicateData> {
@@ -56,13 +54,13 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
     Double distance = resolveDistance(primaryRow);
 
     if (meta.getResultMode() == SpatialPredicateResultMode.INNER_JOIN) {
-      for (FeatureRow matchedFeature : matchingFeatures(primaryGeometry, distance)) {
+      for (FeatureRow matchedFeature : data.matcher.matchingFeatures(primaryGeometry, distance)) {
         putRow(data.outputRowMeta, data.joinBuilder.buildRow(primaryRow, matchedFeature));
       }
       return true;
     }
 
-    boolean matched = matches(primaryGeometry, distance);
+    boolean matched = data.matcher.matches(primaryGeometry, distance);
     switch (meta.getResultMode()) {
       case BOOLEAN_COLUMN -> {
         Object[] outputRow = RowDataUtil.resizeArray(primaryRow, data.outputRowMeta.size());
@@ -137,6 +135,7 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
     LayerCache secondaryLayerCache =
         new SpatialIndexBuilder().build(secondaryFeatures, data.secondaryRowMeta, false);
     data.secondaryLayerCache = secondaryLayerCache;
+    data.matcher = new SpatialPredicateMatcher(data.executor, data.secondaryLayerCache, meta.getOperationId());
 
     if (meta.getResultMode() == SpatialPredicateResultMode.INNER_JOIN) {
       data.joinBuilder =
@@ -179,50 +178,5 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
       return distance;
     }
     return data.staticDistance;
-  }
-
-  private boolean matches(Geometry primaryGeometry, Double distance) throws HopException {
-    if (primaryGeometry == null) {
-      return false;
-    }
-    if ("disjoint".equals(meta.getOperationId())) {
-      for (FeatureRow candidate : candidateFeatures(primaryGeometry, distance)) {
-        if (candidate.geometry() != null && primaryGeometry.intersects(candidate.geometry())) {
-          return false;
-        }
-      }
-      return true;
-    }
-    if ("distance_gte".equals(meta.getOperationId())) {
-      for (FeatureRow candidate : candidateFeatures(primaryGeometry, distance)) {
-        if (candidate.geometry() != null
-            && data.executor.test("distance_lte", primaryGeometry, candidate.geometry(), distance)) {
-          return false;
-        }
-      }
-      return true;
-    }
-    return !matchingFeatures(primaryGeometry, distance).isEmpty();
-  }
-
-  private List<FeatureRow> matchingFeatures(Geometry primaryGeometry, Double distance) throws HopException {
-    List<FeatureRow> matches = new ArrayList<>();
-    if (primaryGeometry == null) {
-      return matches;
-    }
-    for (FeatureRow candidate : candidateFeatures(primaryGeometry, distance)) {
-      if (candidate.geometry() == null) {
-        continue;
-      }
-      if (data.executor.test(meta.getOperationId(), primaryGeometry, candidate.geometry(), distance)) {
-        matches.add(candidate);
-      }
-    }
-    return matches;
-  }
-
-  private List<FeatureRow> candidateFeatures(Geometry primaryGeometry, Double distance) throws HopException {
-    Envelope envelope = data.executor.searchEnvelope(meta.getOperationId(), primaryGeometry, distance);
-    return data.secondaryLayerCache.query(envelope);
   }
 }

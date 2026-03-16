@@ -16,6 +16,7 @@ public class LayerOverlayData extends BaseTransformData implements ITransformDat
   IRowSet secondaryRowSet;
   int primaryGeometryFieldIndex = -1;
   int secondaryGeometryFieldIndex = -1;
+  Double staticPrecisionScale;
   LayerCache secondaryLayerCache;
   OverlayResultRowBuilder outputRowBuilder;
   final LayerOverlayExecutor executor = new LayerOverlayExecutor();

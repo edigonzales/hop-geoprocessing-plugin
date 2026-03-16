@@ -21,5 +21,6 @@ public class SpatialPredicateData extends BaseTransformData implements ITransfor
   int booleanFieldIndex = -1;
   Double staticDistance;
   final SpatialPredicateExecutor executor = new SpatialPredicateExecutor();
+  SpatialPredicateMatcher matcher;
   boolean initialized;
 }

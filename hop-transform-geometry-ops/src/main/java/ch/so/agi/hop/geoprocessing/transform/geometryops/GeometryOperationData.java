@@ -12,5 +12,6 @@ public class GeometryOperationData extends BaseTransformData implements ITransfo
   int distanceFieldIndex = -1;
   int outputGeometryFieldIndex = -1;
   Double staticDistance;
+  Double staticPrecisionScale;
   final GeometryOperationExecutor executor = new GeometryOperationExecutor();
 }

@@ -4,11 +4,16 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.hop.core.exception.HopException;
 import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.operation.union.UnaryUnionOp;
+import org.locationtech.jts.operation.overlayng.OverlayNG;
 
 public class LayerOverlayExecutor {
 
-  public List<OverlayFragment> execute(String operationId, FeatureRow primaryFeature, LayerCache secondaryCache)
+  public List<OverlayFragment> execute(
+      String operationId,
+      FeatureRow primaryFeature,
+      LayerCache secondaryCache,
+      OverlayMode overlayMode,
+      Double precisionScale)
       throws HopException {
     Geometry primaryGeometry = GeometryFieldValueHelper.normalize(primaryFeature.geometry());
     if (primaryGeometry == null) {
@@ -16,15 +21,21 @@ public class LayerOverlayExecutor {
     }
 
     return switch (operationId) {
-      case "clip" -> clip(primaryFeature, secondaryCache);
-      case "erase" -> erase(primaryFeature, secondaryCache);
-      case "identity" -> identity(primaryFeature, secondaryCache);
-      case "intersection" -> intersection(primaryFeature, secondaryCache);
+      case "clip" -> clip(primaryFeature, secondaryCache, overlayMode, precisionScale);
+      case "erase" -> erase(primaryFeature, secondaryCache, overlayMode, precisionScale);
+      case "identity" -> identity(primaryFeature, secondaryCache, overlayMode, precisionScale);
+      case "intersection" -> intersection(primaryFeature, secondaryCache, overlayMode, precisionScale);
       default -> throw new HopException("Unsupported layer overlay operation: " + operationId);
     };
   }
 
-  private List<OverlayFragment> intersection(FeatureRow primaryFeature, LayerCache secondaryCache)
+  public List<OverlayFragment> execute(String operationId, FeatureRow primaryFeature, LayerCache secondaryCache)
+      throws HopException {
+    return execute(operationId, primaryFeature, secondaryCache, OverlayMode.STANDARD, null);
+  }
+
+  private List<OverlayFragment> intersection(
+      FeatureRow primaryFeature, LayerCache secondaryCache, OverlayMode overlayMode, Double precisionScale)
       throws HopException {
     List<OverlayFragment> fragments = new ArrayList<>();
     for (FeatureRow secondaryFeature : secondaryCache.query(primaryFeature.geometry())) {
@@ -38,7 +49,13 @@ public class LayerOverlayExecutor {
       }
       Geometry geometry =
           GeometryFieldValueHelper.preserveSrid(
-              primaryFeature.geometry(), primaryFeature.geometry().intersection(secondaryFeature.geometry()));
+              primaryFeature.geometry(),
+              OverlayExecution.overlay(
+                  primaryFeature.geometry(),
+                  secondaryFeature.geometry(),
+                  overlayMode,
+                  precisionScale,
+                  OverlayNG.INTERSECTION));
       if (geometry != null) {
         fragments.add(new OverlayFragment(geometry, secondaryFeature));
       }
@@ -46,29 +63,38 @@ public class LayerOverlayExecutor {
     return fragments;
   }
 
-  private List<OverlayFragment> clip(FeatureRow primaryFeature, LayerCache secondaryCache) {
+  private List<OverlayFragment> clip(
+      FeatureRow primaryFeature, LayerCache secondaryCache, OverlayMode overlayMode, Double precisionScale)
+      throws HopException {
     Geometry unionGeometry = secondaryCache.getUnionGeometry();
     if (unionGeometry == null) {
       return List.of();
     }
     Geometry geometry =
         GeometryFieldValueHelper.preserveSrid(
-            primaryFeature.geometry(), primaryFeature.geometry().intersection(unionGeometry));
+            primaryFeature.geometry(),
+            OverlayExecution.overlay(
+                primaryFeature.geometry(), unionGeometry, overlayMode, precisionScale, OverlayNG.INTERSECTION));
     return geometry == null ? List.of() : List.of(new OverlayFragment(geometry, null));
   }
 
-  private List<OverlayFragment> erase(FeatureRow primaryFeature, LayerCache secondaryCache) {
+  private List<OverlayFragment> erase(
+      FeatureRow primaryFeature, LayerCache secondaryCache, OverlayMode overlayMode, Double precisionScale)
+      throws HopException {
     Geometry unionGeometry = secondaryCache.getUnionGeometry();
     if (unionGeometry == null) {
       return List.of(new OverlayFragment(primaryFeature.geometry(), null));
     }
     Geometry geometry =
         GeometryFieldValueHelper.preserveSrid(
-            primaryFeature.geometry(), primaryFeature.geometry().difference(unionGeometry));
+            primaryFeature.geometry(),
+            OverlayExecution.overlay(
+                primaryFeature.geometry(), unionGeometry, overlayMode, precisionScale, OverlayNG.DIFFERENCE));
     return geometry == null ? List.of() : List.of(new OverlayFragment(geometry, null));
   }
 
-  private List<OverlayFragment> identity(FeatureRow primaryFeature, LayerCache secondaryCache)
+  private List<OverlayFragment> identity(
+      FeatureRow primaryFeature, LayerCache secondaryCache, OverlayMode overlayMode, Double precisionScale)
       throws HopException {
     List<OverlayFragment> fragments = new ArrayList<>();
     List<FeatureRow> matchedFeatures = new ArrayList<>();
@@ -84,7 +110,13 @@ public class LayerOverlayExecutor {
       }
       Geometry fragment =
           GeometryFieldValueHelper.preserveSrid(
-              primaryFeature.geometry(), primaryFeature.geometry().intersection(secondaryFeature.geometry()));
+              primaryFeature.geometry(),
+              OverlayExecution.overlay(
+                  primaryFeature.geometry(),
+                  secondaryFeature.geometry(),
+                  overlayMode,
+                  precisionScale,
+                  OverlayNG.INTERSECTION));
       if (fragment != null) {
         fragments.add(new OverlayFragment(fragment, secondaryFeature));
         matchedFeatures.add(secondaryFeature);
@@ -96,10 +128,14 @@ public class LayerOverlayExecutor {
     }
 
     List<Geometry> matchedGeometries = matchedFeatures.stream().map(FeatureRow::geometry).toList();
-    Geometry union = GeometryFieldValueHelper.normalize(UnaryUnionOp.union(matchedGeometries));
+    Geometry union =
+        GeometryFieldValueHelper.normalize(
+            OverlayExecution.union(matchedGeometries, overlayMode, precisionScale));
     Geometry remainder =
         GeometryFieldValueHelper.preserveSrid(
-            primaryFeature.geometry(), primaryFeature.geometry().difference(union));
+            primaryFeature.geometry(),
+            OverlayExecution.overlay(
+                primaryFeature.geometry(), union, overlayMode, precisionScale, OverlayNG.DIFFERENCE));
     if (remainder != null) {
       fragments.add(new OverlayFragment(remainder, null));
     }

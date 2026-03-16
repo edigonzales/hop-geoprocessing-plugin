@@ -7,6 +7,7 @@ import ch.so.agi.hop.geoprocessing.core.GeometryFieldSelection;
 import ch.so.agi.hop.geoprocessing.core.GeometryOutputMode;
 import ch.so.agi.hop.geoprocessing.core.OperationDescriptor;
 import ch.so.agi.hop.geoprocessing.core.OperationRegistry;
+import ch.so.agi.hop.geoprocessing.core.OverlayMode;
 import ch.so.agi.hop.geoprocessing.core.RowMetaSupport;
 import ch.so.agi.hop.geoprocessing.core.TransformFamily;
 import com.atolcd.hop.core.row.value.ValueMetaGeometry;
@@ -40,6 +41,8 @@ public class GeometryOperationMeta
   @HopMetadataProperty private DistanceMode distanceMode;
   @HopMetadataProperty private String distanceValue;
   @HopMetadataProperty private String distanceFieldName;
+  @HopMetadataProperty private OverlayMode overlayMode;
+  @HopMetadataProperty private String precisionScale;
   @HopMetadataProperty private GeometryOutputMode outputMode;
   @HopMetadataProperty private String outputFieldName;
   @HopMetadataProperty private Integer bufferSegments;
@@ -55,6 +58,8 @@ public class GeometryOperationMeta
     distanceMode = DistanceMode.STATIC;
     distanceValue = "1.0";
     distanceFieldName = "";
+    overlayMode = OverlayMode.STANDARD;
+    precisionScale = "";
     outputMode = GeometryOutputMode.APPEND;
     outputFieldName = "geometry_result";
     bufferSegments = 8;
@@ -138,6 +143,18 @@ public class GeometryOperationMeta
         return;
       }
     }
+    if (descriptor.requires(ch.so.agi.hop.geoprocessing.core.ParameterId.OVERLAY_MODE)
+        && getOverlayMode() == OverlayMode.FIXED_PRECISION
+        && !hasPositiveNumber(precisionScale, variables)) {
+      remarks.add(error("A positive precision scale is required in FIXED_PRECISION mode.", transformMeta));
+      return;
+    }
+    if (descriptor.requires(ch.so.agi.hop.geoprocessing.core.ParameterId.PRECISION_SCALE)
+        && "reduce_precision".equals(descriptor.id())
+        && !hasPositiveNumber(precisionScale, variables)) {
+      remarks.add(error("A positive precision scale is required for Reduce Precision.", transformMeta));
+      return;
+    }
     if (outputMode == GeometryOutputMode.APPEND) {
       if (outputFieldName == null || outputFieldName.isBlank()) {
         remarks.add(error("Output field name is required in APPEND mode.", transformMeta));
@@ -170,6 +187,17 @@ public class GeometryOperationMeta
 
   private ICheckResult ok(String message, TransformMeta transformMeta) {
     return new CheckResult(ICheckResult.TYPE_RESULT_OK, message, transformMeta);
+  }
+
+  private boolean hasPositiveNumber(String value, IVariables variables) {
+    if (value == null || value.isBlank()) {
+      return false;
+    }
+    try {
+      return Double.parseDouble(variables.resolve(value)) > 0.0d;
+    } catch (Exception e) {
+      return false;
+    }
   }
 
   public String getOperationId() {
@@ -218,6 +246,22 @@ public class GeometryOperationMeta
 
   public void setDistanceFieldName(String distanceFieldName) {
     this.distanceFieldName = distanceFieldName;
+  }
+
+  public OverlayMode getOverlayMode() {
+    return overlayMode == null ? OverlayMode.STANDARD : overlayMode;
+  }
+
+  public void setOverlayMode(OverlayMode overlayMode) {
+    this.overlayMode = overlayMode;
+  }
+
+  public String getPrecisionScale() {
+    return precisionScale;
+  }
+
+  public void setPrecisionScale(String precisionScale) {
+    this.precisionScale = precisionScale;
   }
 
   public GeometryOutputMode getOutputMode() {

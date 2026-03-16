@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import org.apache.hop.core.exception.HopException;
 import org.locationtech.jts.algorithm.MinimumBoundingCircle;
+import org.locationtech.jts.algorithm.MinimumDiameter;
 import org.locationtech.jts.algorithm.hull.ConcaveHull;
 import org.locationtech.jts.densify.Densifier;
 import org.locationtech.jts.geom.Coordinate;
@@ -20,6 +21,7 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.Polygonal;
 import org.locationtech.jts.geom.Puntal;
+import org.locationtech.jts.geom.util.GeometryFixer;
 import org.locationtech.jts.linearref.LengthIndexedLine;
 import org.locationtech.jts.operation.buffer.BufferOp;
 import org.locationtech.jts.operation.buffer.BufferParameters;
@@ -28,7 +30,9 @@ import org.locationtech.jts.operation.overlay.snap.GeometrySnapper;
 import org.locationtech.jts.operation.polygonize.Polygonizer;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
 import org.locationtech.jts.simplify.DouglasPeuckerSimplifier;
+import org.locationtech.jts.simplify.TopologyPreservingSimplifier;
 import org.locationtech.jts.simplify.VWSimplifier;
+import org.locationtech.jts.precision.GeometryPrecisionReducer;
 
 public class GeometryOperationExecutor {
 
@@ -37,6 +41,8 @@ public class GeometryOperationExecutor {
       Geometry primaryGeometry,
       Geometry secondaryGeometry,
       Double distance,
+      OverlayMode overlayMode,
+      Double precisionScale,
       Integer bufferSegments,
       BufferCapStyle bufferCapStyle,
       BufferJoinStyle bufferJoinStyle,
@@ -68,42 +74,84 @@ public class GeometryOperationExecutor {
               normalize(primary, ConcaveHull.concaveHullByLength(primary, Math.abs(requireDistance(distance, "Maximum edge length"))));
           case "convex_hull" -> normalize(primary, primary.convexHull());
           case "densify" -> normalize(primary, Densifier.densify(primary, Math.abs(requireDistance(distance, "Distance"))));
-          case "difference" -> normalize(primary, binary(Geometry::difference, primary, secondary));
+          case "difference" ->
+              normalize(primary, binaryOverlay(primary, secondary, overlayMode, precisionScale, org.locationtech.jts.operation.overlayng.OverlayNG.DIFFERENCE));
           case "extract_coordinates" ->
               normalize(primary, primary.getFactory().createMultiPointFromCoords(primary.getCoordinates()));
+          case "fix_geometry" -> normalize(primary, GeometryFixer.fix(primary));
           case "interior_point" -> normalize(primary, primary.getInteriorPoint());
-          case "intersection" -> normalize(primary, binary(Geometry::intersection, primary, secondary));
+          case "intersection" ->
+              normalize(primary, binaryOverlay(primary, secondary, overlayMode, precisionScale, org.locationtech.jts.operation.overlayng.OverlayNG.INTERSECTION));
           case "line_merge" -> normalize(primary, lineMerge(primary));
           case "linear_referencing" ->
               normalize(primary, linearReferencing(primary, requireDistance(distance, "Distance")));
           case "mbc" -> normalize(primary, new MinimumBoundingCircle(primary).getCircle());
-          case "mbr" -> normalize(primary, primary.getEnvelope());
+          case "envelope" -> normalize(primary, primary.getEnvelope());
+          case "minimum_bounding_rectangle" ->
+              normalize(primary, new MinimumDiameter(primary).getMinimumRectangle());
+          case "minimum_diameter" ->
+              normalize(primary, new MinimumDiameter(primary).getDiameter());
           case "polygonize" -> normalize(primary, polygonize(primary));
-          case "remove_holes" -> normalize(primary, removeHoles(primary, requireDistance(distance, "Area threshold")));
+          case "reduce_precision" ->
+              normalize(primary, GeometryPrecisionReducer.reduce(primary, OverlayExecution.precisionModel(requirePrecisionScale(precisionScale))));
+          case "remove_all_holes" -> normalize(primary, removeAllHoles(primary));
+          case "remove_small_holes" ->
+              normalize(primary, removeSmallHoles(primary, requireDistance(distance, "Area threshold")));
           case "reverse" -> normalize(primary, primary.reverse());
           case "simplify" ->
               normalize(primary, DouglasPeuckerSimplifier.simplify(primary, Math.abs(requireDistance(distance, "Distance"))));
+          case "simplify_topology" ->
+              normalize(primary, TopologyPreservingSimplifier.simplify(primary, Math.abs(requireDistance(distance, "Distance"))));
           case "simplify_vw" ->
               normalize(primary, VWSimplifier.simplify(primary, Math.abs(requireDistance(distance, "Distance"))));
           case "snap" ->
               normalize(primary, snap(primary, secondary, Math.abs(requireDistance(distance, "Snap distance"))));
+          case "snap_to_self" ->
+              normalize(primary, GeometrySnapper.snapToSelf(primary, Math.abs(requireDistance(distance, "Snap distance")), true));
           case "split" -> normalize(primary, split(primary, secondary));
-          case "sym_difference" -> normalize(primary, binary(Geometry::symDifference, primary, secondary));
+          case "sym_difference" ->
+              normalize(primary, binaryOverlay(primary, secondary, overlayMode, precisionScale, org.locationtech.jts.operation.overlayng.OverlayNG.SYMDIFFERENCE));
           case "to_2d" -> normalize(primary, GeometryFieldValueHelper.force2D(primary));
           case "to_multi" -> normalize(primary, GeometryFieldValueHelper.toMulti(primary));
-          case "union" -> normalize(primary, binary(Geometry::union, primary, secondary));
+          case "union" ->
+              normalize(primary, binaryOverlay(primary, secondary, overlayMode, precisionScale, org.locationtech.jts.operation.overlayng.OverlayNG.UNION));
           default -> throw new HopException("Unsupported geometry operation: " + operationId);
         };
 
     return result == null ? List.of() : List.of(result);
   }
 
-  private Geometry binary(BinaryGeometryOperator operator, Geometry left, Geometry right) throws HopException {
+  public List<Geometry> execute(
+      String operationId,
+      Geometry primaryGeometry,
+      Geometry secondaryGeometry,
+      Double distance,
+      Integer bufferSegments,
+      BufferCapStyle bufferCapStyle,
+      BufferJoinStyle bufferJoinStyle,
+      boolean singleSided)
+      throws HopException {
+    return execute(
+        operationId,
+        primaryGeometry,
+        secondaryGeometry,
+        distance,
+        OverlayMode.STANDARD,
+        null,
+        bufferSegments,
+        bufferCapStyle,
+        bufferJoinStyle,
+        singleSided);
+  }
+
+  private Geometry binaryOverlay(
+      Geometry left, Geometry right, OverlayMode overlayMode, Double precisionScale, int operationCode)
+      throws HopException {
     if (right == null) {
       return null;
     }
     GeometryFieldValueHelper.requireCompatibleSrid(left, right, "Geometry SRIDs must match");
-    return operator.apply(left, right);
+    return OverlayExecution.overlay(left, right, overlayMode, precisionScale, operationCode);
   }
 
   private Geometry unwrapBoundary(Geometry boundary, Geometry source) {
@@ -141,7 +189,7 @@ public class GeometryOperationExecutor {
     return geometry.getFactory().buildGeometry(new ArrayList<>(polygons));
   }
 
-  private Geometry removeHoles(Geometry geometry, double areaThreshold) {
+  private Geometry removeSmallHoles(Geometry geometry, double areaThreshold) {
     GeometryFactory factory = geometry.getFactory();
     if (geometry instanceof Polygon polygon) {
       List<LinearRing> retained = new ArrayList<>();
@@ -156,7 +204,22 @@ public class GeometryOperationExecutor {
     if (geometry instanceof MultiPolygon multiPolygon) {
       Polygon[] polygons = new Polygon[multiPolygon.getNumGeometries()];
       for (int index = 0; index < multiPolygon.getNumGeometries(); index++) {
-        polygons[index] = (Polygon) removeHoles(multiPolygon.getGeometryN(index), areaThreshold);
+        polygons[index] = (Polygon) removeSmallHoles(multiPolygon.getGeometryN(index), areaThreshold);
+      }
+      return factory.createMultiPolygon(polygons);
+    }
+    return geometry;
+  }
+
+  private Geometry removeAllHoles(Geometry geometry) {
+    GeometryFactory factory = geometry.getFactory();
+    if (geometry instanceof Polygon polygon) {
+      return factory.createPolygon((LinearRing) polygon.getExteriorRing());
+    }
+    if (geometry instanceof MultiPolygon multiPolygon) {
+      Polygon[] polygons = new Polygon[multiPolygon.getNumGeometries()];
+      for (int index = 0; index < multiPolygon.getNumGeometries(); index++) {
+        polygons[index] = (Polygon) removeAllHoles(multiPolygon.getGeometryN(index));
       }
       return factory.createMultiPolygon(polygons);
     }
@@ -255,8 +318,13 @@ public class GeometryOperationExecutor {
     return distance;
   }
 
-  @FunctionalInterface
-  private interface BinaryGeometryOperator {
-    Geometry apply(Geometry left, Geometry right);
+  private double requirePrecisionScale(Double precisionScale) throws HopException {
+    if (precisionScale == null) {
+      throw new HopException("Precision scale is required");
+    }
+    if (precisionScale <= 0.0d) {
+      throw new HopException("Precision scale must be a positive number");
+    }
+    return precisionScale;
   }
 }

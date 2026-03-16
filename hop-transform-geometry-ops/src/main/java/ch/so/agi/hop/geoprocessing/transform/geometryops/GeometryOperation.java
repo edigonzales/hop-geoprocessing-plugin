@@ -6,6 +6,7 @@ import ch.so.agi.hop.geoprocessing.core.GeometryFieldSelectionResolver;
 import ch.so.agi.hop.geoprocessing.core.GeometryFieldValueHelper;
 import ch.so.agi.hop.geoprocessing.core.GeometryOutputMode;
 import ch.so.agi.hop.geoprocessing.core.OperationDescriptor;
+import ch.so.agi.hop.geoprocessing.core.OverlayMode;
 import org.apache.hop.core.exception.HopException;
 import org.apache.hop.core.exception.HopTransformException;
 import org.apache.hop.core.row.IRowMeta;
@@ -61,6 +62,8 @@ public class GeometryOperation
             primaryGeometry,
             secondaryGeometry,
             distance,
+            meta.getOverlayMode(),
+            data.staticPrecisionScale,
             meta.getBufferSegments(),
             meta.getBufferCapStyle(),
             meta.getBufferJoinStyle(),
@@ -108,6 +111,10 @@ public class GeometryOperation
         meta.getDistanceMode() == DistanceMode.STATIC && meta.getDistanceValue() != null
             ? Double.parseDouble(resolve(meta.getDistanceValue()))
             : null;
+    data.staticPrecisionScale =
+        requiresPrecisionScale()
+            ? Double.parseDouble(resolve(meta.getPrecisionScale()))
+            : null;
     data.outputGeometryFieldIndex =
         meta.getOutputMode() == GeometryOutputMode.REPLACE
             ? data.primaryGeometryFieldIndex
@@ -116,6 +123,14 @@ public class GeometryOperation
       throw new HopTransformException(
           "Output geometry field was not found on the output row: " + meta.getOutputFieldName());
     }
+  }
+
+  private boolean requiresPrecisionScale() {
+    if ("reduce_precision".equals(meta.getOperationId())) {
+      return true;
+    }
+    return descriptor.requires(ch.so.agi.hop.geoprocessing.core.ParameterId.OVERLAY_MODE)
+        && meta.getOverlayMode() == OverlayMode.FIXED_PRECISION;
   }
 
   private void logSelectionWarning(String warning) {

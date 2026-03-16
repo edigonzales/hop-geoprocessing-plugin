@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: ch.so.agi.hop.geoprocessing.core.LayerAggregateExecutorTest
 -------------------------------------------------------------------------------
-Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.046 s -- in ch.so.agi.hop.geoprocessing.core.LayerAggregateExecutorTest
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.030 s -- in ch.so.agi.hop.geoprocessing.core.LayerAggregateExecutorTest
