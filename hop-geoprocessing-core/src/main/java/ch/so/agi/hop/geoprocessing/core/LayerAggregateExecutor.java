@@ -7,6 +7,7 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.operation.union.UnaryUnionOp;
 
 public class LayerAggregateExecutor {
+  private final CoverageOperationExecutor coverageExecutor = new CoverageOperationExecutor();
 
   public Geometry execute(String operationId, List<Geometry> geometries) throws HopException {
     List<Geometry> nonEmptyGeometries =
@@ -20,6 +21,7 @@ public class LayerAggregateExecutor {
         switch (operationId) {
           case "collect" -> firstGeometry.getFactory().buildGeometry(new ArrayList<>(nonEmptyGeometries));
           case "dissolve", "unary_union" -> UnaryUnionOp.union(nonEmptyGeometries);
+          case "coverage_union" -> coverageExecutor.union(nonEmptyGeometries);
           default -> throw new HopException("Unsupported layer aggregate operation: " + operationId);
         };
     return GeometryFieldValueHelper.preserveSrid(firstGeometry, result);

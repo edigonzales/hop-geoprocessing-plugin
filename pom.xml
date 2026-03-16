@@ -14,6 +14,7 @@
   <modules>
     <module>hop-geoprocessing-core</module>
     <module>hop-transform-geometry-ops</module>
+    <module>hop-transform-coverage-ops</module>
     <module>hop-transform-spatial-predicate</module>
     <module>hop-transform-layer-overlay</module>
     <module>hop-transform-layer-aggregate</module>

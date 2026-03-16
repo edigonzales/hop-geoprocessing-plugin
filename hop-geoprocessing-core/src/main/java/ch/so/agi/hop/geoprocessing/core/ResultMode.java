@@ -5,5 +5,6 @@ public enum ResultMode {
   BOOLEAN,
   FILTER,
   JOIN,
-  AGGREGATE
+  AGGREGATE,
+  COVERAGE
 }

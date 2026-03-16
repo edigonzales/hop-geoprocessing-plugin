@@ -28,6 +28,13 @@ class LayerAggregateExecutorTest {
     assertThat(union.getArea()).isEqualTo(2.0);
   }
 
+  @Test
+  void coverageUnionMergesAdjacentPolygons() throws Exception {
+    Geometry union = executor.execute("coverage_union", List.of(square(0, 0, 1), square(1, 0, 1)));
+
+    assertThat(union.getArea()).isEqualTo(2.0);
+  }
+
   private Polygon square(double minX, double minY, double size) {
     return geometryFactory.createPolygon(
         new Coordinate[] {

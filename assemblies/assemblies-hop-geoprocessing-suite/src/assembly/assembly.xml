@@ -16,6 +16,7 @@
       <unpack>false</unpack>
       <includes>
         <include>ch.so.agi:hop-transform-geometry-ops</include>
+        <include>ch.so.agi:hop-transform-coverage-ops</include>
         <include>ch.so.agi:hop-transform-spatial-predicate</include>
         <include>ch.so.agi:hop-transform-layer-overlay</include>
         <include>ch.so.agi:hop-transform-layer-aggregate</include>
@@ -31,6 +32,7 @@
       <unpack>false</unpack>
       <excludes>
         <exclude>ch.so.agi:hop-transform-geometry-ops</exclude>
+        <exclude>ch.so.agi:hop-transform-coverage-ops</exclude>
         <exclude>ch.so.agi:hop-transform-spatial-predicate</exclude>
         <exclude>ch.so.agi:hop-transform-layer-overlay</exclude>
         <exclude>ch.so.agi:hop-transform-layer-aggregate</exclude>

@@ -438,12 +438,67 @@ public final class OperationRegistry {
               ResultMode.AGGREGATE),
           descriptor(
               TransformFamily.LAYER_AGGREGATE,
+              "coverage_union",
+              "Coverage Union",
+              OperationGroup.AGGREGATE,
+              OperationArity.GROUP,
+              ExecutionMode.BLOCKING_LAYER,
+              ResultMode.AGGREGATE),
+          descriptor(
+              TransformFamily.LAYER_AGGREGATE,
               "collect",
               "Collect",
               OperationGroup.AGGREGATE,
               OperationArity.GROUP,
               ExecutionMode.BLOCKING_LAYER,
-              ResultMode.AGGREGATE));
+              ResultMode.AGGREGATE),
+          descriptor(
+              TransformFamily.COVERAGE_OPERATION,
+              "coverage_validate",
+              "Validate Coverage",
+              OperationGroup.COVERAGE,
+              OperationArity.GROUP,
+              ExecutionMode.BLOCKING_LAYER,
+              ResultMode.COVERAGE,
+              parameter(ParameterId.GAP_WIDTH, "Gap width", ParameterType.NUMBER, false)),
+          descriptor(
+              TransformFamily.COVERAGE_OPERATION,
+              "coverage_simplify",
+              "Simplify Coverage (Topology Preserving)",
+              OperationGroup.COVERAGE,
+              OperationArity.GROUP,
+              ExecutionMode.BLOCKING_LAYER,
+              ResultMode.COVERAGE,
+              parameter(ParameterId.DISTANCE, "Tolerance", ParameterType.NUMBER, true)),
+          descriptor(
+              TransformFamily.COVERAGE_OPERATION,
+              "coverage_simplify_inner",
+              "Simplify Coverage Inner Edges",
+              OperationGroup.COVERAGE,
+              OperationArity.GROUP,
+              ExecutionMode.BLOCKING_LAYER,
+              ResultMode.COVERAGE,
+              parameter(ParameterId.DISTANCE, "Tolerance", ParameterType.NUMBER, true)),
+          descriptor(
+              TransformFamily.COVERAGE_OPERATION,
+              "coverage_simplify_outer",
+              "Simplify Coverage Outer Edges",
+              OperationGroup.COVERAGE,
+              OperationArity.GROUP,
+              ExecutionMode.BLOCKING_LAYER,
+              ResultMode.COVERAGE,
+              parameter(ParameterId.DISTANCE, "Tolerance", ParameterType.NUMBER, true)),
+          descriptor(
+              TransformFamily.COVERAGE_OPERATION,
+              "coverage_clean",
+              "Clean Coverage",
+              OperationGroup.COVERAGE,
+              OperationArity.GROUP,
+              ExecutionMode.BLOCKING_LAYER,
+              ResultMode.COVERAGE,
+              parameter(ParameterId.GAP_WIDTH, "Gap width", ParameterType.NUMBER, false),
+              parameter(ParameterId.SNAPPING_DISTANCE, "Snapping distance", ParameterType.NUMBER, false),
+              parameter(ParameterId.MERGE_STRATEGY, "Merge strategy", ParameterType.ENUM, false)));
 
   private static final Map<TransformFamily, List<OperationDescriptor>> BY_FAMILY =
       ALL_OPERATIONS.stream().collect(Collectors.groupingBy(OperationDescriptor::family, () -> new EnumMap<>(TransformFamily.class), Collectors.toList()));

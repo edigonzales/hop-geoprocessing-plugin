@@ -8,7 +8,8 @@ public enum OperationGroup {
   COLLECTION("Collection"),
   PREDICATE("Predicate"),
   OVERLAY("Overlay"),
-  AGGREGATE("Aggregate");
+  AGGREGATE("Aggregate"),
+  COVERAGE("Coverage");
 
   private final String label;
 

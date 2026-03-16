@@ -1,44 +1,46 @@
 # hop-geoprocessing-plugin
 
 Apache Hop geoprocessing plugin suite for geometry editing, spatial predicates, layer overlay,
-and layer aggregation based on JTS and `hop-geometry-type`.
+coverage processing, and layer aggregation based on JTS and `hop-geometry-type`.
 
-## Modules
+## Documentation
 
-- `hop-geoprocessing-core`
-  - Shared operation registry, geometry parsing helpers, spatial index cache, overlay row builder,
-    and execution services.
-- `hop-transform-geometry-ops`
-  - Single-input transform for row-wise geometry operations.
-  - Execution mode: `Streaming`.
-- `hop-transform-spatial-predicate`
-  - Primary input + info stream transform for spatial predicates and inner spatial joins.
-  - Execution mode: `Caches secondary layer`.
-- `hop-transform-layer-overlay`
-  - Primary input + info stream transform for layer overlay results.
-  - Execution mode: `Blocking per layer`.
-- `hop-transform-layer-aggregate`
-  - Single-input transform for group-wise geometry aggregation.
-  - Execution mode: `Blocking per layer/group`.
-- `assemblies/assemblies-hop-geoprocessing-suite`
-  - Installable Hop plugin ZIP under `plugins/transforms/hop-geoprocessing`.
+Detailed documentation lives in [docs/README.md](docs/README.md).
 
-## Operation Groups
+- [Overview](docs/README.md)
+- [Execution Models](docs/execution-models.md)
+- [Reference Matrix](docs/reference-matrix.md)
+- [Performance & Memory](docs/performance-memory.md)
+- Family docs:
+  - [Geometry Operation](docs/families/geometry-operation.md)
+  - [Spatial Predicate](docs/families/spatial-predicate.md)
+  - [Layer Overlay](docs/families/layer-overlay.md)
+  - [Layer Aggregate](docs/families/layer-aggregate.md)
+  - [Coverage Operation](docs/families/coverage-operation.md)
+- [Recipes](docs/recipes/README.md)
 
-Inspired by QGIS processing categories:
+## Transform Families
 
-- `Geometry Ops`
-  - constructive and editing operations such as `buffer`, `centroid`, `simplify`, `split`.
+- `Geometry Operation`
+  - 34 operations
+  - single input
+  - execution: `Streaming`
 - `Spatial Predicate`
-  - boolean/filter/join operations such as `intersects`, `contains`, `distance <=`.
+  - 9 operations
+  - primary input + secondary info stream
+  - execution: `Caches secondary layer`
 - `Layer Overlay`
-  - overlay operations producing new geometries and A/B attributes such as `intersection`,
-    `clip`, `erase`, `identity`.
+  - 4 operations
+  - primary input + secondary info stream
+  - execution: `Blocking per layer`
 - `Layer Aggregate`
-  - block-wise aggregation such as `dissolve`, `unary_union`, `collect`.
-
-`intersection` and `intersects` are intentionally separate transforms because they have different
-execution models and different outputs.
+  - 4 operations
+  - single input, optional grouping
+  - execution: `Blocking per layer/group`
+- `Coverage Operation`
+  - 5 operations
+  - single input, optional grouping
+  - execution: `Blocking per layer/group`
 
 ## Build
 
