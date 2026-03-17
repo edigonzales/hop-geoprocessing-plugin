@@ -58,22 +58,35 @@ Full list: [Reference Matrix](../reference-matrix.md#coverage-operation)
 
 When the selected operation is `coverage_validate`, the transform keeps the main output
 row-preserving and appends validation result fields. By default these fields are
-`coverage_is_valid` and `coverage_error`, but both names are configurable.
+`coverage_is_valid`, `coverage_error`, and `coverage_error_type`, and all three names are
+configurable.
 
 | Stream | Rows included | Fields | Empty when |
 | --- | --- | --- | --- |
-| Main output | All input rows, in original row order | All input fields plus the validation boolean field and the error geometry field | Only when the transform receives no input rows |
+| Main output | All input rows, in original row order | All input fields plus the validation boolean field, the error geometry field, and the error type field | Only when the transform receives no input rows |
 | Reject target | Only rows whose validation boolean is `false` | The same row structure as the main output | No invalid rows were found, no reject target is connected, or the selected operation is not `coverage_validate` |
 
 Validation result semantics:
 
 - With the default field names, valid rows are emitted on the main output with
-  `coverage_is_valid = true` and `coverage_error = null`.
+  `coverage_is_valid = true`, `coverage_error = null`, and `coverage_error_type = null`.
 - With the default field names, invalid rows are emitted on the main output with
-  `coverage_is_valid = false` and `coverage_error = <error geometry>`.
+  `coverage_is_valid = false`, `coverage_error = <error geometry>`, and
+  `coverage_error_type = <error code>`.
 - `Gap width` detects only narrow gaps up to the configured maximum width.
 - `Disallow coverage holes` is stricter: every interior hole in the full coverage union is invalid,
   regardless of size. Disjoint coverage islands are still allowed.
+- Error-type codes are stable: `COVERAGE_INVALID`, `FORBIDDEN_HOLE`, and `MULTIPLE`.
+- If both a base coverage error and a forbidden-hole error affect the same polygon, the transform
+  combines both error geometries into `coverage_error` and emits `coverage_error_type = MULTIPLE`.
+- `FORBIDDEN_HOLE` and `MULTIPLE` are emitted only when hole-specific validation can be computed
+  from the full coverage union.
+- If the coverage already has base topology errors and hole-specific validation cannot be computed,
+  affected rows may still return only `COVERAGE_INVALID`, even when true holes are present in the
+  same coverage.
+- Hole-related error types are row-local: only polygons whose boundary touches the forbidden hole
+  can return `FORBIDDEN_HOLE` or `MULTIPLE`. Other polygons in the same coverage can still return
+  `COVERAGE_INVALID` or another row-specific result.
 - If a reject target hop is configured, invalid rows are duplicated to that target. They are not
   removed from the main output.
 - If no coverage errors are found, the reject target remains empty.
@@ -82,9 +95,12 @@ Validation result semantics:
 
 - Coverage operations require polygon geometries and full coverage context.
 - They are blocking even though the result remains `1:1` and row-preserving.
-- `coverage_validate` appends validation-status and error-geometry fields.
+- `coverage_validate` appends validation-status, error-geometry, and error-type fields.
 - `Gap width` is not a strict no-hole rule; use `Disallow coverage holes` if the coverage must not
   contain any true interior holes.
+- A visible hole does not guarantee `FORBIDDEN_HOLE` or `MULTIPLE`; when the coverage is already
+  invalid, a row may still show only `COVERAGE_INVALID`.
+- `FORBIDDEN_HOLE` and `MULTIPLE` are row-local classifications, not whole-coverage flags.
 - The reject target stream only applies to `coverage_validate`; simplify and clean stay single-stream.
 - `coverage_simplify*` preserves topology across the full coverage, which is different from
   row-wise `simplify_topology`.

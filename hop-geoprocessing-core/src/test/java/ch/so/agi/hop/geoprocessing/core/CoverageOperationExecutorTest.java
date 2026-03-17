@@ -8,8 +8,11 @@ import org.apache.hop.core.exception.HopException;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.coverage.CoverageUnion;
 import org.locationtech.jts.coverage.CoverageValidator;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.util.LinearComponentExtracter;
 import org.locationtech.jts.io.WKTReader;
 
 class CoverageOperationExecutorTest {
@@ -29,8 +32,15 @@ class CoverageOperationExecutorTest {
     CoverageValidationResult[] withGapCheck = executor.validate(coverage, 0.1d);
 
     assertThat(withoutGapCheck).allMatch(CoverageValidationResult::valid);
+    assertThat(withoutGapCheck).allMatch(result -> result.errorTypeCode() == null);
     assertThat(withGapCheck).anyMatch(result -> !result.valid());
     assertThat(withGapCheck).anyMatch(result -> result.errorGeometry() != null);
+    assertThat(withGapCheck)
+        .anyMatch(
+            result ->
+                CoverageValidationErrorType.COVERAGE_INVALID
+                    .getCode()
+                    .equals(result.errorTypeCode()));
   }
 
   @Test
@@ -39,8 +49,19 @@ class CoverageOperationExecutorTest {
     CoverageValidationResult[] disallowedHoles = executor.validate(coverageWithCentralHole(), 0.0d, true);
 
     assertThat(allowedHoles).allMatch(CoverageValidationResult::valid);
+    assertThat(allowedHoles).allMatch(result -> result.errorTypeCode() == null);
     assertThat(disallowedHoles).extracting(CoverageValidationResult::valid).containsExactly(false, false, false, false);
     assertThat(disallowedHoles).allMatch(result -> result.errorGeometry() != null);
+    assertThat(disallowedHoles)
+        .allMatch(
+            result ->
+                CoverageValidationErrorType.FORBIDDEN_HOLE
+                    .getCode()
+                    .equals(result.errorTypeCode()));
+    assertLineworkEquals(disallowedHoles[0].errorGeometry(), "LINESTRING (1 1, 1 2)");
+    assertLineworkEquals(disallowedHoles[1].errorGeometry(), "LINESTRING (1 1, 2 1)");
+    assertLineworkEquals(disallowedHoles[2].errorGeometry(), "LINESTRING (2 1, 2 2)");
+    assertLineworkEquals(disallowedHoles[3].errorGeometry(), "LINESTRING (1 2, 2 2)");
   }
 
   @Test
@@ -50,6 +71,9 @@ class CoverageOperationExecutorTest {
     assertThat(results).hasSize(1);
     assertThat(results[0].valid()).isFalse();
     assertThat(results[0].errorGeometry()).isNotNull();
+    assertThat(results[0].errorTypeCode())
+        .isEqualTo(CoverageValidationErrorType.FORBIDDEN_HOLE.getCode());
+    assertLineworkEquals(results[0].errorGeometry(), "LINESTRING (1 1, 1 3, 3 3, 3 1, 1 1)");
   }
 
   @Test
@@ -57,6 +81,7 @@ class CoverageOperationExecutorTest {
     CoverageValidationResult[] results = executor.validate(disjointCoverageIslands(), 0.0d, true);
 
     assertThat(results).allMatch(CoverageValidationResult::valid);
+    assertThat(results).allMatch(result -> result.errorTypeCode() == null);
   }
 
   @Test
@@ -72,6 +97,31 @@ class CoverageOperationExecutorTest {
     assertThat(withoutHoleConstraint).extracting(CoverageValidationResult::valid).containsExactly(false, false);
     assertThat(withHoleConstraint).extracting(CoverageValidationResult::valid).containsExactly(false, false);
     assertThat(withHoleConstraint).allMatch(result -> result.errorGeometry() != null);
+    assertThat(withHoleConstraint)
+        .allMatch(
+            result ->
+                CoverageValidationErrorType.COVERAGE_INVALID
+                    .getCode()
+                    .equals(result.errorTypeCode()));
+  }
+
+  @Test
+  void validateMarksCombinedCoverageAndHoleErrorsAsMultiple() throws Exception {
+    CoverageValidationResult[] results = executor.validate(donutCoverageWithNarrowGap(), 0.1d, true);
+
+    assertThat(results).hasSize(2);
+    assertThat(results[0].valid()).isFalse();
+    assertThat(results[0].errorGeometry()).isNotNull();
+    assertThat(results[0].errorTypeCode()).isEqualTo(CoverageValidationErrorType.MULTIPLE.getCode());
+    assertLineworkEquals(
+        results[0].errorGeometry(),
+        "LINESTRING (4 0, 4 4)",
+        "LINESTRING (1 1, 1 3, 3 3, 3 1, 1 1)");
+    assertThat(results[1].valid()).isFalse();
+    assertThat(results[1].errorGeometry()).isNotNull();
+    assertThat(results[1].errorTypeCode())
+        .isEqualTo(CoverageValidationErrorType.COVERAGE_INVALID.getCode());
+    assertLineworkEquals(results[1].errorGeometry(), "LINESTRING (4.05 0, 4.05 4)");
   }
 
   @Test
@@ -146,5 +196,45 @@ class CoverageOperationExecutorTest {
     return List.of(
         wktReader.read("POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))"),
         wktReader.read("POLYGON ((10 0, 11 0, 11 1, 10 1, 10 0))"));
+  }
+
+  private List<Geometry> donutCoverageWithNarrowGap() throws Exception {
+    return List.of(
+        wktReader.read(
+            "POLYGON ((0 0, 4 0, 4 4, 0 4, 0 0), (1 1, 1 3, 3 3, 3 1, 1 1))"),
+        wktReader.read("POLYGON ((4.05 0, 5.05 0, 5.05 4, 4.05 4, 4.05 0))"));
+  }
+
+  private void assertLineworkEquals(Geometry actual, String... expectedWkts) throws Exception {
+    assertThat(actual).isNotNull();
+
+    List<Geometry> actualComponents = extractSegments(actual);
+    List<Geometry> expectedComponents = new java.util.ArrayList<>(expectedWkts.length);
+    for (String expectedWkt : expectedWkts) {
+      expectedComponents.addAll(extractSegments(wktReader.read(expectedWkt)));
+    }
+
+    assertThat(actualComponents).hasSize(expectedComponents.size());
+    for (Geometry actualComponent : actualComponents) {
+      assertThat(expectedComponents.removeIf(expected -> actualComponent.equalsTopo(expected))).isTrue();
+    }
+    assertThat(expectedComponents).isEmpty();
+  }
+
+  private List<Geometry> extractSegments(Geometry geometry) {
+    List<Geometry> lines = new java.util.ArrayList<>();
+    LinearComponentExtracter.getLines(geometry, lines, true);
+
+    List<Geometry> segments = new java.util.ArrayList<>();
+    for (Geometry lineGeometry : lines) {
+      LineString line = (LineString) lineGeometry;
+      for (int index = 1; index < line.getNumPoints(); index++) {
+        segments.add(
+            line.getFactory()
+                .createLineString(
+                    new Coordinate[] {line.getCoordinateN(index - 1), line.getCoordinateN(index)}));
+      }
+    }
+    return segments;
   }
 }

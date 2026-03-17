@@ -39,8 +39,17 @@ If you inspect `Coverage Validate` with the Geometry Inspector:
   geometries in row-preserving order.
 - Select the validation error geometry field when you want to visualize reported coverage problems.
   Rows without an error keep a `null` error geometry and therefore do not render an error feature.
+- Use the validation error type field when you need to distinguish `COVERAGE_INVALID`,
+  `FORBIDDEN_HOLE`, and `MULTIPLE` in downstream QA or routing steps.
 - If `Disallow coverage holes` is enabled, polygons bordering a forbidden coverage hole are marked
-  invalid and their shared hole boundary appears in the error geometry field.
+  invalid and their shared hole boundary appears in the error geometry field with
+  `coverage_error_type = FORBIDDEN_HOLE`.
+- `FORBIDDEN_HOLE` means the current row borders a forbidden hole and the hole-specific check
+  succeeded for the current coverage group.
+- A row can still show only `COVERAGE_INVALID` although the overall coverage contains holes, if
+  another coverage error prevents hole-specific classification.
+- Therefore, `coverage_error_type = COVERAGE_INVALID` does not prove that no forbidden hole exists
+  elsewhere in the same coverage group.
 - If you want to inspect only rejected invalid rows, inspect the downstream reject target transform
   or a transform connected to that reject hop.
 

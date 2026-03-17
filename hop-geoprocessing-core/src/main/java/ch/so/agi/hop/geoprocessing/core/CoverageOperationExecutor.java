@@ -25,18 +25,31 @@ public class CoverageOperationExecutor {
       throws HopException {
     Geometry[] coverage = CoverageSupport.toCoverageArray(geometries, false);
     double effectiveGapWidth = gapWidth == null ? 0.0d : gapWidth;
-    Geometry[] errors =
+    Geometry[] baseErrors =
         effectiveGapWidth > 0.0d
             ? CoverageValidator.validate(coverage, effectiveGapWidth)
             : CoverageValidator.validate(coverage);
-    if (disallowCoverageHoles && !CoverageValidator.hasInvalidResult(errors)) {
-      errors = validateNoCoverageHoles(coverage);
+    Geometry[] holeErrors = new Geometry[coverage.length];
+    if (disallowCoverageHoles) {
+      try {
+        holeErrors = validateNoCoverageHoles(coverage);
+      } catch (HopException e) {
+        if (!CoverageValidator.hasInvalidResult(baseErrors)) {
+          throw e;
+        }
+      }
     }
     CoverageValidationResult[] results = new CoverageValidationResult[coverage.length];
     for (int index = 0; index < coverage.length; index++) {
+      Geometry mergedError = mergeErrorGeometries(baseErrors[index], holeErrors[index]);
       Geometry errorGeometry =
-          CoverageSupport.preserveSrid(GeometryFieldValueHelper.sridOf(coverage[index]), errors[index]);
-      results[index] = new CoverageValidationResult(errorGeometry == null, errorGeometry);
+          CoverageSupport.preserveSrid(
+              GeometryFieldValueHelper.sridOf(coverage[index]), mergedError);
+      results[index] =
+          new CoverageValidationResult(
+              errorGeometry == null,
+              errorGeometry,
+              errorTypeCode(baseErrors[index], holeErrors[index]));
     }
     return results;
   }
@@ -166,5 +179,39 @@ public class CoverageOperationExecutor {
     }
     Geometry result = geometry.getFactory().buildGeometry(linework);
     return result.isEmpty() ? null : result;
+  }
+
+  private String errorTypeCode(Geometry baseError, Geometry holeError) {
+    boolean hasBaseError = GeometryFieldValueHelper.normalize(baseError) != null;
+    boolean hasHoleError = GeometryFieldValueHelper.normalize(holeError) != null;
+    if (hasBaseError && hasHoleError) {
+      return CoverageValidationErrorType.MULTIPLE.getCode();
+    }
+    if (hasBaseError) {
+      return CoverageValidationErrorType.COVERAGE_INVALID.getCode();
+    }
+    if (hasHoleError) {
+      return CoverageValidationErrorType.FORBIDDEN_HOLE.getCode();
+    }
+    return null;
+  }
+
+  private Geometry mergeErrorGeometries(Geometry baseError, Geometry holeError) {
+    Geometry normalizedBaseError = GeometryFieldValueHelper.normalize(baseError);
+    Geometry normalizedHoleError = GeometryFieldValueHelper.normalize(holeError);
+    if (normalizedBaseError == null) {
+      return normalizedHoleError;
+    }
+    if (normalizedHoleError == null) {
+      return normalizedBaseError;
+    }
+    List<Geometry> parts = new ArrayList<>();
+    parts.addAll(GeometryFieldValueHelper.explode(normalizedBaseError));
+    parts.addAll(GeometryFieldValueHelper.explode(normalizedHoleError));
+    if (parts.isEmpty()) {
+      return null;
+    }
+    Geometry merged = normalizedBaseError.getFactory().buildGeometry(parts);
+    return merged.isEmpty() ? null : merged;
   }
 }

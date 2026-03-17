@@ -33,9 +33,10 @@ class CoverageOperationMetaTest {
 
     meta.getFields(rowMeta, "origin", null, null, new Variables(), null);
 
-    assertThat(rowMeta.size()).isEqualTo(3);
+    assertThat(rowMeta.size()).isEqualTo(4);
     assertThat(rowMeta.getValueMeta(1).getName()).isEqualTo("coverage_is_valid");
     assertThat(rowMeta.getValueMeta(2).getName()).isEqualTo("coverage_error");
+    assertThat(rowMeta.getValueMeta(3).getName()).isEqualTo("coverage_error_type");
   }
 
   @Test
@@ -108,6 +109,47 @@ class CoverageOperationMetaTest {
     assertThat(remarks)
         .extracting(ICheckResult::getText)
         .contains("Error geometry field already exists on the input row.");
+  }
+
+  @Test
+  void getFieldsForValidateFallsBackToDefaultErrorTypeFieldWhenMissing() {
+    CoverageOperationMeta meta = new CoverageOperationMeta();
+    meta.setDefault();
+    meta.setErrorTypeFieldName(null);
+
+    RowMeta rowMeta = new RowMeta();
+    rowMeta.addValueMeta(new ValueMetaGeometry("geometry"));
+
+    meta.getFields(rowMeta, "origin", null, null, new Variables(), null);
+
+    assertThat(rowMeta.getValueMeta(3).getName()).isEqualTo("coverage_error_type");
+  }
+
+  @Test
+  void checkRejectsDuplicateErrorTypeField() {
+    CoverageOperationMeta meta = new CoverageOperationMeta();
+    meta.setDefault();
+    meta.setGeometryFieldName("geometry");
+    meta.setErrorTypeFieldName("geometry");
+
+    RowMeta rowMeta = new RowMeta();
+    rowMeta.addValueMeta(new ValueMetaGeometry("geometry"));
+
+    List<ICheckResult> remarks = new ArrayList<>();
+    meta.check(
+        remarks,
+        null,
+        null,
+        rowMeta,
+        new String[] {"upstream"},
+        new String[0],
+        null,
+        new Variables(),
+        null);
+
+    assertThat(remarks)
+        .extracting(ICheckResult::getText)
+        .contains("Error type field already exists on the input row.");
   }
 
   @Test

@@ -51,6 +51,7 @@ public class CoverageOperationDialog extends BaseTransformDialog {
   private Combo wOutputMode;
   private Text wOutputField;
   private Text wBooleanField;
+  private Text wErrorTypeField;
   private Label wFieldStatus;
   private Composite content;
 
@@ -139,6 +140,7 @@ public class CoverageOperationDialog extends BaseTransformDialog {
     }
     wOutputField = addText("Output geometry field");
     wBooleanField = addText("Boolean output field");
+    wErrorTypeField = addText("Error type field");
     wFieldStatus = addInfoLabel("");
 
     attachListeners();
@@ -174,6 +176,7 @@ public class CoverageOperationDialog extends BaseTransformDialog {
         });
     wOutputField.addModifyListener(event -> input.setChanged());
     wBooleanField.addModifyListener(event -> input.setChanged());
+    wErrorTypeField.addModifyListener(event -> input.setChanged());
   }
 
   private void loadFieldChoices() {
@@ -205,6 +208,7 @@ public class CoverageOperationDialog extends BaseTransformDialog {
     wOutputMode.setText(input.getOutputMode().name());
     wOutputField.setText(defaultText(input.getOutputFieldName()));
     wBooleanField.setText(defaultText(input.getBooleanFieldName()));
+    wErrorTypeField.setText(defaultText(input.getErrorTypeFieldName()));
     wGroupFieldNames.setText(defaultText(input.getGroupFieldNames()));
     wTransformName.selectAll();
     wTransformName.setFocus();
@@ -238,6 +242,7 @@ public class CoverageOperationDialog extends BaseTransformDialog {
     toggleControl(wOutputMode, !validateOperation);
     toggleControl(wBooleanField, validateOperation);
     toggleControl(wOutputField, validateOperation || appendMode);
+    toggleControl(wErrorTypeField, validateOperation);
     setControlLabel(
         wOutputField, validateOperation ? "Error field" : "Output geometry field");
     if (validateOperation) {
@@ -246,6 +251,9 @@ public class CoverageOperationDialog extends BaseTransformDialog {
       }
       if (wOutputField.getText().isBlank()) {
         wOutputField.setText("coverage_error");
+      }
+      if (wErrorTypeField.getText().isBlank()) {
+        wErrorTypeField.setText("coverage_error_type");
       }
     } else if (appendMode && wOutputField.getText().isBlank()) {
       wOutputField.setText("coverage_geometry");
@@ -287,6 +295,10 @@ public class CoverageOperationDialog extends BaseTransformDialog {
         showValidationWarning("Please enter an error geometry field.");
         return;
       }
+      if (wErrorTypeField.getText().isBlank()) {
+        showValidationWarning("Please enter an error type field.");
+        return;
+      }
     }
     if (currentDescriptor().requires(ParameterId.DISTANCE) && wDistanceValue.getText().isBlank()) {
       showValidationWarning("Please enter a non-negative simplification tolerance.");
@@ -316,6 +328,7 @@ public class CoverageOperationDialog extends BaseTransformDialog {
             defaultText(wOutputMode.getText(), GeometryOutputMode.APPEND.name())));
     input.setOutputFieldName(wOutputField.getText());
     input.setBooleanFieldName(wBooleanField.getText());
+    input.setErrorTypeFieldName(wErrorTypeField.getText());
     dispose();
   }
 

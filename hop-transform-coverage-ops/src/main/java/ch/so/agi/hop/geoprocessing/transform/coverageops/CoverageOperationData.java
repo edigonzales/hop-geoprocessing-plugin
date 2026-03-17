@@ -15,6 +15,7 @@ public class CoverageOperationData extends BaseTransformData implements ITransfo
   int[] groupFieldIndexes = new int[0];
   int booleanFieldIndex = -1;
   int outputGeometryFieldIndex = -1;
+  int errorTypeFieldIndex = -1;
   Double staticDistance;
   Double staticGapWidth;
   Double staticSnappingDistance;

@@ -113,12 +113,18 @@ public class CoverageOperation extends BaseTransform<CoverageOperationMeta, Cove
         meta.isValidateOperation() || meta.getOutputMode() == GeometryOutputMode.APPEND
             ? data.outputRowMeta.indexOfValue(meta.getOutputFieldName())
             : data.geometryFieldIndex;
+    data.errorTypeFieldIndex =
+        meta.isValidateOperation() ? data.outputRowMeta.indexOfValue(meta.getErrorTypeFieldName()) : -1;
     if (meta.isValidateOperation() && data.booleanFieldIndex < 0) {
       throw new HopException("Boolean output field was not found on the output row.");
     }
     if (data.outputGeometryFieldIndex < 0) {
       throw new HopException(
           "Coverage output field was not found on the output row: " + meta.getOutputFieldName());
+    }
+    if (meta.isValidateOperation() && data.errorTypeFieldIndex < 0) {
+      throw new HopException(
+          "Error type output field was not found on the output row: " + meta.getErrorTypeFieldName());
     }
     data.staticDistance =
         meta.descriptor().requires(ch.so.agi.hop.geoprocessing.core.ParameterId.DISTANCE)
@@ -148,6 +154,7 @@ public class CoverageOperation extends BaseTransform<CoverageOperationMeta, Cove
         Object[] outputRow = RowDataUtil.resizeArray(feature.rowData(), data.outputRowMeta.size());
         outputRow[data.booleanFieldIndex] = result.valid();
         outputRow[data.outputGeometryFieldIndex] = result.errorGeometry();
+        outputRow[data.errorTypeFieldIndex] = result.errorTypeCode();
         orderedRows.set(Math.toIntExact(feature.sourceId()), outputRow);
       }
       return;

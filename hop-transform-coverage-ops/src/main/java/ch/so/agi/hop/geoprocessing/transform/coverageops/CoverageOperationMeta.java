@@ -18,6 +18,7 @@ import org.apache.hop.core.ICheckResult;
 import org.apache.hop.core.annotations.Transform;
 import org.apache.hop.core.row.IRowMeta;
 import org.apache.hop.core.row.value.ValueMetaBoolean;
+import org.apache.hop.core.row.value.ValueMetaString;
 import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.metadata.api.HopMetadataProperty;
 import org.apache.hop.metadata.api.IHopMetadataProvider;
@@ -52,6 +53,7 @@ public class CoverageOperationMeta
   @HopMetadataProperty private GeometryOutputMode outputMode;
   @HopMetadataProperty private String outputFieldName;
   @HopMetadataProperty private String booleanFieldName;
+  @HopMetadataProperty private String errorTypeFieldName;
 
   @Override
   public void setDefault() {
@@ -66,6 +68,7 @@ public class CoverageOperationMeta
     outputMode = GeometryOutputMode.APPEND;
     outputFieldName = "coverage_error";
     booleanFieldName = "coverage_is_valid";
+    errorTypeFieldName = "coverage_error_type";
   }
 
   @Override
@@ -119,8 +122,9 @@ public class CoverageOperationMeta
       IVariables variables,
       IHopMetadataProvider metadataProvider) {
     if (isValidateOperation()) {
-      rowMeta.addValueMeta(new ValueMetaBoolean(booleanFieldName));
-      rowMeta.addValueMeta(new ValueMetaGeometry(outputFieldName));
+      rowMeta.addValueMeta(new ValueMetaBoolean(getBooleanFieldName()));
+      rowMeta.addValueMeta(new ValueMetaGeometry(getOutputFieldName()));
+      rowMeta.addValueMeta(new ValueMetaString(getErrorTypeFieldName()));
       return;
     }
     if (getOutputMode() == GeometryOutputMode.REPLACE) {
@@ -190,27 +194,45 @@ public class CoverageOperationMeta
     }
     Set<String> groupFields = new HashSet<>(TextListSupport.splitCsvOrSemicolon(groupFieldNames));
     if (isValidateOperation()) {
-      if (booleanFieldName == null || booleanFieldName.isBlank()) {
+      String booleanOutputField = getBooleanFieldName();
+      String errorGeometryField = getOutputFieldName();
+      String errorTypeField = getErrorTypeFieldName();
+      if (booleanOutputField.isBlank()) {
         remarks.add(error("Boolean output field is required.", transformMeta));
         return;
       }
-      if (outputFieldName == null || outputFieldName.isBlank()) {
+      if (errorGeometryField.isBlank()) {
         remarks.add(error("Error geometry field is required.", transformMeta));
         return;
       }
-      if (prev.indexOfValue(booleanFieldName) >= 0) {
+      if (errorTypeField.isBlank()) {
+        remarks.add(error("Error type field is required.", transformMeta));
+        return;
+      }
+      if (prev.indexOfValue(booleanOutputField) >= 0) {
         remarks.add(error("Boolean output field already exists on the input row.", transformMeta));
         return;
       }
-      if (prev.indexOfValue(outputFieldName) >= 0) {
+      if (prev.indexOfValue(errorGeometryField) >= 0) {
         remarks.add(error("Error geometry field already exists on the input row.", transformMeta));
         return;
       }
-      if (booleanFieldName.equalsIgnoreCase(outputFieldName)) {
-        remarks.add(error("Boolean output field and error geometry field must be different.", transformMeta));
+      if (prev.indexOfValue(errorTypeField) >= 0) {
+        remarks.add(error("Error type field already exists on the input row.", transformMeta));
         return;
       }
-      if (groupFields.contains(booleanFieldName) || groupFields.contains(outputFieldName)) {
+      if (booleanOutputField.equalsIgnoreCase(errorGeometryField)
+          || booleanOutputField.equalsIgnoreCase(errorTypeField)
+          || errorGeometryField.equalsIgnoreCase(errorTypeField)) {
+        remarks.add(
+            error(
+                "Boolean output field, error geometry field, and error type field must be different.",
+                transformMeta));
+        return;
+      }
+      if (groupFields.contains(booleanOutputField)
+          || groupFields.contains(errorGeometryField)
+          || groupFields.contains(errorTypeField)) {
         remarks.add(error("Coverage output fields must not reuse group field names.", transformMeta));
         return;
       }
@@ -367,7 +389,7 @@ public class CoverageOperationMeta
   }
 
   public String getOutputFieldName() {
-    return outputFieldName;
+    return defaultText(outputFieldName, "coverage_error");
   }
 
   public void setOutputFieldName(String outputFieldName) {
@@ -375,10 +397,18 @@ public class CoverageOperationMeta
   }
 
   public String getBooleanFieldName() {
-    return booleanFieldName;
+    return defaultText(booleanFieldName, "coverage_is_valid");
   }
 
   public void setBooleanFieldName(String booleanFieldName) {
     this.booleanFieldName = booleanFieldName;
+  }
+
+  public String getErrorTypeFieldName() {
+    return defaultText(errorTypeFieldName, "coverage_error_type");
+  }
+
+  public void setErrorTypeFieldName(String errorTypeFieldName) {
+    this.errorTypeFieldName = errorTypeFieldName;
   }
 }
