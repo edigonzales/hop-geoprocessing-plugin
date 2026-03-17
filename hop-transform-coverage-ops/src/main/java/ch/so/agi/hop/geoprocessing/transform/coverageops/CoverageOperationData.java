@@ -4,6 +4,7 @@ import ch.so.agi.hop.geoprocessing.core.CoverageMergeStrategy;
 import ch.so.agi.hop.geoprocessing.core.CoverageOperationExecutor;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.hop.core.IRowSet;
 import org.apache.hop.core.row.IRowMeta;
 import org.apache.hop.pipeline.transform.BaseTransformData;
 import org.apache.hop.pipeline.transform.ITransformData;
@@ -19,6 +20,8 @@ public class CoverageOperationData extends BaseTransformData implements ITransfo
   Double staticSnappingDistance;
   CoverageMergeStrategy mergeStrategy = CoverageMergeStrategy.LONGEST_BORDER;
   final List<Object[]> outputRows = new ArrayList<>();
+  List<IRowSet> mainOutputRowSets = List.of();
+  List<IRowSet> rejectOutputRowSets = List.of();
   int outputIndex;
   boolean initialized;
   final CoverageOperationExecutor executor = new CoverageOperationExecutor();

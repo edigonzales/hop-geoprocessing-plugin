@@ -48,14 +48,44 @@ Full list: [Reference Matrix](../reference-matrix.md#coverage-operation)
   - optional grouping fields; each group is processed as a separate coverage
 - operation-specific tolerance parameters
   - simplification, validation, and cleaning use different distance and gap-related settings
+  - `coverage_validate` can optionally disallow all true coverage holes, independent of `gapWidth`
 - output-field parameters
   - validation appends status and error fields; simplify and clean return row-preserving geometry output
+- optional reject target hop
+  - `coverage_validate` can also duplicate invalid rows to a second QA/reject output stream
+
+## Validate Output Streams
+
+When the selected operation is `coverage_validate`, the transform keeps the main output
+row-preserving and appends validation result fields. By default these fields are
+`coverage_is_valid` and `coverage_error`, but both names are configurable.
+
+| Stream | Rows included | Fields | Empty when |
+| --- | --- | --- | --- |
+| Main output | All input rows, in original row order | All input fields plus the validation boolean field and the error geometry field | Only when the transform receives no input rows |
+| Reject target | Only rows whose validation boolean is `false` | The same row structure as the main output | No invalid rows were found, no reject target is connected, or the selected operation is not `coverage_validate` |
+
+Validation result semantics:
+
+- With the default field names, valid rows are emitted on the main output with
+  `coverage_is_valid = true` and `coverage_error = null`.
+- With the default field names, invalid rows are emitted on the main output with
+  `coverage_is_valid = false` and `coverage_error = <error geometry>`.
+- `Gap width` detects only narrow gaps up to the configured maximum width.
+- `Disallow coverage holes` is stricter: every interior hole in the full coverage union is invalid,
+  regardless of size. Disjoint coverage islands are still allowed.
+- If a reject target hop is configured, invalid rows are duplicated to that target. They are not
+  removed from the main output.
+- If no coverage errors are found, the reject target remains empty.
 
 ## Common Pitfalls
 
 - Coverage operations require polygon geometries and full coverage context.
 - They are blocking even though the result remains `1:1` and row-preserving.
 - `coverage_validate` appends validation-status and error-geometry fields.
+- `Gap width` is not a strict no-hole rule; use `Disallow coverage holes` if the coverage must not
+  contain any true interior holes.
+- The reject target stream only applies to `coverage_validate`; simplify and clean stay single-stream.
 - `coverage_simplify*` preserves topology across the full coverage, which is different from
   row-wise `simplify_topology`.
 

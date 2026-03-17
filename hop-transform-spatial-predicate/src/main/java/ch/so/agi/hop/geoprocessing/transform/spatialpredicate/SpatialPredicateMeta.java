@@ -69,6 +69,10 @@ public class SpatialPredicateMeta
       TransformIOMeta transformIOMeta = new TransformIOMeta(true, true, true, false, false, false);
       transformIOMeta.addStream(
           new Stream(IStream.StreamType.INFO, null, "Secondary layer", StreamIcon.INFO, null));
+      transformIOMeta.addStream(
+          new Stream(IStream.StreamType.TARGET, null, "Reject rows", StreamIcon.TARGET, null));
+      transformIOMeta.setGeneralTargetDescription(
+          "Optional QA/reject target for the opposite filter result");
       setTransformIOMeta(transformIOMeta);
       ioMeta = transformIOMeta;
     }
@@ -80,12 +84,18 @@ public class SpatialPredicateMeta
     for (IStream infoStream : getTransformIOMeta().getInfoStreams()) {
       infoStream.setTransformMeta(TransformMeta.findTransform(transforms, infoStream.getSubject()));
     }
+    for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
+      targetStream.setTransformMeta(TransformMeta.findTransform(transforms, targetStream.getSubject()));
+    }
   }
 
   @Override
   public void convertIOMetaToTransformNames() {
     for (IStream infoStream : getTransformIOMeta().getInfoStreams()) {
       infoStream.setSubject(infoStream.getTransformName());
+    }
+    for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
+      targetStream.setSubject(targetStream.getTransformName());
     }
   }
 
@@ -97,6 +107,15 @@ public class SpatialPredicateMeta
           && fromTransform.getName().equals(infoStream.getTransformMeta().getName())) {
         infoStream.setTransformMeta(null);
         infoStream.setSubject(null);
+        return true;
+      }
+    }
+    for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
+      if (fromTransform != null
+          && targetStream.getTransformMeta() != null
+          && fromTransform.getName().equals(targetStream.getTransformMeta().getName())) {
+        targetStream.setTransformMeta(null);
+        targetStream.setSubject(null);
         return true;
       }
     }
@@ -189,6 +208,15 @@ public class SpatialPredicateMeta
       remarks.add(error("Boolean output field already exists on the primary input.", transformMeta));
       return;
     }
+    if (!getRejectTransformName().isBlank()
+        && resultMode != SpatialPredicateResultMode.KEEP_MATCHED
+        && resultMode != SpatialPredicateResultMode.KEEP_UNMATCHED) {
+      remarks.add(
+          error(
+              "Reject target stream is only supported for KEEP_MATCHED and KEEP_UNMATCHED.",
+              transformMeta));
+      return;
+    }
     if (resultMode == SpatialPredicateResultMode.INNER_JOIN
         && ("disjoint".equals(operationId) || "distance_gte".equals(operationId))) {
       remarks.add(error("INNER_JOIN is not supported for DISJOINT or DISTANCE_GTE.", transformMeta));
@@ -216,6 +244,18 @@ public class SpatialPredicateMeta
       return infoStream.getTransformMeta().getName();
     }
     return infoStream.getSubject() == null ? "" : infoStream.getSubject();
+  }
+
+  public String getRejectTransformName() {
+    List<IStream> targetStreams = getTransformIOMeta().getTargetStreams();
+    if (targetStreams.isEmpty()) {
+      return "";
+    }
+    IStream targetStream = targetStreams.get(0);
+    if (targetStream.getTransformMeta() != null) {
+      return targetStream.getTransformMeta().getName();
+    }
+    return targetStream.getSubject() == null ? "" : targetStream.getSubject();
   }
 
   private void appendPrefixedFields(IRowMeta rowMeta, IRowMeta infoRowMeta, String prefix) {

@@ -107,7 +107,7 @@ public class LayerAggregateDialog extends BaseTransformDialog {
 
     wOperation = addCombo(content, "Operation");
     for (OperationDescriptor descriptor : operations) {
-      wOperation.add(descriptor.group().getLabel() + " - " + descriptor.label());
+      wOperation.add(descriptor.displayLabel());
     }
     wExecutionMode = addReadOnlyText(content, "Execution mode");
     wGeometryField = addCombo(content, "Geometry field");

@@ -15,4 +15,11 @@ public record OperationDescriptor(
   public boolean requires(ParameterId parameterId) {
     return parameterSchema.stream().anyMatch(parameter -> parameter.id() == parameterId);
   }
+
+  public String displayLabel() {
+    return switch (family) {
+      case GEOMETRY_OPERATION -> label + " (" + group.getLabel() + ")";
+      default -> label;
+    };
+  }
 }

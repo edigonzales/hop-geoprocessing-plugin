@@ -11,6 +11,7 @@ import ch.so.agi.hop.geoprocessing.core.OverlayMode;
 import ch.so.agi.hop.geoprocessing.core.ParameterId;
 import ch.so.agi.hop.geoprocessing.core.RowMetaSupport;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import org.apache.hop.core.row.IRowMeta;
 import org.apache.hop.core.util.Utils;
@@ -65,7 +66,15 @@ public class GeometryOperationDialog extends BaseTransformDialog {
       Shell parent, IVariables variables, GeometryOperationMeta transformMeta, PipelineMeta pipelineMeta) {
     super(parent, variables, transformMeta, pipelineMeta);
     this.input = transformMeta;
-    this.operations = input.listOperations();
+    this.operations = sortOperations(input.listOperations());
+  }
+
+  static List<OperationDescriptor> sortOperations(List<OperationDescriptor> operations) {
+    return operations.stream()
+        .sorted(
+            Comparator.comparing((OperationDescriptor descriptor) -> descriptor.group().getLabel())
+                .thenComparing(OperationDescriptor::label))
+        .toList();
   }
 
   @Override
@@ -126,7 +135,7 @@ public class GeometryOperationDialog extends BaseTransformDialog {
 
     wOperation = addCombo("Operation");
     for (OperationDescriptor descriptor : operations) {
-      wOperation.add(descriptor.group().getLabel() + " - " + descriptor.label());
+      wOperation.add(descriptor.displayLabel());
     }
 
     wExecutionMode = addReadOnlyText("Execution mode");

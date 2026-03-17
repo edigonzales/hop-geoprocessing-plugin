@@ -8,6 +8,7 @@ import ch.so.agi.hop.geoprocessing.core.GeometryFieldValueHelper;
 import ch.so.agi.hop.geoprocessing.core.LayerCache;
 import ch.so.agi.hop.geoprocessing.core.SpatialIndexBuilder;
 import ch.so.agi.hop.geoprocessing.core.SpatialPredicateResultMode;
+import ch.so.agi.hop.geoprocessing.core.TransformStreamRouting;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.hop.core.IRowSet;
@@ -55,7 +56,11 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
 
     if (meta.getResultMode() == SpatialPredicateResultMode.INNER_JOIN) {
       for (FeatureRow matchedFeature : data.matcher.matchingFeatures(primaryGeometry, distance)) {
-        putRow(data.outputRowMeta, data.joinBuilder.buildRow(primaryRow, matchedFeature));
+        TransformStreamRouting.putRowToRowSets(
+            this,
+            data.outputRowMeta,
+            data.joinBuilder.buildRow(primaryRow, matchedFeature),
+            data.mainOutputRowSets);
       }
       return true;
     }
@@ -65,16 +70,24 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
       case BOOLEAN_COLUMN -> {
         Object[] outputRow = RowDataUtil.resizeArray(primaryRow, data.outputRowMeta.size());
         outputRow[data.booleanFieldIndex] = matched;
-        putRow(data.outputRowMeta, outputRow);
+        TransformStreamRouting.putRowToRowSets(this, data.outputRowMeta, outputRow, data.mainOutputRowSets);
       }
       case KEEP_MATCHED -> {
         if (matched) {
-          putRow(data.outputRowMeta, primaryRow.clone());
+          TransformStreamRouting.putRowToRowSets(
+              this, data.outputRowMeta, primaryRow.clone(), data.mainOutputRowSets);
+        } else {
+          TransformStreamRouting.putRowToRowSets(
+              this, data.outputRowMeta, primaryRow.clone(), data.rejectOutputRowSets);
         }
       }
       case KEEP_UNMATCHED -> {
         if (!matched) {
-          putRow(data.outputRowMeta, primaryRow.clone());
+          TransformStreamRouting.putRowToRowSets(
+              this, data.outputRowMeta, primaryRow.clone(), data.mainOutputRowSets);
+        } else {
+          TransformStreamRouting.putRowToRowSets(
+              this, data.outputRowMeta, primaryRow.clone(), data.rejectOutputRowSets);
         }
       }
       default -> throw new HopTransformException("Unexpected result mode: " + meta.getResultMode());
@@ -123,6 +136,10 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
         meta.getDistanceMode() == DistanceMode.STATIC && meta.getDistanceValue() != null
             ? Double.parseDouble(resolve(meta.getDistanceValue()))
             : null;
+    TransformStreamRouting.RowSetTargets outputTargets =
+        TransformStreamRouting.partitionRowSets(getOutputRowSets(), meta.getRejectTransformName());
+    data.mainOutputRowSets = outputTargets.mainRowSets();
+    data.rejectOutputRowSets = outputTargets.targetRowSets();
 
     List<FeatureRow> secondaryFeatures = new ArrayList<>();
     long featureId = 0L;

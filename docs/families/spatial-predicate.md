@@ -47,6 +47,8 @@ Full list: [Reference Matrix](../reference-matrix.md#spatial-predicate)
   - geometry field from the secondary info stream
 - `resultMode`
   - controls whether the output is a boolean column, a filter, or an inner join
+- optional reject target hop
+  - `KEEP_MATCHED` and `KEEP_UNMATCHED` can send the opposite filter result to a second output stream
 - `distance`
   - threshold for `distance_lte` and `distance_gte`
 - `BOOLEAN_COLUMN`
@@ -62,6 +64,7 @@ Full list: [Reference Matrix](../reference-matrix.md#spatial-predicate)
 
 - The secondary layer is fully read before the first primary row is processed.
 - `INNER_JOIN` is not supported for `disjoint` or `distance_gte`.
+- The reject target stream is only meaningful for the filter modes `KEEP_MATCHED` and `KEEP_UNMATCHED`.
 - The spatial index reduces the candidate set, but full geometry evaluation is still required.
 
 ## Related Recipes

@@ -114,7 +114,7 @@ public class LayerOverlayDialog extends BaseTransformDialog {
     addFullWidthLabel(content, "Connect the secondary layer with an info hop before validating the transform.");
     wOperation = addCombo(content, "Operation");
     for (OperationDescriptor descriptor : operations) {
-      wOperation.add(descriptor.group().getLabel() + " - " + descriptor.label());
+      wOperation.add(descriptor.displayLabel());
     }
     wExecutionMode = addReadOnlyText(content, "Execution mode");
     wInfoTransformName = addReadOnlyText(content, "Secondary info transform");

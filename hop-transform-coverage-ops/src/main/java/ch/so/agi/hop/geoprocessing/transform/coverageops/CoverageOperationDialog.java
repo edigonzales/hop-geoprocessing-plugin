@@ -44,6 +44,7 @@ public class CoverageOperationDialog extends BaseTransformDialog {
   private Combo wGeometryField;
   private Text wGroupFieldNames;
   private TextVar wGapWidth;
+  private Button wDisallowCoverageHoles;
   private TextVar wDistanceValue;
   private TextVar wSnappingDistance;
   private Combo wMergeStrategy;
@@ -115,14 +116,17 @@ public class CoverageOperationDialog extends BaseTransformDialog {
     fdContent.bottom = new FormAttachment(wOk, -margin * 2);
     content.setLayoutData(fdContent);
 
+    addFullWidthLabel(
+        "Optional reject target hop: Validate Coverage can duplicate invalid rows to a second output stream.");
     wOperation = addCombo("Operation");
     for (OperationDescriptor descriptor : operations) {
-      wOperation.add(descriptor.group().getLabel() + " - " + descriptor.label());
+      wOperation.add(descriptor.displayLabel());
     }
     wExecutionMode = addReadOnlyText("Execution mode");
     wGeometryField = addCombo("Geometry field");
     wGroupFieldNames = addText("Group fields (CSV/semicolon)");
     wGapWidth = addTextVar("Gap width");
+    wDisallowCoverageHoles = addCheck("Disallow coverage holes");
     wDistanceValue = addTextVar("Simplification tolerance");
     wSnappingDistance = addTextVar("Snapping distance");
     wMergeStrategy = addCombo("Merge strategy");
@@ -159,6 +163,7 @@ public class CoverageOperationDialog extends BaseTransformDialog {
     wGeometryField.addModifyListener(event -> input.setChanged());
     wGroupFieldNames.addModifyListener(event -> input.setChanged());
     wGapWidth.addModifyListener(event -> input.setChanged());
+    wDisallowCoverageHoles.addListener(SWT.Selection, event -> input.setChanged());
     wDistanceValue.addModifyListener(event -> input.setChanged());
     wSnappingDistance.addModifyListener(event -> input.setChanged());
     wMergeStrategy.addModifyListener(event -> input.setChanged());
@@ -193,6 +198,7 @@ public class CoverageOperationDialog extends BaseTransformDialog {
     wTransformName.setText(transformName == null ? "" : transformName);
     selectOperation(input.getOperationId());
     wGapWidth.setText(defaultText(input.getGapWidth()));
+    wDisallowCoverageHoles.setSelection(input.isDisallowCoverageHoles());
     wDistanceValue.setText(defaultText(input.getDistanceValue()));
     wSnappingDistance.setText(defaultText(input.getSnappingDistance()));
     wMergeStrategy.setText(input.getMergeStrategy().name());
@@ -225,6 +231,7 @@ public class CoverageOperationDialog extends BaseTransformDialog {
 
     wExecutionMode.setText(descriptor.executionMode().getLabel());
     toggleControl(wGapWidth, descriptor.requires(ParameterId.GAP_WIDTH));
+    toggleControl(wDisallowCoverageHoles, descriptor.requires(ParameterId.DISALLOW_HOLES));
     toggleControl(wDistanceValue, descriptor.requires(ParameterId.DISTANCE));
     toggleControl(wSnappingDistance, descriptor.requires(ParameterId.SNAPPING_DISTANCE));
     toggleControl(wMergeStrategy, descriptor.requires(ParameterId.MERGE_STRATEGY));
@@ -298,6 +305,7 @@ public class CoverageOperationDialog extends BaseTransformDialog {
     input.setGeometryFieldName(wGeometryField.getText());
     input.setGroupFieldNames(wGroupFieldNames.getText());
     input.setGapWidth(wGapWidth.getText());
+    input.setDisallowCoverageHoles(wDisallowCoverageHoles.getSelection());
     input.setDistanceValue(wDistanceValue.getText());
     input.setSnappingDistance(wSnappingDistance.getText());
     input.setMergeStrategy(
@@ -319,6 +327,13 @@ public class CoverageOperationDialog extends BaseTransformDialog {
 
   private OperationDescriptor currentDescriptor() {
     return operations.get(Math.max(0, wOperation.getSelectionIndex()));
+  }
+
+  private void addFullWidthLabel(String labelText) {
+    Label label = new Label(content, SWT.WRAP);
+    label.setText(labelText);
+    label.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
+    PropsUi.setLook(label);
   }
 
   private Combo addCombo(String labelText) {
@@ -355,6 +370,15 @@ public class CoverageOperationDialog extends BaseTransformDialog {
     text.setData("label", label);
     PropsUi.setLook(text);
     return text;
+  }
+
+  private Button addCheck(String labelText) {
+    Label label = addLabel(labelText);
+    Button button = new Button(content, SWT.CHECK);
+    button.setLayoutData(defaultGridData());
+    button.setData("label", label);
+    PropsUi.setLook(button);
+    return button;
   }
 
   private Label addLabel(String labelText) {

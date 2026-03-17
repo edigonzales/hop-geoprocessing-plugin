@@ -1,6 +1,7 @@
 package ch.so.agi.hop.geoprocessing.core;
 
 import ch.so.agi.hop.geoprocessing.vendor.jts.coverage.CoverageCleaner;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.hop.core.exception.HopException;
@@ -8,20 +9,33 @@ import org.locationtech.jts.coverage.CoverageSimplifier;
 import org.locationtech.jts.coverage.CoverageUnion;
 import org.locationtech.jts.coverage.CoverageValidator;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.TopologyException;
+import org.locationtech.jts.geom.util.LinearComponentExtracter;
+import org.locationtech.jts.geom.util.PolygonExtracter;
 
 public class CoverageOperationExecutor {
 
   public CoverageValidationResult[] validate(List<Geometry> geometries, Double gapWidth) throws HopException {
+    return validate(geometries, gapWidth, false);
+  }
+
+  public CoverageValidationResult[] validate(
+      List<Geometry> geometries, Double gapWidth, boolean disallowCoverageHoles)
+      throws HopException {
     Geometry[] coverage = CoverageSupport.toCoverageArray(geometries, false);
     double effectiveGapWidth = gapWidth == null ? 0.0d : gapWidth;
     Geometry[] errors =
         effectiveGapWidth > 0.0d
             ? CoverageValidator.validate(coverage, effectiveGapWidth)
             : CoverageValidator.validate(coverage);
+    if (disallowCoverageHoles && !CoverageValidator.hasInvalidResult(errors)) {
+      errors = validateNoCoverageHoles(coverage);
+    }
     CoverageValidationResult[] results = new CoverageValidationResult[coverage.length];
     for (int index = 0; index < coverage.length; index++) {
-      Geometry errorGeometry = CoverageSupport.preserveSrid(GeometryFieldValueHelper.sridOf(coverage[index]), errors[index]);
+      Geometry errorGeometry =
+          CoverageSupport.preserveSrid(GeometryFieldValueHelper.sridOf(coverage[index]), errors[index]);
       results[index] = new CoverageValidationResult(errorGeometry == null, errorGeometry);
     }
     return results;
@@ -98,5 +112,59 @@ public class CoverageOperationExecutor {
       normalized[index] = GeometryFieldValueHelper.preserveSrid(source[index], result[index]);
     }
     return normalized;
+  }
+
+  private Geometry[] validateNoCoverageHoles(Geometry[] coverage) throws HopException {
+    Geometry holeBoundaries = forbiddenHoleBoundaries(coverage);
+    Geometry[] errors = new Geometry[coverage.length];
+    if (holeBoundaries == null || holeBoundaries.isEmpty()) {
+      return errors;
+    }
+    for (int index = 0; index < coverage.length; index++) {
+      Geometry linework = extractLinework(coverage[index].getBoundary().intersection(holeBoundaries));
+      errors[index] = CoverageSupport.preserveSrid(GeometryFieldValueHelper.sridOf(coverage[index]), linework);
+    }
+    return errors;
+  }
+
+  private Geometry forbiddenHoleBoundaries(Geometry[] coverage) throws HopException {
+    final Geometry union;
+    try {
+      union = CoverageUnion.union(coverage);
+    } catch (TopologyException e) {
+      throw new HopException(
+          "Coverage hole validation requires a valid polygonal coverage. Run Coverage Validate first.",
+          e);
+    }
+    if (union == null || union.isEmpty()) {
+      return null;
+    }
+
+    List<Geometry> holeBoundaries = new ArrayList<>();
+    @SuppressWarnings("unchecked")
+    List<Polygon> polygons = PolygonExtracter.getPolygons(union);
+    for (Polygon polygon : polygons) {
+      for (int index = 0; index < polygon.getNumInteriorRing(); index++) {
+        holeBoundaries.add(
+            polygon.getFactory().createLineString(polygon.getInteriorRingN(index).getCoordinateSequence()));
+      }
+    }
+    if (holeBoundaries.isEmpty()) {
+      return null;
+    }
+    return union.getFactory().buildGeometry(holeBoundaries);
+  }
+
+  private Geometry extractLinework(Geometry geometry) {
+    if (geometry == null || geometry.isEmpty()) {
+      return null;
+    }
+    List<Geometry> linework = new ArrayList<>();
+    LinearComponentExtracter.getLines(geometry, linework, true);
+    if (linework.isEmpty()) {
+      return null;
+    }
+    Geometry result = geometry.getFactory().buildGeometry(linework);
+    return result.isEmpty() ? null : result;
   }
 }

@@ -117,9 +117,11 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
     content.setLayoutData(fdContent);
 
     addFullWidthLabel("Connect the secondary layer with an info hop before validating the transform.");
+    addFullWidthLabel(
+        "Optional reject target hop: KEEP_MATCHED and KEEP_UNMATCHED can send the opposite set to a second output stream.");
     wOperation = addCombo("Operation");
     for (OperationDescriptor descriptor : operations) {
-      wOperation.add(descriptor.group().getLabel() + " - " + descriptor.label());
+      wOperation.add(descriptor.displayLabel());
     }
     wExecutionMode = addReadOnlyText("Execution mode");
     wInfoTransformName = addReadOnlyText("Secondary info transform");

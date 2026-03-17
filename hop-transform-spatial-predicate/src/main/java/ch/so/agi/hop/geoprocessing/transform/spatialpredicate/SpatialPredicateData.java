@@ -2,6 +2,7 @@ package ch.so.agi.hop.geoprocessing.transform.spatialpredicate;
 
 import ch.so.agi.hop.geoprocessing.core.LayerCache;
 import ch.so.agi.hop.geoprocessing.core.SpatialPredicateExecutor;
+import java.util.List;
 import org.apache.hop.core.row.IRowMeta;
 import org.apache.hop.core.IRowSet;
 import org.apache.hop.pipeline.transform.BaseTransformData;
@@ -20,6 +21,8 @@ public class SpatialPredicateData extends BaseTransformData implements ITransfor
   int distanceFieldIndex = -1;
   int booleanFieldIndex = -1;
   Double staticDistance;
+  List<IRowSet> mainOutputRowSets = List.of();
+  List<IRowSet> rejectOutputRowSets = List.of();
   final SpatialPredicateExecutor executor = new SpatialPredicateExecutor();
   SpatialPredicateMatcher matcher;
   boolean initialized;

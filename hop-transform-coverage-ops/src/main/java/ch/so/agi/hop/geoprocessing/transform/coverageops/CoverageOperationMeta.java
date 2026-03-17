@@ -23,7 +23,12 @@ import org.apache.hop.metadata.api.HopMetadataProperty;
 import org.apache.hop.metadata.api.IHopMetadataProvider;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.pipeline.transform.BaseTransformMeta;
+import org.apache.hop.pipeline.transform.ITransformIOMeta;
+import org.apache.hop.pipeline.transform.TransformIOMeta;
 import org.apache.hop.pipeline.transform.TransformMeta;
+import org.apache.hop.pipeline.transform.stream.IStream;
+import org.apache.hop.pipeline.transform.stream.Stream;
+import org.apache.hop.pipeline.transform.stream.StreamIcon;
 
 @Transform(
     id = "COVERAGE_OPERATION_TRANSFORM",
@@ -40,6 +45,7 @@ public class CoverageOperationMeta
   @HopMetadataProperty private String geometryFieldName;
   @HopMetadataProperty private String groupFieldNames;
   @HopMetadataProperty private String gapWidth;
+  @HopMetadataProperty private boolean disallowCoverageHoles;
   @HopMetadataProperty private String distanceValue;
   @HopMetadataProperty private String snappingDistance;
   @HopMetadataProperty private CoverageMergeStrategy mergeStrategy;
@@ -53,12 +59,55 @@ public class CoverageOperationMeta
     geometryFieldName = "";
     groupFieldNames = "";
     gapWidth = "0.0";
+    disallowCoverageHoles = false;
     distanceValue = "1.0";
     snappingDistance = "";
     mergeStrategy = CoverageMergeStrategy.LONGEST_BORDER;
     outputMode = GeometryOutputMode.APPEND;
     outputFieldName = "coverage_error";
     booleanFieldName = "coverage_is_valid";
+  }
+
+  @Override
+  public ITransformIOMeta getTransformIOMeta() {
+    ITransformIOMeta ioMeta = super.getTransformIOMeta(false);
+    if (ioMeta == null) {
+      TransformIOMeta transformIOMeta = new TransformIOMeta(true, true, true, false, false, false);
+      transformIOMeta.addStream(
+          new Stream(IStream.StreamType.TARGET, null, "Reject rows", StreamIcon.TARGET, null));
+      transformIOMeta.setGeneralTargetDescription("Optional QA/reject target for invalid coverage rows");
+      setTransformIOMeta(transformIOMeta);
+      ioMeta = transformIOMeta;
+    }
+    return ioMeta;
+  }
+
+  @Override
+  public void searchInfoAndTargetTransforms(List<TransformMeta> transforms) {
+    for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
+      targetStream.setTransformMeta(TransformMeta.findTransform(transforms, targetStream.getSubject()));
+    }
+  }
+
+  @Override
+  public void convertIOMetaToTransformNames() {
+    for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
+      targetStream.setSubject(targetStream.getTransformName());
+    }
+  }
+
+  @Override
+  public boolean cleanAfterHopToRemove(TransformMeta fromTransform) {
+    for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
+      if (fromTransform != null
+          && targetStream.getTransformMeta() != null
+          && fromTransform.getName().equals(targetStream.getTransformMeta().getName())) {
+        targetStream.setTransformMeta(null);
+        targetStream.setSubject(null);
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override
@@ -168,6 +217,10 @@ public class CoverageOperationMeta
       remarks.add(ok("Coverage operation configuration looks valid.", transformMeta));
       return;
     }
+    if (!getRejectTransformName().isBlank()) {
+      remarks.add(error("Reject target stream is only supported for Validate Coverage.", transformMeta));
+      return;
+    }
     if (getOutputMode() == GeometryOutputMode.APPEND) {
       if (outputFieldName == null || outputFieldName.isBlank()) {
         remarks.add(error("Output geometry field is required in APPEND mode.", transformMeta));
@@ -196,6 +249,18 @@ public class CoverageOperationMeta
 
   public boolean isValidateOperation() {
     return "coverage_validate".equals(operationId);
+  }
+
+  public String getRejectTransformName() {
+    List<IStream> targetStreams = getTransformIOMeta().getTargetStreams();
+    if (targetStreams.isEmpty()) {
+      return "";
+    }
+    IStream targetStream = targetStreams.get(0);
+    if (targetStream.getTransformMeta() != null) {
+      return targetStream.getTransformMeta().getName();
+    }
+    return targetStream.getSubject() == null ? "" : targetStream.getSubject();
   }
 
   private ICheckResult error(String message, TransformMeta transformMeta) {
@@ -259,6 +324,14 @@ public class CoverageOperationMeta
 
   public void setGapWidth(String gapWidth) {
     this.gapWidth = gapWidth;
+  }
+
+  public boolean isDisallowCoverageHoles() {
+    return disallowCoverageHoles;
+  }
+
+  public void setDisallowCoverageHoles(boolean disallowCoverageHoles) {
+    this.disallowCoverageHoles = disallowCoverageHoles;
   }
 
   public String getDistanceValue() {

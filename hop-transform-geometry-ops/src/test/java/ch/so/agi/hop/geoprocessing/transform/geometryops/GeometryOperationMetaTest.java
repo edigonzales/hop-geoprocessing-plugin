@@ -3,6 +3,7 @@ package ch.so.agi.hop.geoprocessing.transform.geometryops;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.atolcd.hop.core.row.value.ValueMetaGeometry;
+import ch.so.agi.hop.geoprocessing.core.OperationDescriptor;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.hop.core.ICheckResult;
@@ -11,6 +12,26 @@ import org.apache.hop.core.variables.Variables;
 import org.junit.jupiter.api.Test;
 
 class GeometryOperationMetaTest {
+
+  @Test
+  void sortOperationsOrdersByGroupThenLabel() {
+    List<OperationDescriptor> sorted = GeometryOperationDialog.sortOperations(new GeometryOperationMeta().listOperations());
+
+    assertThat(sorted.subList(0, 7))
+        .extracting(OperationDescriptor::id)
+        .containsExactly(
+            "explode",
+            "line_merge",
+            "buffer",
+            "buffer_extended",
+            "concave_hull",
+            "convex_hull",
+            "polygonize");
+
+    assertThat(sorted.subList(sorted.size() - 4, sorted.size()))
+        .extracting(OperationDescriptor::id)
+        .containsExactly("difference", "intersection", "sym_difference", "union");
+  }
 
   @Test
   void checkRequiresPrecisionScaleForReducePrecision() {

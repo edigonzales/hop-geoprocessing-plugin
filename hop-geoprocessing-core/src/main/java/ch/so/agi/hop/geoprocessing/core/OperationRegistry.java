@@ -460,7 +460,12 @@ public final class OperationRegistry {
               OperationArity.GROUP,
               ExecutionMode.BLOCKING_LAYER,
               ResultMode.COVERAGE,
-              parameter(ParameterId.GAP_WIDTH, "Gap width", ParameterType.NUMBER, false)),
+              parameter(ParameterId.GAP_WIDTH, "Gap width", ParameterType.NUMBER, false),
+              parameter(
+                  ParameterId.DISALLOW_HOLES,
+                  "Disallow coverage holes",
+                  ParameterType.BOOLEAN,
+                  false)),
           descriptor(
               TransformFamily.COVERAGE_OPERATION,
               "coverage_simplify",

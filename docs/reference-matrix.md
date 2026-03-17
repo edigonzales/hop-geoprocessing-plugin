@@ -7,10 +7,10 @@ This is the fastest way to scan the plugin from an operator perspective.
 | Transform | Operations | Inputs | Execution | RAM | Spatial Index | Output style |
 | --- | ---: | --- | --- | --- | --- | --- |
 | Geometry Operation | 34 | 1 layer | Streaming | current row | no | mostly 1:1, sometimes 1:n |
-| Spatial Predicate | 9 | primary + secondary | Caches secondary layer | full secondary layer | STRtree on secondary | boolean, filter, or join |
+| Spatial Predicate | 9 | primary + secondary | Caches secondary layer | full secondary layer | STRtree on secondary | boolean, filter, or join; optional reject stream for filters |
 | Layer Overlay | 4 | primary + secondary | Blocking per layer | full secondary layer | STRtree on secondary | 0:n overlay rows |
 | Layer Aggregate | 4 | 1 layer, optional grouping | Blocking per layer/group | active layer/group | no | 1 row per group |
-| Coverage Operation | 5 | 1 layer, optional grouping | Blocking per layer/group | active layer/group | no | row-preserving 1:1 |
+| Coverage Operation | 5 | 1 layer, optional grouping | Blocking per layer/group | active layer/group | no | row-preserving 1:1; optional reject stream for validate |
 
 ## Geometry Operation
 

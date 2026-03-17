@@ -6,12 +6,15 @@ import ch.so.agi.hop.geoprocessing.core.GeometryFieldSelection;
 import ch.so.agi.hop.geoprocessing.core.GeometryFieldSelectionResolver;
 import ch.so.agi.hop.geoprocessing.core.GeometryOutputMode;
 import ch.so.agi.hop.geoprocessing.core.TextListSupport;
+import ch.so.agi.hop.geoprocessing.core.TransformStreamRouting;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.hop.core.exception.HopException;
+import org.apache.hop.core.exception.HopTransformException;
+import org.apache.hop.core.exception.HopValueException;
 import org.apache.hop.core.row.IRowMeta;
 import org.apache.hop.core.row.RowDataUtil;
 import org.apache.hop.pipeline.Pipeline;
@@ -46,7 +49,9 @@ public class CoverageOperation extends BaseTransform<CoverageOperationMeta, Cove
       return false;
     }
 
-    putRow(data.outputRowMeta, data.outputRows.get(data.outputIndex++));
+    Object[] outputRow = data.outputRows.get(data.outputIndex++);
+    TransformStreamRouting.putRowToRowSets(this, data.outputRowMeta, outputRow, data.mainOutputRowSets);
+    routeRejectRow(outputRow);
     return true;
   }
 
@@ -84,6 +89,10 @@ public class CoverageOperation extends BaseTransform<CoverageOperationMeta, Cove
   private void initializeFromInputRowMeta() throws HopException {
     data.outputRowMeta = (IRowMeta) getInputRowMeta().clone();
     meta.getFields(data.outputRowMeta, getTransformName(), null, null, this, metadataProvider);
+    TransformStreamRouting.RowSetTargets outputTargets =
+        TransformStreamRouting.partitionRowSets(getOutputRowSets(), meta.getRejectTransformName());
+    data.mainOutputRowSets = outputTargets.mainRowSets();
+    data.rejectOutputRowSets = outputTargets.targetRowSets();
     GeometryFieldSelection geometrySelection =
         GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(getInputRowMeta(), meta.getGeometryFieldName());
     logSelectionWarning(geometrySelection.warning());
@@ -131,7 +140,8 @@ public class CoverageOperation extends BaseTransform<CoverageOperationMeta, Cove
       throws HopException {
     List<Geometry> geometries = groupFeatures.stream().map(FeatureRow::geometry).toList();
     if (meta.isValidateOperation()) {
-      CoverageValidationResult[] results = data.executor.validate(geometries, data.staticGapWidth);
+      CoverageValidationResult[] results =
+          data.executor.validate(geometries, data.staticGapWidth, meta.isDisallowCoverageHoles());
       for (int index = 0; index < groupFeatures.size(); index++) {
         FeatureRow feature = groupFeatures.get(index);
         CoverageValidationResult result = results[index];
@@ -182,6 +192,20 @@ public class CoverageOperation extends BaseTransform<CoverageOperationMeta, Cove
   private void logSelectionWarning(String warning) {
     if (warning != null && !warning.isBlank()) {
       logBasic(warning);
+    }
+  }
+
+  private void routeRejectRow(Object[] outputRow) throws HopTransformException {
+    if (!meta.isValidateOperation()
+        || data.rejectOutputRowSets.isEmpty()
+        || !Boolean.FALSE.equals(outputRow[data.booleanFieldIndex])) {
+      return;
+    }
+    try {
+      TransformStreamRouting.putRowToRowSets(
+          this, data.outputRowMeta, data.outputRowMeta.cloneRow(outputRow), data.rejectOutputRowSets);
+    } catch (HopValueException e) {
+      throw new HopTransformException("Unable to clone row while routing coverage reject rows", e);
     }
   }
 
