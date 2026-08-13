@@ -48,8 +48,8 @@ public class GeometryOperationExecutor {
       BufferJoinStyle bufferJoinStyle,
       boolean singleSided)
       throws HopException {
-    Geometry primary = GeometryFieldValueHelper.normalize(primaryGeometry);
-    Geometry secondary = GeometryFieldValueHelper.normalize(secondaryGeometry);
+    Geometry primary = GeometryFieldValueHelper.linearizeForProcessing(primaryGeometry);
+    Geometry secondary = GeometryFieldValueHelper.linearizeForProcessing(secondaryGeometry);
 
     if ("explode".equals(operationId)) {
       return GeometryFieldValueHelper.explode(primary);
@@ -67,21 +67,45 @@ public class GeometryOperationExecutor {
                   primary,
                   BufferOp.bufferOp(
                       primary,
-                      singleSided ? requireDistance(distance, "Distance") : Math.abs(requireDistance(distance, "Distance")),
-                      createBufferParameters(bufferSegments, bufferCapStyle, bufferJoinStyle, singleSided)));
+                      singleSided
+                          ? requireDistance(distance, "Distance")
+                          : Math.abs(requireDistance(distance, "Distance")),
+                      createBufferParameters(
+                          bufferSegments, bufferCapStyle, bufferJoinStyle, singleSided)));
           case "centroid" -> normalize(primary, primary.getCentroid());
           case "concave_hull" ->
-              normalize(primary, ConcaveHull.concaveHullByLength(primary, Math.abs(requireDistance(distance, "Maximum edge length"))));
+              normalize(
+                  primary,
+                  ConcaveHull.concaveHullByLength(
+                      primary, Math.abs(requireDistance(distance, "Maximum edge length"))));
           case "convex_hull" -> normalize(primary, primary.convexHull());
-          case "densify" -> normalize(primary, Densifier.densify(primary, Math.abs(requireDistance(distance, "Distance"))));
+          case "densify" ->
+              normalize(
+                  primary,
+                  Densifier.densify(primary, Math.abs(requireDistance(distance, "Distance"))));
           case "difference" ->
-              normalize(primary, binaryOverlay(primary, secondary, overlayMode, precisionScale, org.locationtech.jts.operation.overlayng.OverlayNG.DIFFERENCE));
+              normalize(
+                  primary,
+                  binaryOverlay(
+                      primary,
+                      secondary,
+                      overlayMode,
+                      precisionScale,
+                      org.locationtech.jts.operation.overlayng.OverlayNG.DIFFERENCE));
           case "extract_coordinates" ->
-              normalize(primary, primary.getFactory().createMultiPointFromCoords(primary.getCoordinates()));
+              normalize(
+                  primary, primary.getFactory().createMultiPointFromCoords(primary.getCoordinates()));
           case "fix_geometry" -> normalize(primary, GeometryFixer.fix(primary));
           case "interior_point" -> normalize(primary, primary.getInteriorPoint());
           case "intersection" ->
-              normalize(primary, binaryOverlay(primary, secondary, overlayMode, precisionScale, org.locationtech.jts.operation.overlayng.OverlayNG.INTERSECTION));
+              normalize(
+                  primary,
+                  binaryOverlay(
+                      primary,
+                      secondary,
+                      overlayMode,
+                      precisionScale,
+                      org.locationtech.jts.operation.overlayng.OverlayNG.INTERSECTION));
           case "line_merge" -> normalize(primary, lineMerge(primary));
           case "linear_referencing" ->
               normalize(primary, linearReferencing(primary, requireDistance(distance, "Distance")));
@@ -93,28 +117,65 @@ public class GeometryOperationExecutor {
               normalize(primary, new MinimumDiameter(primary).getDiameter());
           case "polygonize" -> normalize(primary, polygonize(primary));
           case "reduce_precision" ->
-              normalize(primary, GeometryPrecisionReducer.reduce(primary, OverlayExecution.precisionModel(requirePrecisionScale(precisionScale))));
+              normalize(
+                  primary,
+                  GeometryPrecisionReducer.reduce(
+                      primary,
+                      OverlayExecution.precisionModel(
+                          requirePrecisionScale(precisionScale))));
           case "remove_all_holes" -> normalize(primary, removeAllHoles(primary));
           case "remove_small_holes" ->
-              normalize(primary, removeSmallHoles(primary, requireDistance(distance, "Area threshold")));
+              normalize(
+                  primary, removeSmallHoles(primary, requireDistance(distance, "Area threshold")));
           case "reverse" -> normalize(primary, primary.reverse());
           case "simplify" ->
-              normalize(primary, DouglasPeuckerSimplifier.simplify(primary, Math.abs(requireDistance(distance, "Distance"))));
+              normalize(
+                  primary,
+                  DouglasPeuckerSimplifier.simplify(
+                      primary, Math.abs(requireDistance(distance, "Distance"))));
           case "simplify_topology" ->
-              normalize(primary, TopologyPreservingSimplifier.simplify(primary, Math.abs(requireDistance(distance, "Distance"))));
+              normalize(
+                  primary,
+                  TopologyPreservingSimplifier.simplify(
+                      primary, Math.abs(requireDistance(distance, "Distance"))));
           case "simplify_vw" ->
-              normalize(primary, VWSimplifier.simplify(primary, Math.abs(requireDistance(distance, "Distance"))));
+              normalize(
+                  primary,
+                  VWSimplifier.simplify(
+                      primary, Math.abs(requireDistance(distance, "Distance"))));
           case "snap" ->
-              normalize(primary, snap(primary, secondary, Math.abs(requireDistance(distance, "Snap distance"))));
+              normalize(
+                  primary,
+                  snap(
+                      primary,
+                      secondary,
+                      Math.abs(requireDistance(distance, "Snap distance"))));
           case "snap_to_self" ->
-              normalize(primary, GeometrySnapper.snapToSelf(primary, Math.abs(requireDistance(distance, "Snap distance")), true));
+              normalize(
+                  primary,
+                  GeometrySnapper.snapToSelf(
+                      primary, Math.abs(requireDistance(distance, "Snap distance")), true));
           case "split" -> normalize(primary, split(primary, secondary));
           case "sym_difference" ->
-              normalize(primary, binaryOverlay(primary, secondary, overlayMode, precisionScale, org.locationtech.jts.operation.overlayng.OverlayNG.SYMDIFFERENCE));
+              normalize(
+                  primary,
+                  binaryOverlay(
+                      primary,
+                      secondary,
+                      overlayMode,
+                      precisionScale,
+                      org.locationtech.jts.operation.overlayng.OverlayNG.SYMDIFFERENCE));
           case "to_2d" -> normalize(primary, GeometryFieldValueHelper.force2D(primary));
           case "to_multi" -> normalize(primary, GeometryFieldValueHelper.toMulti(primary));
           case "union" ->
-              normalize(primary, binaryOverlay(primary, secondary, overlayMode, precisionScale, org.locationtech.jts.operation.overlayng.OverlayNG.UNION));
+              normalize(
+                  primary,
+                  binaryOverlay(
+                      primary,
+                      secondary,
+                      overlayMode,
+                      precisionScale,
+                      org.locationtech.jts.operation.overlayng.OverlayNG.UNION));
           default -> throw new HopException("Unsupported geometry operation: " + operationId);
         };
 
@@ -145,12 +206,17 @@ public class GeometryOperationExecutor {
   }
 
   private Geometry binaryOverlay(
-      Geometry left, Geometry right, OverlayMode overlayMode, Double precisionScale, int operationCode)
+      Geometry left,
+      Geometry right,
+      OverlayMode overlayMode,
+      Double precisionScale,
+      int operationCode)
       throws HopException {
     if (right == null) {
       return null;
     }
-    GeometryFieldValueHelper.requireCompatibleSrid(left, right, "Geometry SRIDs must match");
+    GeometryFieldValueHelper.requireCompatibleSrid(
+        left, right, "Geometry SRIDs must match");
     return OverlayExecution.overlay(left, right, overlayMode, precisionScale, operationCode);
   }
 
@@ -167,8 +233,10 @@ public class GeometryOperationExecutor {
       Integer segments, BufferCapStyle capStyle, BufferJoinStyle joinStyle, boolean singleSided) {
     BufferParameters parameters = new BufferParameters();
     parameters.setQuadrantSegments(segments == null ? 8 : segments);
-    parameters.setEndCapStyle((capStyle == null ? BufferCapStyle.ROUND : capStyle).getJtsValue());
-    parameters.setJoinStyle((joinStyle == null ? BufferJoinStyle.ROUND : joinStyle).getJtsValue());
+    parameters.setEndCapStyle(
+        (capStyle == null ? BufferCapStyle.ROUND : capStyle).getJtsValue());
+    parameters.setJoinStyle(
+        (joinStyle == null ? BufferJoinStyle.ROUND : joinStyle).getJtsValue());
     parameters.setSingleSided(singleSided);
     return parameters;
   }
@@ -199,12 +267,15 @@ public class GeometryOperationExecutor {
           retained.add(ring);
         }
       }
-      return factory.createPolygon((LinearRing) polygon.getExteriorRing(), retained.toArray(new LinearRing[0]));
+      return factory.createPolygon(
+          (LinearRing) polygon.getExteriorRing(), retained.toArray(new LinearRing[0]));
     }
     if (geometry instanceof MultiPolygon multiPolygon) {
       Polygon[] polygons = new Polygon[multiPolygon.getNumGeometries()];
       for (int index = 0; index < multiPolygon.getNumGeometries(); index++) {
-        polygons[index] = (Polygon) removeSmallHoles(multiPolygon.getGeometryN(index), areaThreshold);
+        polygons[index] =
+            (Polygon)
+                removeSmallHoles(multiPolygon.getGeometryN(index), areaThreshold);
       }
       return factory.createMultiPolygon(polygons);
     }
@@ -219,7 +290,8 @@ public class GeometryOperationExecutor {
     if (geometry instanceof MultiPolygon multiPolygon) {
       Polygon[] polygons = new Polygon[multiPolygon.getNumGeometries()];
       for (int index = 0; index < multiPolygon.getNumGeometries(); index++) {
-        polygons[index] = (Polygon) removeAllHoles(multiPolygon.getGeometryN(index));
+        polygons[index] =
+            (Polygon) removeAllHoles(multiPolygon.getGeometryN(index));
       }
       return factory.createMultiPolygon(polygons);
     }
@@ -234,11 +306,13 @@ public class GeometryOperationExecutor {
     return geometry.getFactory().createPoint(coordinate);
   }
 
-  private Geometry snap(Geometry primary, Geometry secondary, double distance) throws HopException {
+  private Geometry snap(Geometry primary, Geometry secondary, double distance)
+      throws HopException {
     if (secondary == null) {
       throw new HopException("Snap requires a secondary geometry");
     }
-    GeometryFieldValueHelper.requireCompatibleSrid(primary, secondary, "Geometry SRIDs must match");
+    GeometryFieldValueHelper.requireCompatibleSrid(
+        primary, secondary, "Geometry SRIDs must match");
     GeometrySnapper snapper = new GeometrySnapper(primary);
     return snapper.snapTo(secondary, distance);
   }
@@ -247,7 +321,8 @@ public class GeometryOperationExecutor {
     if (secondary == null) {
       throw new HopException("Split requires a secondary geometry");
     }
-    GeometryFieldValueHelper.requireCompatibleSrid(primary, secondary, "Geometry SRIDs must match");
+    GeometryFieldValueHelper.requireCompatibleSrid(
+        primary, secondary, "Geometry SRIDs must match");
 
     GeometryFactory factory = primary.getFactory();
     if (primary instanceof Polygonal && secondary instanceof Lineal) {
@@ -277,7 +352,10 @@ public class GeometryOperationExecutor {
         addSplitLines(lineStrings, secondary.getCoordinates(), lineString);
       } else if (primary instanceof MultiLineString multiLineString) {
         for (int index = 0; index < multiLineString.getNumGeometries(); index++) {
-          addSplitLines(lineStrings, secondary.getCoordinates(), (LineString) multiLineString.getGeometryN(index));
+          addSplitLines(
+              lineStrings,
+              secondary.getCoordinates(),
+              (LineString) multiLineString.getGeometryN(index));
         }
       }
       return factory.buildGeometry(new ArrayList<>(lineStrings));
@@ -286,7 +364,8 @@ public class GeometryOperationExecutor {
         "Split supports polygon/line, line/line, or line/point input combinations only");
   }
 
-  private void addSplitLines(List<LineString> target, Coordinate[] splitCoordinates, LineString lineString) {
+  private void addSplitLines(
+      List<LineString> target, Coordinate[] splitCoordinates, LineString lineString) {
     LengthIndexedLine indexedLine = new LengthIndexedLine(lineString);
     java.util.TreeSet<Double> indexes = new java.util.TreeSet<>();
     indexes.add(indexedLine.getStartIndex());
