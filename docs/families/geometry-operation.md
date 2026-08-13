@@ -39,6 +39,14 @@ flowchart LR
 
 Full list: [Reference Matrix](../reference-matrix.md#geometry-operation)
 
+## True Curve Inputs
+
+SQL/MM true curves from the Hop Geometry value type are accepted. `CIRCULARSTRING`, `COMPOUNDCURVE`,
+`CURVEPOLYGON`, `MULTICURVE`, and `MULTISURFACE` are converted to ordinary JTS geometries at the
+geoprocessing boundary using their densified coordinate representation. Geoprocessing results are
+therefore linear geometries; the exact curve control points are intentionally not preserved through a
+JTS operation.
+
 ## Important Parameters
 
 - `primaryGeometryField`
@@ -56,6 +64,8 @@ Full list: [Reference Matrix](../reference-matrix.md#geometry-operation)
   field from the same row.
 - `explode` is the exception to the normal `1:1` output pattern.
 - `simplify_topology` preserves topology within a single geometry, not across a polygon coverage.
+- True curves are intentionally segmented before processing. Use a transport/inspection transform
+  instead when the exact curve definition must survive unchanged.
 
 ## Related Recipes
 

@@ -1,5 +1,11 @@
 package ch.so.agi.hop.geoprocessing.core;
 
+import com.atolcd.hop.gis.geometry.curve.CircularString;
+import com.atolcd.hop.gis.geometry.curve.CompoundCurve;
+import com.atolcd.hop.gis.geometry.curve.CurveGeometrySupport;
+import com.atolcd.hop.gis.geometry.curve.CurvePolygon;
+import com.atolcd.hop.gis.geometry.curve.MultiCurve;
+import com.atolcd.hop.gis.geometry.curve.MultiSurface;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.hop.core.exception.HopException;
@@ -8,6 +14,7 @@ import org.apache.hop.core.row.IValueMeta;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFilter;
 import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.LinearRing;
 import org.locationtech.jts.geom.MultiLineString;
@@ -44,7 +51,8 @@ public final class GeometryFieldValueHelper {
               + "'");
     }
     IValueMeta valueMeta = rowMeta.getValueMeta(fieldIndex);
-    return readGeometry(valueMeta, rowData[fieldIndex], valueMeta == null ? "" : valueMeta.getName(), fieldIndex);
+    return readGeometry(
+        valueMeta, rowData[fieldIndex], valueMeta == null ? "" : valueMeta.getName(), fieldIndex);
   }
 
   public static Geometry readGeometry(IValueMeta valueMeta, Object value) throws HopException {
@@ -57,7 +65,7 @@ public final class GeometryFieldValueHelper {
       return null;
     }
     try {
-      return normalize(GEOMETRY_VALUE_PARSER.parseGeometry(valueMeta, value));
+      return linearizeForProcessing(GEOMETRY_VALUE_PARSER.parseGeometry(valueMeta, value));
     } catch (Exception e) {
       throw new HopException(buildParseErrorMessage(valueMeta, value, fieldName, fieldIndex), e);
     }
@@ -65,6 +73,60 @@ public final class GeometryFieldValueHelper {
 
   public static Geometry normalize(Geometry geometry) {
     return geometry == null || geometry.isEmpty() ? null : geometry;
+  }
+
+  /**
+   * Converts the custom SQL/MM curve subclasses to matching ordinary JTS geometry types using
+   * their inherited densified coordinate representation. Standard JTS geometries are returned
+   * unchanged.
+   */
+  public static Geometry linearizeForProcessing(Geometry geometry) {
+    Geometry normalized = normalize(geometry);
+    if (normalized == null || !CurveGeometrySupport.isCurveGeometry(normalized)) {
+      return normalized;
+    }
+
+    GeometryFactory factory = normalized.getFactory();
+    Geometry linearized;
+    if (normalized instanceof CircularString || normalized instanceof CompoundCurve) {
+      linearized = factory.createLineString(normalized.getCoordinates());
+    } else if (normalized instanceof CurvePolygon curvePolygon) {
+      linearized = linearizeCurvePolygon(curvePolygon, factory);
+    } else if (normalized instanceof MultiCurve multiCurve) {
+      LineString[] lines = new LineString[multiCurve.getCurves().size()];
+      for (int index = 0; index < lines.length; index++) {
+        lines[index] =
+            (LineString) linearizeForProcessing(multiCurve.getCurves().get(index));
+      }
+      linearized = factory.createMultiLineString(lines);
+    } else if (normalized instanceof MultiSurface multiSurface) {
+      Polygon[] polygons = new Polygon[multiSurface.getSurfaces().size()];
+      for (int index = 0; index < polygons.length; index++) {
+        Polygon surface = multiSurface.getSurfaces().get(index);
+        polygons[index] =
+            surface instanceof CurvePolygon curvePolygon
+                ? linearizeCurvePolygon(curvePolygon, factory)
+                : (Polygon) factory.createGeometry(surface);
+      }
+      linearized = factory.createMultiPolygon(polygons);
+    } else {
+      throw new IllegalArgumentException(
+          "Unsupported true curve geometry: " + normalized.getClass().getName());
+    }
+
+    linearized.setSRID(normalized.getSRID());
+    return normalize(linearized);
+  }
+
+  private static Polygon linearizeCurvePolygon(
+      CurvePolygon curvePolygon, GeometryFactory factory) {
+    LinearRing shell = factory.createLinearRing(curvePolygon.getExteriorRing().getCoordinates());
+    LinearRing[] holes = new LinearRing[curvePolygon.getNumInteriorRing()];
+    for (int index = 0; index < holes.length; index++) {
+      holes[index] =
+          factory.createLinearRing(curvePolygon.getInteriorRingN(index).getCoordinates());
+    }
+    return factory.createPolygon(shell, holes);
   }
 
   public static Integer sridOf(Geometry geometry) {
