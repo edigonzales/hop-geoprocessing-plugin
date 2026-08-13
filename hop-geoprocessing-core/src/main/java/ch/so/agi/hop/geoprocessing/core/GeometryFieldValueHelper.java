@@ -1,5 +1,6 @@
 package ch.so.agi.hop.geoprocessing.core;
 
+import com.atolcd.hop.gis.geometry.curve.CurveGeometrySupport;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.hop.core.exception.HopException;
@@ -44,7 +45,8 @@ public final class GeometryFieldValueHelper {
               + "'");
     }
     IValueMeta valueMeta = rowMeta.getValueMeta(fieldIndex);
-    return readGeometry(valueMeta, rowData[fieldIndex], valueMeta == null ? "" : valueMeta.getName(), fieldIndex);
+    return readGeometry(
+        valueMeta, rowData[fieldIndex], valueMeta == null ? "" : valueMeta.getName(), fieldIndex);
   }
 
   public static Geometry readGeometry(IValueMeta valueMeta, Object value) throws HopException {
@@ -57,7 +59,7 @@ public final class GeometryFieldValueHelper {
       return null;
     }
     try {
-      return normalize(GEOMETRY_VALUE_PARSER.parseGeometry(valueMeta, value));
+      return linearizeForProcessing(GEOMETRY_VALUE_PARSER.parseGeometry(valueMeta, value));
     } catch (Exception e) {
       throw new HopException(buildParseErrorMessage(valueMeta, value, fieldName, fieldIndex), e);
     }
@@ -65,6 +67,21 @@ public final class GeometryFieldValueHelper {
 
   public static Geometry normalize(Geometry geometry) {
     return geometry == null || geometry.isEmpty() ? null : geometry;
+  }
+
+  /**
+   * Converts the custom SQL/MM curve subclasses to ordinary JTS geometries using their inherited
+   * densified coordinate representation. Standard JTS geometries are returned unchanged.
+   */
+  public static Geometry linearizeForProcessing(Geometry geometry) {
+    Geometry normalized = normalize(geometry);
+    if (normalized == null || !CurveGeometrySupport.isCurveGeometry(normalized)) {
+      return normalized;
+    }
+
+    Geometry linearized = normalized.getFactory().createGeometry(normalized);
+    linearized.setSRID(normalized.getSRID());
+    return normalize(linearized);
   }
 
   public static Integer sridOf(Geometry geometry) {
