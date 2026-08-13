@@ -38,6 +38,7 @@ import org.apache.hop.pipeline.transform.stream.StreamIcon;
     image = "ch/so/agi/hop/geoprocessing/transform/coverageops/icons/coverage-operation.svg",
     categoryDescription = "Geospatial",
     documentationUrl = "",
+    classLoaderGroup = "sogeo-geometry",
     keywords = {"geospatial", "coverage", "validate", "simplify", "clean"})
 public class CoverageOperationMeta
     extends BaseTransformMeta<CoverageOperation, CoverageOperationData> {

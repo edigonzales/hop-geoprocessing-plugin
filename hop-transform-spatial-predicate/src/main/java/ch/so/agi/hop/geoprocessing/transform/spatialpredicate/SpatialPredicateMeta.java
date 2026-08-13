@@ -35,6 +35,7 @@ import org.apache.hop.pipeline.transform.stream.StreamIcon;
     image = "ch/so/agi/hop/geoprocessing/transform/spatialpredicate/icons/spatial-predicate.svg",
     categoryDescription = "Geospatial",
     documentationUrl = "",
+    classLoaderGroup = "sogeo-geometry",
     keywords = {"geospatial", "predicate", "intersects", "contains", "join"})
 public class SpatialPredicateMeta
     extends BaseTransformMeta<SpatialPredicate, SpatialPredicateData> {

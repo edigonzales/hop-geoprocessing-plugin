@@ -28,6 +28,7 @@ import org.apache.hop.pipeline.transform.TransformMeta;
     image = "ch/so/agi/hop/geoprocessing/transform/layeraggregate/icons/layer-aggregate.svg",
     categoryDescription = "Geospatial",
     documentationUrl = "",
+    classLoaderGroup = "sogeo-geometry",
     keywords = {"geospatial", "aggregate", "dissolve", "collect", "union"})
 public class LayerAggregateMeta extends BaseTransformMeta<LayerAggregate, LayerAggregateData> {
 

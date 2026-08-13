@@ -31,6 +31,7 @@ import org.apache.hop.pipeline.transform.TransformMeta;
     image = "ch/so/agi/hop/geoprocessing/transform/geometryops/icons/geometry-operation.svg",
     categoryDescription = "Geospatial",
     documentationUrl = "",
+    classLoaderGroup = "sogeo-geometry",
     keywords = {"geospatial", "geometry", "buffer", "intersection", "simplify"})
 public class GeometryOperationMeta
     extends BaseTransformMeta<GeometryOperation, GeometryOperationData> {
