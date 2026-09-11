@@ -45,15 +45,19 @@ Detailed documentation lives in [docs/README.md](docs/README.md).
 ## Build
 
 ```bash
-mvn clean verify
+mvn -U -B -ntp clean verify
 ```
 
 Build prerequisites:
 
-- Java 17
+- Java 21 (Java 25 is part of the CI compatibility matrix)
 - Maven
-- `hop-geometry-type` available in local Maven repository or reachable through configured
-  repositories
+- `ch.so.agi:hop-geometry-type:0.2.0-SNAPSHOT` available through the configured Maven snapshot
+  repository or installed locally from the current Geometry Type build
+
+The project targets Apache Hop `2.19.0` and keeps its own version at `0.1.0-SNAPSHOT`. Maven
+resolves the Geometry Type dependency by its normal base version; no timestamped snapshot is
+recorded in this repository.
 
 ## Install In Hop
 
@@ -65,6 +69,42 @@ This installs:
 
 ```text
 $HOP_HOME/plugins/transforms/hop-geoprocessing
+```
+
+The installable Maven ZIP is published as:
+
+```text
+ch.so.agi:hop-geoprocessing-plugin:0.1.0-SNAPSHOT
+```
+
+The ZIP contains the five geoprocessing transform JARs and `hop-geoprocessing-core.jar`. The
+Geometry Type plugin is installed separately at `plugins/misc/hop-geometry-type`; its shared
+JTS/Geometry runtime is deliberately not duplicated in this ZIP.
+
+## CI and publication
+
+The local workflow tests six combinations:
+
+```text
+Ubuntu, macOS, Windows × Java 21, Java 25
+```
+
+Ubuntu/Java 21 is the canonical run. It executes `clean verify`, validates the ZIP and creates the
+publishable bundle. The other five runs execute `clean test` for compatibility only. Linux tests
+use `xvfb-run` when available and macOS tests use `-XstartOnFirstThread`.
+
+The canonical bundle is then installed into a fresh Apache Hop 2.19.0 installation together with
+the current Geometry Type snapshot. The Installed-Hop E2E reads deterministic WKT fixtures,
+executes the Geometry Operation transform and checks the resulting centroids. Pull requests never
+publish artifacts. A successful `main` run publishes the exact verified ZIP to
+`https://jars.interlis.guru/snapshots/` without rebuilding it; GitHub plugin Releases are not used.
+
+The Maven publish job requires the protected secrets `INTERLIS_MAVEN_USERNAME` and
+`INTERLIS_MAVEN_TOKEN`. Package validation can be run locally with:
+
+```bash
+python3 scripts/verify-package.py
+python3 scripts/run-e2e.py --help
 ```
 
 ## Fast Local Sync

@@ -31,6 +31,7 @@ import org.apache.hop.pipeline.transform.stream.StreamIcon;
     image = "ch/so/agi/hop/geoprocessing/transform/layeroverlay/icons/layer-overlay.svg",
     categoryDescription = "Geospatial",
     documentationUrl = "",
+    classLoaderGroup = "sogeo-geometry",
     keywords = {"geospatial", "overlay", "intersection", "clip", "identity"})
 public class LayerOverlayMeta extends BaseTransformMeta<LayerOverlay, LayerOverlayData> {
 

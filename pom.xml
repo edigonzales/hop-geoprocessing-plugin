@@ -23,9 +23,9 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>17</maven.compiler.release>
-    <hop.version>2.17.0</hop.version>
-    <hop.geometry.type.version>0.1.0-SNAPSHOT</hop.geometry.type.version>
+    <maven.compiler.release>21</maven.compiler.release>
+    <hop.version>2.19.0</hop.version>
+    <hop.geometry.type.version>0.2.0-SNAPSHOT</hop.geometry.type.version>
     <jts.version>1.20.0</jts.version>
     <junit.version>5.12.0</junit.version>
     <assertj.version>3.27.3</assertj.version>
@@ -34,6 +34,7 @@
     <maven.surefire.version>3.5.2</maven.surefire.version>
     <maven.assembly.version>3.7.1</maven.assembly.version>
     <maven.jar.version>3.4.2</maven.jar.version>
+    <ui.test.argLine></ui.test.argLine>
   </properties>
 
   <dependencyManagement>
@@ -72,27 +73,23 @@
       <url>https://repo1.maven.org/maven2/</url>
     </repository>
     <repository>
-      <id>jars-interlis</id>
-      <url>https://jars.interlis.ch/</url>
+      <id>sogeo-releases</id>
+      <url>https://jars.interlis.guru/releases/</url>
     </repository>
     <repository>
       <id>sogeo-snapshots</id>
-      <url>https://jars.sogeo.services/snapshots/</url>
-    </repository>
-    <repository>
-      <id>sogeo-releases</id>
-      <url>https://jars.sogeo.services/releases/</url>
+      <url>https://jars.interlis.guru/snapshots/</url>
     </repository>
   </repositories>
 
   <distributionManagement>
     <repository>
       <id>sogeo-releases</id>
-      <url>https://jars.sogeo.services/releases/</url>
+      <url>https://jars.interlis.guru/releases/</url>
     </repository>
     <snapshotRepository>
       <id>sogeo-snapshots</id>
-      <url>https://jars.sogeo.services/snapshots/</url>
+      <url>https://jars.interlis.guru/snapshots/</url>
     </snapshotRepository>
   </distributionManagement>
 
@@ -109,6 +106,9 @@
         <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
           <version>${maven.surefire.version}</version>
+          <configuration>
+            <argLine>${ui.test.argLine}</argLine>
+          </configuration>
         </plugin>
         <plugin>
           <artifactId>maven-jar-plugin</artifactId>
@@ -121,4 +121,31 @@
       </plugins>
     </pluginManagement>
   </build>
+
+  <profiles>
+    <profile>
+      <id>mac-arm64</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>aarch64</arch>
+        </os>
+      </activation>
+      <properties>
+        <ui.test.argLine>-XstartOnFirstThread</ui.test.argLine>
+      </properties>
+    </profile>
+    <profile>
+      <id>mac-intel</id>
+      <activation>
+        <os>
+          <family>mac</family>
+          <arch>x86_64</arch>
+        </os>
+      </activation>
+      <properties>
+        <ui.test.argLine>-XstartOnFirstThread</ui.test.argLine>
+      </properties>
+    </profile>
+  </profiles>
 </project>

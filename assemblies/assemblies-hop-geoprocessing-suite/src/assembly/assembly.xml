@@ -36,6 +36,10 @@
         <exclude>ch.so.agi:hop-transform-spatial-predicate</exclude>
         <exclude>ch.so.agi:hop-transform-layer-overlay</exclude>
         <exclude>ch.so.agi:hop-transform-layer-aggregate</exclude>
+        <exclude>ch.so.agi:hop-geometry-type</exclude>
+        <exclude>org.locationtech.jts:jts-core</exclude>
+        <exclude>org.geolatte:geolatte-geom</exclude>
+        <exclude>org.slf4j:slf4j-api</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>

@@ -18,9 +18,15 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PLUGIN_DIR="${HOP_HOME_ARG}/plugins/transforms/hop-geoprocessing"
 
 cd "${REPO_DIR}"
-mvn -q -DskipTests package
+VERSION="$(mvn -U -B -ntp -q -DforceStdout help:evaluate -Dexpression=project.version)"
+mvn -U -B -ntp -DskipTests package
 
 rm -rf "${PLUGIN_DIR}"
-unzip -o "${REPO_DIR}/assemblies/assemblies-hop-geoprocessing-suite/target/hop-geoprocessing-plugin-"*.zip -d "${HOP_HOME_ARG}"
+ZIP_PATH="${REPO_DIR}/assemblies/assemblies-hop-geoprocessing-suite/target/hop-geoprocessing-plugin-${VERSION}.zip"
+if [[ ! -f "${ZIP_PATH}" ]]; then
+  echo "Plugin ZIP not found: ${ZIP_PATH}" >&2
+  exit 1
+fi
+unzip -o "${ZIP_PATH}" -d "${HOP_HOME_ARG}"
 
 echo "Installed hop-geoprocessing into ${HOP_HOME_ARG}"
