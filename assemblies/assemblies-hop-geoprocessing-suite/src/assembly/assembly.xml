@@ -43,4 +43,12 @@
       </excludes>
     </dependencySet>
   </dependencySets>
+
+  <files>
+    <file>
+      <source>src/assembly/dependencies.xml</source>
+      <outputDirectory>plugins/transforms/hop-geoprocessing</outputDirectory>
+      <destName>dependencies.xml</destName>
+    </file>
+  </files>
 </assembly>

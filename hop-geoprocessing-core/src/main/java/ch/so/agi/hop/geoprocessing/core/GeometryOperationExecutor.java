@@ -48,8 +48,8 @@ public class GeometryOperationExecutor {
       BufferJoinStyle bufferJoinStyle,
       boolean singleSided)
       throws HopException {
-    Geometry primary = GeometryFieldValueHelper.normalize(primaryGeometry);
-    Geometry secondary = GeometryFieldValueHelper.normalize(secondaryGeometry);
+    Geometry primary = GeometryFieldValueHelper.linearizeForProcessing(primaryGeometry);
+    Geometry secondary = GeometryFieldValueHelper.linearizeForProcessing(secondaryGeometry);
 
     if ("explode".equals(operationId)) {
       return GeometryFieldValueHelper.explode(primary);
