@@ -22,7 +22,7 @@ Detailed documentation lives in [docs/README.md](docs/README.md).
 ## Transform Families
 
 - `Geometry Operation`
-  - 34 operations
+  - 35 operations
   - single input
   - execution: `Streaming`
 - `Spatial Predicate`
@@ -38,7 +38,7 @@ Detailed documentation lives in [docs/README.md](docs/README.md).
   - single input, optional grouping
   - execution: `Blocking per layer/group`
 - `Coverage Operation`
-  - 5 operations
+  - 6 operations
   - single input, optional grouping
   - execution: `Blocking per layer/group`
 
@@ -115,3 +115,26 @@ python3 scripts/run-e2e.py --help
 
 The script rebuilds the suite assembly, removes the target plugin directory, and unzips the latest
 artifact into the given Hop home.
+
+## Explicit curve linearization
+
+`Geometry Operation / linearize_curves` converts exact circular curves to linear JTS geometries.
+The distance parameter is `maxError`: maximum XY chord deviation (the sagitta/Pfeilhöhe), in
+coordinate units. It must be positive and finite. Z/M are interpolated on each side of the
+original intermediate control point. Opposite representations use identical XY sample positions.
+This row operation does not coordinate differently partitioned boundaries in other rows.
+
+`Coverage Operation / coverage_linearize` first gathers the whole layer or configured group.
+It splits shared straight/circular edges at all supplied boundary nodes before constructing
+common chords. This handles opposite ring directions and different subdivisions of the same
+exact circle. Output attributes and SRIDs are retained. Optional target XY resolution and X/Y
+origins must be supplied together and should match the eventual FileGDB writer. Grid displacement
+is deducted from the error budget; excessive coarseness or collapsed edges fail.
+
+The operation validates output polygons, coverage overlaps, and changes of holes/adjacency
+introduced by the target grid. It does not snap, repair or automatically refine invalid input.
+Nearly coincident circles whose definitions are numerically ambiguous are rejected rather than
+silently merged. Use analytically consistent source boundaries. The entire group must succeed
+before output; this operation buffers the layer and has pairwise validation work, so it is intended
+for bounded groups rather than unbounded streams. These checks do not constitute a general exact
+arithmetic topology engine for arbitrary intersecting curved input.

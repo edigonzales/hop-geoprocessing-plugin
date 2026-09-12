@@ -71,3 +71,10 @@ JTS operation.
 
 - [Row-wise Geometry Editing](../recipes/row-wise-geometry-editing.md)
 - [Overlay Two Layers](../recipes/layer-overlay.md)
+
+## Explicit curve linearization
+
+`linearize_curves` uses the distance parameter as a positive maximum XY chord deviation in source
+units. It retains interpolated Z/M and recursively handles curve collections. Use Geometry objects
+or SQL/MM WKB for curved input; the existing WKT input parser supports linear WKT. For shared
+polygon boundaries across rows, use Coverage Operation's `coverage_linearize` instead.

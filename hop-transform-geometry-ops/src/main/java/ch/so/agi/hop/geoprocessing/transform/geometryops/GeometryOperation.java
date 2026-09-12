@@ -17,8 +17,7 @@ import org.apache.hop.pipeline.transform.BaseTransform;
 import org.apache.hop.pipeline.transform.TransformMeta;
 import org.locationtech.jts.geom.Geometry;
 
-public class GeometryOperation
-    extends BaseTransform<GeometryOperationMeta, GeometryOperationData> {
+public class GeometryOperation extends BaseTransform<GeometryOperationMeta, GeometryOperationData> {
 
   private static final GeometryFieldSelectionResolver GEOMETRY_FIELD_SELECTION_RESOLVER =
       new GeometryFieldSelectionResolver();
@@ -50,11 +49,15 @@ public class GeometryOperation
 
     Double distance = resolveDistance(row);
     Geometry primaryGeometry =
-        GeometryFieldValueHelper.readGeometry(getInputRowMeta(), data.primaryGeometryFieldIndex, row);
+        "linearize_curves".equals(meta.getOperationId())
+            ? readExactGeometry(row)
+            : GeometryFieldValueHelper.readGeometry(
+                getInputRowMeta(), data.primaryGeometryFieldIndex, row);
     Geometry secondaryGeometry =
         data.secondaryGeometryFieldIndex < 0
             ? null
-            : GeometryFieldValueHelper.readGeometry(getInputRowMeta(), data.secondaryGeometryFieldIndex, row);
+            : GeometryFieldValueHelper.readGeometry(
+                getInputRowMeta(), data.secondaryGeometryFieldIndex, row);
 
     java.util.List<Geometry> resultGeometries =
         data.executor.execute(
@@ -80,12 +83,24 @@ public class GeometryOperation
     return true;
   }
 
+  private Geometry readExactGeometry(Object[] row) throws HopException {
+    try {
+      return new ch.so.agi.hop.geoprocessing.core.GeometryValueParser()
+          .parseGeometry(
+              getInputRowMeta().getValueMeta(data.primaryGeometryFieldIndex),
+              row[data.primaryGeometryFieldIndex]);
+    } catch (Exception e) {
+      throw new HopException("Unable to read exact curve geometry", e);
+    }
+  }
+
   private void initializeFromInputRowMeta() throws HopTransformException {
     descriptor = meta.descriptor();
     data.outputRowMeta = (IRowMeta) getInputRowMeta().clone();
     meta.getFields(data.outputRowMeta, getTransformName(), null, null, this, metadataProvider);
     GeometryFieldSelection primarySelection =
-        GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(getInputRowMeta(), meta.getPrimaryGeometryFieldName());
+        GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(
+            getInputRowMeta(), meta.getPrimaryGeometryFieldName());
     logSelectionWarning(primarySelection.warning());
     data.primaryGeometryFieldIndex =
         GEOMETRY_FIELD_SELECTION_RESOLVER.requireFieldIndex(
@@ -93,7 +108,8 @@ public class GeometryOperation
     data.secondaryGeometryFieldIndex = -1;
     if (descriptor.arity().name().equals("BINARY")) {
       GeometryFieldSelection secondarySelection =
-          GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(getInputRowMeta(), meta.getSecondaryGeometryFieldName());
+          GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(
+              getInputRowMeta(), meta.getSecondaryGeometryFieldName());
       logSelectionWarning(secondarySelection.warning());
       data.secondaryGeometryFieldIndex =
           GEOMETRY_FIELD_SELECTION_RESOLVER.requireFieldIndex(
@@ -112,9 +128,7 @@ public class GeometryOperation
             ? Double.parseDouble(resolve(meta.getDistanceValue()))
             : null;
     data.staticPrecisionScale =
-        requiresPrecisionScale()
-            ? Double.parseDouble(resolve(meta.getPrecisionScale()))
-            : null;
+        requiresPrecisionScale() ? Double.parseDouble(resolve(meta.getPrecisionScale())) : null;
     data.outputGeometryFieldIndex =
         meta.getOutputMode() == GeometryOutputMode.REPLACE
             ? data.primaryGeometryFieldIndex

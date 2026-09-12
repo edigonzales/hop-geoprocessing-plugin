@@ -11,11 +11,11 @@ import java.util.List;
 import org.apache.hop.core.row.IRowMeta;
 import org.apache.hop.core.util.Utils;
 import org.apache.hop.core.variables.IVariables;
+import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.ui.core.PropsUi;
 import org.apache.hop.ui.core.dialog.BaseDialog;
 import org.apache.hop.ui.core.widget.TextVar;
 import org.apache.hop.ui.pipeline.transform.BaseTransformDialog;
-import org.apache.hop.pipeline.PipelineMeta;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.FormAttachment;
 import org.eclipse.swt.layout.FormData;
@@ -46,6 +46,7 @@ public class CoverageOperationDialog extends BaseTransformDialog {
   private TextVar wGapWidth;
   private Button wDisallowCoverageHoles;
   private TextVar wDistanceValue;
+  private TextVar wTargetResolution, wTargetX, wTargetY;
   private TextVar wSnappingDistance;
   private Combo wMergeStrategy;
   private Combo wOutputMode;
@@ -56,7 +57,10 @@ public class CoverageOperationDialog extends BaseTransformDialog {
   private Composite content;
 
   public CoverageOperationDialog(
-      Shell parent, IVariables variables, CoverageOperationMeta transformMeta, PipelineMeta pipelineMeta) {
+      Shell parent,
+      IVariables variables,
+      CoverageOperationMeta transformMeta,
+      PipelineMeta pipelineMeta) {
     super(parent, variables, transformMeta, pipelineMeta);
     this.input = transformMeta;
     this.operations = input.listOperations();
@@ -118,7 +122,8 @@ public class CoverageOperationDialog extends BaseTransformDialog {
     content.setLayoutData(fdContent);
 
     addFullWidthLabel(
-        "Optional reject target hop: Validate Coverage can duplicate invalid rows to a second output stream.");
+        "Optional reject target hop: Validate Coverage can duplicate invalid rows to a second"
+            + " output stream.");
     wOperation = addCombo("Operation");
     for (OperationDescriptor descriptor : operations) {
       wOperation.add(descriptor.displayLabel());
@@ -129,6 +134,9 @@ public class CoverageOperationDialog extends BaseTransformDialog {
     wGapWidth = addTextVar("Gap width");
     wDisallowCoverageHoles = addCheck("Disallow coverage holes");
     wDistanceValue = addTextVar("Simplification tolerance");
+    wTargetResolution = addTextVar("Target XY resolution (optional)");
+    wTargetX = addTextVar("Target X origin");
+    wTargetY = addTextVar("Target Y origin");
     wSnappingDistance = addTextVar("Snapping distance");
     wMergeStrategy = addCombo("Merge strategy");
     for (CoverageMergeStrategy strategy : CoverageMergeStrategy.values()) {
@@ -203,6 +211,9 @@ public class CoverageOperationDialog extends BaseTransformDialog {
     wGapWidth.setText(defaultText(input.getGapWidth()));
     wDisallowCoverageHoles.setSelection(input.isDisallowCoverageHoles());
     wDistanceValue.setText(defaultText(input.getDistanceValue()));
+    wTargetResolution.setText(defaultText(input.getTargetXyResolution()));
+    wTargetX.setText(defaultText(input.getTargetXOrigin()));
+    wTargetY.setText(defaultText(input.getTargetYOrigin()));
     wSnappingDistance.setText(defaultText(input.getSnappingDistance()));
     wMergeStrategy.setText(input.getMergeStrategy().name());
     wOutputMode.setText(input.getOutputMode().name());
@@ -230,21 +241,28 @@ public class CoverageOperationDialog extends BaseTransformDialog {
     OperationDescriptor descriptor = currentDescriptor();
     boolean validateOperation = "coverage_validate".equals(descriptor.id());
     boolean appendMode =
-        GeometryOutputMode.valueOf(defaultText(wOutputMode.getText(), GeometryOutputMode.APPEND.name()))
+        GeometryOutputMode.valueOf(
+                defaultText(wOutputMode.getText(), GeometryOutputMode.APPEND.name()))
             == GeometryOutputMode.APPEND;
 
     wExecutionMode.setText(descriptor.executionMode().getLabel());
     toggleControl(wGapWidth, descriptor.requires(ParameterId.GAP_WIDTH));
     toggleControl(wDisallowCoverageHoles, descriptor.requires(ParameterId.DISALLOW_HOLES));
     toggleControl(wDistanceValue, descriptor.requires(ParameterId.DISTANCE));
+    boolean linearize = "coverage_linearize".equals(descriptor.id());
+    setControlLabel(
+        wDistanceValue,
+        linearize ? "Maximum chord deviation (coordinate units)" : "Simplification tolerance");
+    toggleControl(wTargetResolution, linearize);
+    toggleControl(wTargetX, linearize);
+    toggleControl(wTargetY, linearize);
     toggleControl(wSnappingDistance, descriptor.requires(ParameterId.SNAPPING_DISTANCE));
     toggleControl(wMergeStrategy, descriptor.requires(ParameterId.MERGE_STRATEGY));
     toggleControl(wOutputMode, !validateOperation);
     toggleControl(wBooleanField, validateOperation);
     toggleControl(wOutputField, validateOperation || appendMode);
     toggleControl(wErrorTypeField, validateOperation);
-    setControlLabel(
-        wOutputField, validateOperation ? "Error field" : "Output geometry field");
+    setControlLabel(wOutputField, validateOperation ? "Error field" : "Output geometry field");
     if (validateOperation) {
       if (wBooleanField.getText().isBlank()) {
         wBooleanField.setText("coverage_is_valid");
@@ -305,7 +323,8 @@ public class CoverageOperationDialog extends BaseTransformDialog {
       return;
     }
     if (!"coverage_validate".equals(currentDescriptor().id())
-        && GeometryOutputMode.valueOf(defaultText(wOutputMode.getText(), GeometryOutputMode.APPEND.name()))
+        && GeometryOutputMode.valueOf(
+                defaultText(wOutputMode.getText(), GeometryOutputMode.APPEND.name()))
             == GeometryOutputMode.APPEND
         && wOutputField.getText().isBlank()) {
       showValidationWarning("Please enter an output geometry field.");
@@ -319,6 +338,9 @@ public class CoverageOperationDialog extends BaseTransformDialog {
     input.setGapWidth(wGapWidth.getText());
     input.setDisallowCoverageHoles(wDisallowCoverageHoles.getSelection());
     input.setDistanceValue(wDistanceValue.getText());
+    input.setTargetXyResolution(wTargetResolution.getText());
+    input.setTargetXOrigin(wTargetX.getText());
+    input.setTargetYOrigin(wTargetY.getText());
     input.setSnappingDistance(wSnappingDistance.getText());
     input.setMergeStrategy(
         CoverageMergeStrategy.valueOf(

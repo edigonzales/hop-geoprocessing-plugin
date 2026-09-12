@@ -11,6 +11,32 @@ public final class OperationRegistry {
   private static final List<OperationDescriptor> ALL_OPERATIONS =
       List.of(
           descriptor(
+              TransformFamily.COVERAGE_OPERATION,
+              "coverage_linearize",
+              "Linearize Coverage",
+              OperationGroup.CONVERSION,
+              OperationArity.UNARY,
+              ExecutionMode.BLOCKING_LAYER,
+              ResultMode.GEOMETRY,
+              parameter(
+                  ParameterId.DISTANCE,
+                  "Maximum chord deviation (coordinate units)",
+                  ParameterType.NUMBER,
+                  true)),
+          descriptor(
+              TransformFamily.GEOMETRY_OPERATION,
+              "linearize_curves",
+              "Linearize Curves",
+              OperationGroup.CONVERSION,
+              OperationArity.UNARY,
+              ExecutionMode.STREAMING_ROW,
+              ResultMode.GEOMETRY,
+              parameter(
+                  ParameterId.DISTANCE,
+                  "Maximum chord deviation (coordinate units)",
+                  ParameterType.NUMBER,
+                  true)),
+          descriptor(
               TransformFamily.GEOMETRY_OPERATION,
               "buffer",
               "Buffer",
@@ -28,10 +54,12 @@ public final class OperationRegistry {
               ExecutionMode.STREAMING_ROW,
               ResultMode.GEOMETRY,
               parameter(ParameterId.DISTANCE, "Distance", ParameterType.NUMBER, true),
-              parameter(ParameterId.BUFFER_SEGMENTS, "Quadrant segments", ParameterType.NUMBER, false),
+              parameter(
+                  ParameterId.BUFFER_SEGMENTS, "Quadrant segments", ParameterType.NUMBER, false),
               parameter(ParameterId.BUFFER_CAP_STYLE, "Cap style", ParameterType.ENUM, false),
               parameter(ParameterId.BUFFER_JOIN_STYLE, "Join style", ParameterType.ENUM, false),
-              parameter(ParameterId.BUFFER_SINGLE_SIDED, "Single sided", ParameterType.BOOLEAN, false)),
+              parameter(
+                  ParameterId.BUFFER_SINGLE_SIDED, "Single sided", ParameterType.BOOLEAN, false)),
           descriptor(
               TransformFamily.GEOMETRY_OPERATION,
               "centroid",
@@ -174,7 +202,8 @@ public final class OperationRegistry {
               OperationArity.UNARY,
               ExecutionMode.STREAMING_ROW,
               ResultMode.GEOMETRY,
-              parameter(ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, true)),
+              parameter(
+                  ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, true)),
           descriptor(
               TransformFamily.GEOMETRY_OPERATION,
               "to_2d",
@@ -249,7 +278,8 @@ public final class OperationRegistry {
               ExecutionMode.STREAMING_ROW,
               ResultMode.GEOMETRY,
               parameter(ParameterId.OVERLAY_MODE, "Overlay mode", ParameterType.ENUM, false),
-              parameter(ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, false)),
+              parameter(
+                  ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, false)),
           descriptor(
               TransformFamily.GEOMETRY_OPERATION,
               "difference",
@@ -259,7 +289,8 @@ public final class OperationRegistry {
               ExecutionMode.STREAMING_ROW,
               ResultMode.GEOMETRY,
               parameter(ParameterId.OVERLAY_MODE, "Overlay mode", ParameterType.ENUM, false),
-              parameter(ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, false)),
+              parameter(
+                  ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, false)),
           descriptor(
               TransformFamily.GEOMETRY_OPERATION,
               "sym_difference",
@@ -269,7 +300,8 @@ public final class OperationRegistry {
               ExecutionMode.STREAMING_ROW,
               ResultMode.GEOMETRY,
               parameter(ParameterId.OVERLAY_MODE, "Overlay mode", ParameterType.ENUM, false),
-              parameter(ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, false)),
+              parameter(
+                  ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, false)),
           descriptor(
               TransformFamily.GEOMETRY_OPERATION,
               "union",
@@ -279,7 +311,8 @@ public final class OperationRegistry {
               ExecutionMode.STREAMING_ROW,
               ResultMode.GEOMETRY,
               parameter(ParameterId.OVERLAY_MODE, "Overlay mode", ParameterType.ENUM, false),
-              parameter(ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, false)),
+              parameter(
+                  ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, false)),
           descriptor(
               TransformFamily.GEOMETRY_OPERATION,
               "snap",
@@ -389,7 +422,8 @@ public final class OperationRegistry {
               ExecutionMode.BLOCKING_LAYER,
               ResultMode.JOIN,
               parameter(ParameterId.OVERLAY_MODE, "Overlay mode", ParameterType.ENUM, false),
-              parameter(ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, false)),
+              parameter(
+                  ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, false)),
           descriptor(
               TransformFamily.LAYER_OVERLAY,
               "clip",
@@ -399,7 +433,8 @@ public final class OperationRegistry {
               ExecutionMode.BLOCKING_LAYER,
               ResultMode.JOIN,
               parameter(ParameterId.OVERLAY_MODE, "Overlay mode", ParameterType.ENUM, false),
-              parameter(ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, false)),
+              parameter(
+                  ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, false)),
           descriptor(
               TransformFamily.LAYER_OVERLAY,
               "erase",
@@ -409,7 +444,8 @@ public final class OperationRegistry {
               ExecutionMode.BLOCKING_LAYER,
               ResultMode.JOIN,
               parameter(ParameterId.OVERLAY_MODE, "Overlay mode", ParameterType.ENUM, false),
-              parameter(ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, false)),
+              parameter(
+                  ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, false)),
           descriptor(
               TransformFamily.LAYER_OVERLAY,
               "identity",
@@ -419,7 +455,8 @@ public final class OperationRegistry {
               ExecutionMode.BLOCKING_LAYER,
               ResultMode.JOIN,
               parameter(ParameterId.OVERLAY_MODE, "Overlay mode", ParameterType.ENUM, false),
-              parameter(ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, false)),
+              parameter(
+                  ParameterId.PRECISION_SCALE, "Precision scale", ParameterType.NUMBER, false)),
           descriptor(
               TransformFamily.LAYER_AGGREGATE,
               "dissolve",
@@ -502,11 +539,17 @@ public final class OperationRegistry {
               ExecutionMode.BLOCKING_LAYER,
               ResultMode.COVERAGE,
               parameter(ParameterId.GAP_WIDTH, "Gap width", ParameterType.NUMBER, false),
-              parameter(ParameterId.SNAPPING_DISTANCE, "Snapping distance", ParameterType.NUMBER, false),
+              parameter(
+                  ParameterId.SNAPPING_DISTANCE, "Snapping distance", ParameterType.NUMBER, false),
               parameter(ParameterId.MERGE_STRATEGY, "Merge strategy", ParameterType.ENUM, false)));
 
   private static final Map<TransformFamily, List<OperationDescriptor>> BY_FAMILY =
-      ALL_OPERATIONS.stream().collect(Collectors.groupingBy(OperationDescriptor::family, () -> new EnumMap<>(TransformFamily.class), Collectors.toList()));
+      ALL_OPERATIONS.stream()
+          .collect(
+              Collectors.groupingBy(
+                  OperationDescriptor::family,
+                  () -> new EnumMap<>(TransformFamily.class),
+                  Collectors.toList()));
 
   private OperationRegistry() {}
 
@@ -515,7 +558,9 @@ public final class OperationRegistry {
   }
 
   public static Optional<OperationDescriptor> find(TransformFamily family, String operationId) {
-    return list(family).stream().filter(operation -> operation.id().equals(operationId)).findFirst();
+    return list(family).stream()
+        .filter(operation -> operation.id().equals(operationId))
+        .findFirst();
   }
 
   private static OperationDescriptor descriptor(
@@ -527,7 +572,8 @@ public final class OperationRegistry {
       ExecutionMode executionMode,
       ResultMode resultMode,
       ParameterDescriptor... parameters) {
-    return new OperationDescriptor(family, id, label, group, arity, executionMode, List.of(parameters), resultMode);
+    return new OperationDescriptor(
+        family, id, label, group, arity, executionMode, List.of(parameters), resultMode);
   }
 
   private static ParameterDescriptor parameter(

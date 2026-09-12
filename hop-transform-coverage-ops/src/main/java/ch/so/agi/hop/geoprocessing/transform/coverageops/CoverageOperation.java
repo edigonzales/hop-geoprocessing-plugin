@@ -50,7 +50,8 @@ public class CoverageOperation extends BaseTransform<CoverageOperationMeta, Cove
     }
 
     Object[] outputRow = data.outputRows.get(data.outputIndex++);
-    TransformStreamRouting.putRowToRowSets(this, data.outputRowMeta, outputRow, data.mainOutputRowSets);
+    TransformStreamRouting.putRowToRowSets(
+        this, data.outputRowMeta, outputRow, data.mainOutputRowSets);
     routeRejectRow(outputRow);
     return true;
   }
@@ -65,9 +66,32 @@ public class CoverageOperation extends BaseTransform<CoverageOperationMeta, Cove
       if (data.outputRowMeta == null) {
         initializeFromInputRowMeta();
       }
-      FeatureRow feature = FeatureRow.fromRow(getInputRowMeta(), data.geometryFieldIndex, row, rowIndex++);
+      FeatureRow feature;
+      if ("coverage_linearize".equals(meta.getOperationId())) {
+        try {
+          Geometry exact =
+              new ch.so.agi.hop.geoprocessing.core.GeometryValueParser()
+                  .parseGeometry(
+                      getInputRowMeta().getValueMeta(data.geometryFieldIndex),
+                      row[data.geometryFieldIndex]);
+          feature =
+              new FeatureRow(
+                  row.clone(),
+                  exact,
+                  exact == null
+                      ? new org.locationtech.jts.geom.Envelope()
+                      : exact.getEnvelopeInternal(),
+                  exact == null ? null : exact.getSRID(),
+                  rowIndex++);
+        } catch (Exception e) {
+          throw new HopException("Unable to read exact coverage geometry", e);
+        }
+      } else
+        feature = FeatureRow.fromRow(getInputRowMeta(), data.geometryFieldIndex, row, rowIndex++);
       requireCoverageGeometry(feature);
-      groups.computeIfAbsent(new GroupKey(groupValues(feature.rowData())), ignored -> new ArrayList<>())
+      groups
+          .computeIfAbsent(
+              new GroupKey(groupValues(feature.rowData())), ignored -> new ArrayList<>())
           .add(feature);
     }
 
@@ -75,7 +99,8 @@ public class CoverageOperation extends BaseTransform<CoverageOperationMeta, Cove
       return;
     }
 
-    List<Object[]> orderedRows = new ArrayList<>(Collections.nCopies(Math.toIntExact(rowIndex), null));
+    List<Object[]> orderedRows =
+        new ArrayList<>(Collections.nCopies(Math.toIntExact(rowIndex), null));
     for (List<FeatureRow> groupFeatures : groups.values()) {
       processGroup(groupFeatures, orderedRows);
     }
@@ -108,13 +133,17 @@ public class CoverageOperation extends BaseTransform<CoverageOperationMeta, Cove
       }
     }
     data.booleanFieldIndex =
-        meta.isValidateOperation() ? data.outputRowMeta.indexOfValue(meta.getBooleanFieldName()) : -1;
+        meta.isValidateOperation()
+            ? data.outputRowMeta.indexOfValue(meta.getBooleanFieldName())
+            : -1;
     data.outputGeometryFieldIndex =
         meta.isValidateOperation() || meta.getOutputMode() == GeometryOutputMode.APPEND
             ? data.outputRowMeta.indexOfValue(meta.getOutputFieldName())
             : data.geometryFieldIndex;
     data.errorTypeFieldIndex =
-        meta.isValidateOperation() ? data.outputRowMeta.indexOfValue(meta.getErrorTypeFieldName()) : -1;
+        meta.isValidateOperation()
+            ? data.outputRowMeta.indexOfValue(meta.getErrorTypeFieldName())
+            : -1;
     if (meta.isValidateOperation() && data.booleanFieldIndex < 0) {
       throw new HopException("Boolean output field was not found on the output row.");
     }
@@ -124,7 +153,8 @@ public class CoverageOperation extends BaseTransform<CoverageOperationMeta, Cove
     }
     if (meta.isValidateOperation() && data.errorTypeFieldIndex < 0) {
       throw new HopException(
-          "Error type output field was not found on the output row: " + meta.getErrorTypeFieldName());
+          "Error type output field was not found on the output row: "
+              + meta.getErrorTypeFieldName());
     }
     data.staticDistance =
         meta.descriptor().requires(ch.so.agi.hop.geoprocessing.core.ParameterId.DISTANCE)
@@ -161,13 +191,36 @@ public class CoverageOperation extends BaseTransform<CoverageOperationMeta, Cove
     }
 
     Geometry[] resultGeometries =
-        "coverage_clean".equals(meta.getOperationId())
-            ? data.executor.clean(geometries, data.staticSnappingDistance, data.mergeStrategy, data.staticGapWidth)
-            : data.executor.simplify(meta.getOperationId(), geometries, data.staticDistance);
+        "coverage_linearize".equals(meta.getOperationId())
+            ? data.executor.linearize(geometries, data.staticDistance, targetGrid())
+            : "coverage_clean".equals(meta.getOperationId())
+                ? data.executor.clean(
+                    geometries,
+                    data.staticSnappingDistance,
+                    data.mergeStrategy,
+                    data.staticGapWidth)
+                : data.executor.simplify(meta.getOperationId(), geometries, data.staticDistance);
     for (int index = 0; index < groupFeatures.size(); index++) {
       FeatureRow feature = groupFeatures.get(index);
       orderedRows.set(
-          Math.toIntExact(feature.sourceId()), buildGeometryRow(feature.rowData(), resultGeometries[index]));
+          Math.toIntExact(feature.sourceId()),
+          buildGeometryRow(feature.rowData(), resultGeometries[index]));
+    }
+  }
+
+  private ch.so.agi.hop.geoprocessing.core.CoverageLinearizer.Grid targetGrid()
+      throws HopException {
+    String r = resolve(defaultText(meta.getTargetXyResolution())),
+        x = resolve(defaultText(meta.getTargetXOrigin())),
+        y = resolve(defaultText(meta.getTargetYOrigin()));
+    if (r.isBlank() && x.isBlank() && y.isBlank()) return null;
+    if (r.isBlank() || x.isBlank() || y.isBlank())
+      throw new HopException("Specify target XY resolution and both origins");
+    try {
+      return new ch.so.agi.hop.geoprocessing.core.CoverageLinearizer.Grid(
+          Double.parseDouble(r), Double.parseDouble(x), Double.parseDouble(y));
+    } catch (IllegalArgumentException e) {
+      throw new HopException("Invalid target XY grid", e);
     }
   }
 
@@ -210,7 +263,10 @@ public class CoverageOperation extends BaseTransform<CoverageOperationMeta, Cove
     }
     try {
       TransformStreamRouting.putRowToRowSets(
-          this, data.outputRowMeta, data.outputRowMeta.cloneRow(outputRow), data.rejectOutputRowSets);
+          this,
+          data.outputRowMeta,
+          data.outputRowMeta.cloneRow(outputRow),
+          data.rejectOutputRowSets);
     } catch (HopValueException e) {
       throw new HopTransformException("Unable to clone row while routing coverage reject rows", e);
     }

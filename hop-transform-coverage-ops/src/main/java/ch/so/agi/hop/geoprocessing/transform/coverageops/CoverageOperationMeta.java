@@ -56,6 +56,36 @@ public class CoverageOperationMeta
   @HopMetadataProperty private String booleanFieldName;
   @HopMetadataProperty private String errorTypeFieldName;
 
+  @org.apache.hop.metadata.api.HopMetadataProperty private String targetXyResolution = "";
+
+  public String getTargetXyResolution() {
+    return targetXyResolution;
+  }
+
+  public void setTargetXyResolution(String v) {
+    targetXyResolution = v;
+  }
+
+  @org.apache.hop.metadata.api.HopMetadataProperty private String targetXOrigin = "";
+
+  public String getTargetXOrigin() {
+    return targetXOrigin;
+  }
+
+  public void setTargetXOrigin(String v) {
+    targetXOrigin = v;
+  }
+
+  @org.apache.hop.metadata.api.HopMetadataProperty private String targetYOrigin = "";
+
+  public String getTargetYOrigin() {
+    return targetYOrigin;
+  }
+
+  public void setTargetYOrigin(String v) {
+    targetYOrigin = v;
+  }
+
   @Override
   public void setDefault() {
     operationId = "coverage_validate";
@@ -79,7 +109,8 @@ public class CoverageOperationMeta
       TransformIOMeta transformIOMeta = new TransformIOMeta(true, true, true, false, false, false);
       transformIOMeta.addStream(
           new Stream(IStream.StreamType.TARGET, null, "Reject rows", StreamIcon.TARGET, null));
-      transformIOMeta.setGeneralTargetDescription("Optional QA/reject target for invalid coverage rows");
+      transformIOMeta.setGeneralTargetDescription(
+          "Optional QA/reject target for invalid coverage rows");
       setTransformIOMeta(transformIOMeta);
       ioMeta = transformIOMeta;
     }
@@ -89,7 +120,8 @@ public class CoverageOperationMeta
   @Override
   public void searchInfoAndTargetTransforms(List<TransformMeta> transforms) {
     for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
-      targetStream.setTransformMeta(TransformMeta.findTransform(transforms, targetStream.getSubject()));
+      targetStream.setTransformMeta(
+          TransformMeta.findTransform(transforms, targetStream.getSubject()));
     }
   }
 
@@ -129,10 +161,12 @@ public class CoverageOperationMeta
       return;
     }
     if (getOutputMode() == GeometryOutputMode.REPLACE) {
-      GeometryFieldSelection selection = RowMetaSupport.resolveGeometryField(rowMeta, geometryFieldName);
+      GeometryFieldSelection selection =
+          RowMetaSupport.resolveGeometryField(rowMeta, geometryFieldName);
       int primaryIndex = rowMeta.indexOfValue(selection.selectedField());
       if (primaryIndex >= 0) {
-        rowMeta.setValueMeta(primaryIndex, new ValueMetaGeometry(rowMeta.getValueMeta(primaryIndex).getName()));
+        rowMeta.setValueMeta(
+            primaryIndex, new ValueMetaGeometry(rowMeta.getValueMeta(primaryIndex).getName()));
       }
       return;
     }
@@ -174,7 +208,8 @@ public class CoverageOperationMeta
       }
     }
     OperationDescriptor descriptor = descriptor();
-    if (descriptor.requires(ParameterId.DISTANCE) && !hasNonNegativeNumber(distanceValue, variables)) {
+    if (descriptor.requires(ParameterId.DISTANCE)
+        && !hasNonNegativeNumber(distanceValue, variables)) {
       remarks.add(error("A non-negative simplification tolerance is required.", transformMeta));
       return;
     }
@@ -227,21 +262,24 @@ public class CoverageOperationMeta
           || errorGeometryField.equalsIgnoreCase(errorTypeField)) {
         remarks.add(
             error(
-                "Boolean output field, error geometry field, and error type field must be different.",
+                "Boolean output field, error geometry field, and error type field must be"
+                    + " different.",
                 transformMeta));
         return;
       }
       if (groupFields.contains(booleanOutputField)
           || groupFields.contains(errorGeometryField)
           || groupFields.contains(errorTypeField)) {
-        remarks.add(error("Coverage output fields must not reuse group field names.", transformMeta));
+        remarks.add(
+            error("Coverage output fields must not reuse group field names.", transformMeta));
         return;
       }
       remarks.add(ok("Coverage operation configuration looks valid.", transformMeta));
       return;
     }
     if (!getRejectTransformName().isBlank()) {
-      remarks.add(error("Reject target stream is only supported for Validate Coverage.", transformMeta));
+      remarks.add(
+          error("Reject target stream is only supported for Validate Coverage.", transformMeta));
       return;
     }
     if (getOutputMode() == GeometryOutputMode.APPEND) {
@@ -254,7 +292,8 @@ public class CoverageOperationMeta
         return;
       }
       if (groupFields.contains(outputFieldName)) {
-        remarks.add(error("Output geometry field must not be one of the group fields.", transformMeta));
+        remarks.add(
+            error("Output geometry field must not be one of the group fields.", transformMeta));
         return;
       }
     }

@@ -8,6 +8,7 @@ import csv
 import os
 from pathlib import Path
 import subprocess
+import struct
 import tempfile
 import zipfile
 
@@ -114,6 +115,24 @@ def main() -> int:
 
         run_pipeline(hop_home, ROOT / "e2e/geoprocessing.hpl", env, input_dir, output_dir)
         check_output(output_dir / "geoprocessing.csv")
+        def curve(kind, points):
+            return struct.pack("<BII", 1, kind, len(points)) + b"".join(struct.pack("<dd", *p) for p in points)
+        def collection(kind, parts):
+            return struct.pack("<BII", 1, kind, len(parts)) + b"".join(parts)
+        # SQL/MM WKB exercises the shared exact-curve binary parser.
+        lower=collection(10,[collection(9,[curve(8,[(5,0),(0,5),(-5,0)]),curve(2,[(-5,0),(-5,-10),(5,-10),(5,0)])])])
+        upper=collection(10,[collection(9,[curve(8,[(-5,0),(-3,4),(0,5)]),curve(8,[(0,5),(3,4),(5,0)]),curve(2,[(5,0),(5,10),(-5,10),(-5,0)])])])
+        for pipeline, geometries, expected in [
+            ("linearize-curves.hpl", [curve(8,[(5,0),(0,5),(-5,0)]).hex()], "LINESTRING"),
+            ("coverage-linearize.hpl", [lower.hex(),upper.hex()], "POLYGON"),
+        ]:
+            (input_dir / "geometry.csv").write_text("geometry\n" + "\n".join(geometries) + "\n", encoding="utf-8")
+            (output_dir / "geoprocessing.csv").unlink()
+            run_pipeline(hop_home, ROOT / "e2e" / pipeline, env, input_dir, output_dir)
+            with (output_dir / "geoprocessing.csv").open(newline="", encoding="utf-8") as stream:
+                rows = list(csv.DictReader(stream, delimiter=";"))
+            if len(rows) != len(geometries) or any(not row["linearized"].startswith(expected) for row in rows):
+                raise SystemExit(f"Unexpected curve linearization output: {rows!r}")
 
     print("Installed Hop Geoprocessing E2E OK")
     return 0

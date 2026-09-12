@@ -32,6 +32,7 @@ flowchart LR
 
 ## Operations in This Family
 
+- `coverage_linearize` — shared circular boundary subdivision with optional target XY grid
 - `coverage_validate`
 - `coverage_simplify`
 - `coverage_simplify_inner`
@@ -109,3 +110,12 @@ Validation result semantics:
 
 - [Coverage Validate, Clean, Simplify, and Union](../recipes/coverage-workflow.md)
 - [Group Aggregation / Dissolve](../recipes/group-aggregation.md)
+
+## Circular boundaries
+
+For `coverage_linearize`, `distanceValue` is the maximum XY chord deviation (sagitta).
+`targetXyResolution`, `targetXOrigin` and `targetYOrigin` are optional together and must match the
+writer's grid when exporting a coverage. Opposite directions and different subdivisions of an
+exact shared circle receive common chords. Invalid output, ambiguous near-coincident circles and
+coarse grids fail the group; there is no snapping, repair or automatic refinement.
+See the [curve contract and limits](../../README.md#explicit-curve-linearization).

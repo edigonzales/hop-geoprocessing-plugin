@@ -15,8 +15,19 @@ import org.locationtech.jts.geom.util.LinearComponentExtracter;
 import org.locationtech.jts.geom.util.PolygonExtracter;
 
 public class CoverageOperationExecutor {
+  public Geometry[] linearize(
+      List<Geometry> geometries, Double tolerance, CoverageLinearizer.Grid grid)
+      throws HopException {
+    try {
+      return CoverageLinearizer.linearize(
+          geometries, tolerance == null ? Double.NaN : tolerance, grid);
+    } catch (RuntimeException e) {
+      throw new HopException("Coverage linearization failed: " + e.getMessage(), e);
+    }
+  }
 
-  public CoverageValidationResult[] validate(List<Geometry> geometries, Double gapWidth) throws HopException {
+  public CoverageValidationResult[] validate(List<Geometry> geometries, Double gapWidth)
+      throws HopException {
     return validate(geometries, gapWidth, false);
   }
 
@@ -88,7 +99,9 @@ public class CoverageOperationExecutor {
         CoverageCleaner.clean(
             coverage,
             snappingDistance == null ? -1.0d : snappingDistance,
-            mergeStrategy == null ? CoverageMergeStrategy.LONGEST_BORDER.getCleanerCode() : mergeStrategy.getCleanerCode(),
+            mergeStrategy == null
+                ? CoverageMergeStrategy.LONGEST_BORDER.getCleanerCode()
+                : mergeStrategy.getCleanerCode(),
             gapWidth == null ? 0.0d : gapWidth);
     return preserveSrids(coverage, cleaned);
   }
@@ -99,7 +112,12 @@ public class CoverageOperationExecutor {
       return null;
     }
     try {
-      Integer srid = Arrays.stream(coverage).map(GeometryFieldValueHelper::sridOf).filter(value -> value != null).findFirst().orElse(null);
+      Integer srid =
+          Arrays.stream(coverage)
+              .map(GeometryFieldValueHelper::sridOf)
+              .filter(value -> value != null)
+              .findFirst()
+              .orElse(null);
       return CoverageSupport.preserveSrid(srid, CoverageUnion.union(coverage));
     } catch (TopologyException e) {
       throw new HopException(
@@ -134,8 +152,10 @@ public class CoverageOperationExecutor {
       return errors;
     }
     for (int index = 0; index < coverage.length; index++) {
-      Geometry linework = extractLinework(coverage[index].getBoundary().intersection(holeBoundaries));
-      errors[index] = CoverageSupport.preserveSrid(GeometryFieldValueHelper.sridOf(coverage[index]), linework);
+      Geometry linework =
+          extractLinework(coverage[index].getBoundary().intersection(holeBoundaries));
+      errors[index] =
+          CoverageSupport.preserveSrid(GeometryFieldValueHelper.sridOf(coverage[index]), linework);
     }
     return errors;
   }
@@ -146,7 +166,8 @@ public class CoverageOperationExecutor {
       union = CoverageUnion.union(coverage);
     } catch (TopologyException e) {
       throw new HopException(
-          "Coverage hole validation requires a valid polygonal coverage. Run Coverage Validate first.",
+          "Coverage hole validation requires a valid polygonal coverage. Run Coverage Validate"
+              + " first.",
           e);
     }
     if (union == null || union.isEmpty()) {
@@ -159,7 +180,9 @@ public class CoverageOperationExecutor {
     for (Polygon polygon : polygons) {
       for (int index = 0; index < polygon.getNumInteriorRing(); index++) {
         holeBoundaries.add(
-            polygon.getFactory().createLineString(polygon.getInteriorRingN(index).getCoordinateSequence()));
+            polygon
+                .getFactory()
+                .createLineString(polygon.getInteriorRingN(index).getCoordinateSequence()));
       }
     }
     if (holeBoundaries.isEmpty()) {
