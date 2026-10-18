@@ -11,6 +11,14 @@ This is the fastest way to scan the plugin from an operator perspective.
 | Layer Overlay | 4 | primary + secondary | Blocking per layer | full secondary layer | STRtree on secondary | 0:n overlay rows |
 | Layer Aggregate | 4 | 1 layer, optional grouping | Blocking per layer/group | active layer/group | no | 1 row per group |
 | Coverage Operation | 5 | 1 layer, optional grouping | Blocking per layer/group | active layer/group | no | row-preserving 1:1; optional reject stream for validate |
+| Geometry Converter | representation conversion | 1 row | Streaming | current row | no | 1:1; RETURN_NULL/ROUTE_TO_ERROR preserve row count |
+
+## Geometry Converter
+
+All representations are handled by the shared Geometry Type codec. Coordinates are Point-only;
+non-Point input to coordinate output follows the selected error mode. SRID handling is not
+reprojection. See [Geometry Converter](families/geometry-converter.md) for the format table,
+NULL/EMPTY rules and the required error connection.
 
 ## Geometry Operation
 

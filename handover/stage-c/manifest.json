@@ -1,0 +1,75 @@
+{
+    "stage": "C",
+    "specification": "hop-geometry-converter-spec-v2",
+    "specification_revision": 2,
+    "generated_at": "2026-10-17T20:39:00+02:00",
+    "repository": "edigonzales/hop-geoprocessing-plugin",
+    "branch": "main",
+    "base_commit": "364d138899010f7ed899489984ce06c4c20cf326",
+    "working_tree": true,
+    "uncommitted_changes": true,
+    "versions": {
+        "project": "0.1.0-SNAPSHOT",
+        "java": "21.0.10",
+        "maven": "3.9.16",
+        "hop": "2.19.0",
+        "jts": "1.20.0",
+        "geometry_type_jar": "d6b44299e0dc307211a94b40aed99d821b037d610014c3841e7d33f1fa73853a",
+        "geometry_type_zip": "00638751fcae5637cb9fc3db5db6ec8bd02601347394eb67ada58110332721a3"
+    },
+    "build": {
+        "canonical_command": "mvn -s /tmp/gp-settings.xml -Dmaven.repo.local=/tmp/gp-m2 -U -B -ntp clean verify",
+        "canonical_result": "BUILD SUCCESS",
+        "canonical_tests": {
+            "run": 132,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+        },
+        "core_tests": {
+            "run": 102,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+        },
+        "compatibility_jdk25_command": "mvn -s /tmp/gp-settings.xml -Dmaven.repo.local=/tmp/gp-m2 -U -B -ntp clean test",
+        "compatibility_jdk25_result": "BUILD SUCCESS",
+        "compatibility_jdk25_tests": {
+            "run": 132,
+            "failures": 0,
+            "errors": 0,
+            "skipped": 0
+        },
+        "package_verification": "python3 scripts/verify-package.py (OK, existing five transform ZIP layout)",
+        "existing_package_sha256": "81f460e2a8bd19506d62cd3ba52d7535e26459b6b3ae92a5f939ab46064c8055"
+    },
+    "artifacts": [
+        {
+            "path": "hop-geoprocessing-plugin-0.1.0-SNAPSHOT.zip",
+            "sha256": "81f460e2a8bd19506d62cd3ba52d7535e26459b6b3ae92a5f939ab46064c8055",
+            "source": "assemblies/assemblies-hop-geoprocessing-suite/target/hop-geoprocessing-plugin-0.1.0-SNAPSHOT.zip"
+        },
+        {
+            "path": "maven-repo/ch/so/agi/hop-geoprocessing-core/0.1.0-SNAPSHOT/hop-geoprocessing-core-0.1.0-SNAPSHOT.jar",
+            "sha256": "79e14a2cd74d883689a73d116481d9d0d2287244294e552a147dbca0b1822592",
+            "source": "hop-geoprocessing-core/target/hop-geoprocessing-core-0.1.0-SNAPSHOT.jar"
+        },
+        {
+            "path": "maven-repo/ch/so/agi/hop-geoprocessing-core/0.1.0-SNAPSHOT/hop-geoprocessing-core-0.1.0-SNAPSHOT.pom",
+            "sha256": "4150c2bd836dd497ae1fb14629f96eb161643cdbfa05db9bff0f2be2227bf402",
+            "source": "hop-geoprocessing-core/pom.xml"
+        },
+        {
+            "path": "maven-repo/ch/so/agi/hop-geoprocessing-plugin-parent/0.1.0-SNAPSHOT/hop-geoprocessing-plugin-parent-0.1.0-SNAPSHOT.pom",
+            "sha256": "0315be85b034e75be92ce1714cc0726e5b796a05121af6b17c6a1e52c9711ac7",
+            "source": "pom.xml"
+        }
+    ],
+    "open_integration_evidence": [
+        "GeometryConverterMeta/Transform/SWT dialog (stage D)",
+        "error-hop and row-balance runtime (stage D)",
+        "new converter module in the suite ZIP (stage E)",
+        "installed-Hop E2E and OR19/OR22 (stage E)",
+        "publication, push or deployment (not requested)"
+    ]
+}

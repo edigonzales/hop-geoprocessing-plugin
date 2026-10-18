@@ -18,6 +18,7 @@
     <module>hop-transform-spatial-predicate</module>
     <module>hop-transform-layer-overlay</module>
     <module>hop-transform-layer-aggregate</module>
+    <module>hop-transform-geometry-converter</module>
     <module>assemblies</module>
   </modules>
 

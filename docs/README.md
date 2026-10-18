@@ -21,8 +21,14 @@ RAM, secondary inputs, and spatial index usage.
   - [Spatial Predicate](families/spatial-predicate.md)
   - [Layer Overlay](families/layer-overlay.md)
   - [Layer Aggregate](families/layer-aggregate.md)
+  - [Geometry Converter](families/geometry-converter.md)
   - [Coverage Operation](families/coverage-operation.md)
 - [Recipes](recipes/README.md)
+- Implementation records
+  - [Geometry Converter Stage C (core schema/runtime)](implementation/geometry-converter-stage-c.md)
+  - [Geometry Converter Stage D (transform/dialog/ZIP)](implementation/geometry-converter-stage-d.md)
+  - [Geometry Converter Stage E (installed E2E)](implementation/geometry-converter-stage-e.md)
+  - [Geometry Converter acceptance matrix](implementation/geometry-converter-acceptance.md)
 
 ## Family Overview
 
@@ -32,6 +38,7 @@ RAM, secondary inputs, and spatial index usage.
 | Spatial Predicate | 9 | primary + secondary | Caches secondary layer | full secondary layer in memory | STRtree on secondary |
 | Layer Overlay | 4 | primary + secondary | Blocking per layer | full secondary layer in memory | STRtree on secondary |
 | Layer Aggregate | 4 | 1 layer, optional grouping | Blocking per layer/group | all rows in layer/group | no |
+| Geometry Converter | representation conversion | 1 row | Streaming | current row | no |
 | Coverage Operation | 5 | 1 layer, optional grouping | Blocking per layer/group | all rows in layer/group | no |
 
 ## Visual Map
@@ -57,4 +64,8 @@ flowchart LR
   C["Coverage Operation\n5 ops"] --> C1["1 input / optional grouping"]
   C --> C2["Blocking per layer/group"]
   C --> C3["Row-preserving results"]
+
+  GC["Geometry Converter\nrepresentation conversion"] --> GC1["1 row"]
+  GC --> GC2["Streaming"]
+  GC --> GC3["Shared Geometry codec"]
 ```

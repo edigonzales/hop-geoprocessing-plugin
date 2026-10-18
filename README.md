@@ -16,6 +16,7 @@ Detailed documentation lives in [docs/README.md](docs/README.md).
   - [Spatial Predicate](docs/families/spatial-predicate.md)
   - [Layer Overlay](docs/families/layer-overlay.md)
   - [Layer Aggregate](docs/families/layer-aggregate.md)
+  - [Geometry Converter](docs/families/geometry-converter.md)
   - [Coverage Operation](docs/families/coverage-operation.md)
 - [Recipes](docs/recipes/README.md)
 
@@ -34,6 +35,7 @@ Detailed documentation lives in [docs/README.md](docs/README.md).
   - primary input + secondary info stream
   - execution: `Blocking per layer`
 - `Layer Aggregate`
+- `Geometry Converter`
   - 4 operations
   - single input, optional grouping
   - execution: `Blocking per layer/group`
@@ -41,6 +43,19 @@ Detailed documentation lives in [docs/README.md](docs/README.md).
   - 6 operations
   - single input, optional grouping
   - execution: `Blocking per layer/group`
+
+## Geometry Converter
+
+`Geometry Converter` converts native geometry, WKT/EWKT, WKB/EWKB/hex and point coordinate
+fields without reprojecting. It contains the schema/runtime layer in
+`hop-geoprocessing-core` and a transform plus SWT dialog in
+`hop-transform-geometry-converter`; the transform is part of this ZIP.
+
+See [docs/families/geometry-converter.md](docs/families/geometry-converter.md) for the
+format table, Point-only coordinate rules, SRID semantics and error modes. The implementation
+records are [stage C](docs/implementation/geometry-converter-stage-c.md),
+[stage D](docs/implementation/geometry-converter-stage-d.md) and
+[stage E](docs/implementation/geometry-converter-stage-e.md).
 
 ## Build
 
@@ -77,7 +92,7 @@ The installable Maven ZIP is published as:
 ch.so.agi:hop-geoprocessing-plugin:0.1.0-SNAPSHOT
 ```
 
-The ZIP contains the five geoprocessing transform JARs and `hop-geoprocessing-core.jar`. The
+The ZIP contains the six geoprocessing transform JARs and `hop-geoprocessing-core.jar`. The
 Geometry Type plugin is installed separately at `plugins/misc/hop-geometry-type`; its shared
 JTS/Geometry runtime is deliberately not duplicated in this ZIP.
 
@@ -94,9 +109,13 @@ publishable bundle. The other five runs execute `clean test` for compatibility o
 use `xvfb-run` when available and macOS tests use `-XstartOnFirstThread`.
 
 The canonical bundle is then installed into a fresh Apache Hop 2.19.0 installation together with
-the current Geometry Type snapshot. The Installed-Hop E2E reads deterministic WKT fixtures,
-executes the Geometry Operation transform and checks the resulting centroids. Pull requests never
-publish artifacts. A successful `main` run publishes the exact verified ZIP to
+the current Geometry Type snapshot. The Installed-Hop E2E keeps the three original centroid and
+curve-linearization checks and adds the converter suite under `e2e/geometry-converter/`: coordinate
+layouts, Select Values binary conversion, encoded output, curves, overwrite, RETURN_NULL, a real
+error hop, SortRows spilling, variable field names, EMPTY/error regressions and coordinate-output
+row balance. A second isolated Hop installation verifies that a Geometry Type runtime without
+`GeometryCodec` is rejected with a clear upgrade message. Pull requests never publish artifacts. A
+successful `main` run publishes the exact verified ZIP to
 `https://jars.interlis.guru/snapshots/` without rebuilding it; GitHub plugin Releases are not used.
 
 The Maven publish job requires the protected secrets `INTERLIS_MAVEN_USERNAME` and
@@ -105,6 +124,7 @@ The Maven publish job requires the protected secrets `INTERLIS_MAVEN_USERNAME` a
 ```bash
 python3 scripts/verify-package.py
 python3 scripts/run-e2e.py --help
+python3 scripts/benchmark-converter.py --help
 ```
 
 ## Fast Local Sync

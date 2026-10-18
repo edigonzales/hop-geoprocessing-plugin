@@ -1,0 +1,11 @@
+{
+  "rows": 100000,
+  "wall_seconds": 2.63,
+  "max_child_rss_mb": 302.5,
+  "heap": "-Xmx128m",
+  "java": "/Users/stefan/.sdkman/candidates/java/21.0.10-tem",
+  "os": "macOS-27.0.1-arm64-arm-64bit",
+  "pipeline": "e2e/geometry-converter/streaming-benchmark.hpl",
+  "plugin_zip_sha256": "7c696337bcdc96ab14192e96e1c88c96b9e21bb8a4b7842489537a7a66e2da30",
+  "geometry_zip_sha256": "00638751fcae5637cb9fc3db5db6ec8bd02601347394eb67ada58110332721a3"
+}

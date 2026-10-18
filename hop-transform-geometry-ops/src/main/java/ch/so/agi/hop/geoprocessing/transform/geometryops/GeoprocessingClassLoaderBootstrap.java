@@ -20,6 +20,8 @@ public final class GeoprocessingClassLoaderBootstrap
 
   static final String GEOMETRY_CLASSLOADER_GROUP = "sogeo-geometry";
   static final String GEOMETRY_VALUE_META_PLUGIN_ID = "43663879";
+  static final String GEOMETRY_CODEC_CLASS =
+      "com.atolcd.hop.gis.geometry.codec.GeometryCodec";
 
   @Override
   public void callExtensionPoint(
@@ -41,7 +43,15 @@ public final class GeoprocessingClassLoaderBootstrap
               + "'");
     }
     try {
-      pluginRegistry.getClassLoader(geometryPlugin);
+      ClassLoader geometryClassLoader = pluginRegistry.getClassLoader(geometryPlugin);
+      try {
+        Class.forName(GEOMETRY_CODEC_CLASS, false, geometryClassLoader);
+      } catch (ClassNotFoundException | LinkageError e) {
+        throw new HopException(
+            "Geometry Converter requires the updated Geometry Type runtime with GeometryCodec. "
+                + "Update plugins/misc/hop-geometry-type together with the Geoprocessing ZIP.",
+            e);
+      }
     } catch (HopPluginException e) {
       throw new HopException("Unable to initialize the shared Geometry Type classloader", e);
     }

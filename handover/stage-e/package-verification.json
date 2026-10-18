@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "version": "0.1.0-SNAPSHOT",
+  "hopVersion": "2.19.0",
+  "geometryTypeVersion": "0.2.0-SNAPSHOT",
+  "zipFile": "/Users/stefan/sources/hop-geoprocessing-plugin/assemblies/assemblies-hop-geoprocessing-suite/target/hop-geoprocessing-plugin-0.1.0-SNAPSHOT.zip",
+  "sha256": "7c696337bcdc96ab14192e96e1c88c96b9e21bb8a4b7842489537a7a66e2da30",
+  "pluginRoot": "plugins/transforms/hop-geoprocessing",
+  "pluginJars": {
+    "plugins/transforms/hop-geoprocessing/hop-transform-geometry-ops-0.1.0-SNAPSHOT.jar": "3f1e2babe4fad6362b31317844709ada2ddbb78947a363f16fa28c0bdb0305a0",
+    "plugins/transforms/hop-geoprocessing/hop-transform-coverage-ops-0.1.0-SNAPSHOT.jar": "66b0cb41a1bd596294dc2336de812ee7c17963a5dfd26fce8a0281e5b13a08f8",
+    "plugins/transforms/hop-geoprocessing/hop-transform-spatial-predicate-0.1.0-SNAPSHOT.jar": "b02b5336eac0e75a8d3405210f72961a8606ef4a65e1e5eb207f06108c86a85b",
+    "plugins/transforms/hop-geoprocessing/hop-transform-layer-overlay-0.1.0-SNAPSHOT.jar": "2cd76adc8d7274f9538ffb3df1ecd8c1d9df0aa52f944656726ec094f0e6e4c0",
+    "plugins/transforms/hop-geoprocessing/hop-transform-layer-aggregate-0.1.0-SNAPSHOT.jar": "cd16c5f7c462cc05b81556bb9e3b19cd2f4be8ddb234ef5df53dfa5d460a1481",
+    "plugins/transforms/hop-geoprocessing/hop-transform-geometry-converter-0.1.0-SNAPSHOT.jar": "9c1d3a07b7669ae45fea25ad04989eb4d6f578330c9e343a53529de8efc5d656"
+  },
+  "coreJar": "plugins/transforms/hop-geoprocessing/lib/hop-geoprocessing-core.jar",
+  "coreJarSha256": "84dadd8d2950d3e693a35d03d9798fcc7378246619abf0fc41e0bbcbb2f3784b"
+}

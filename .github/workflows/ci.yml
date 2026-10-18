@@ -106,6 +106,7 @@ jobs:
         run: |
           set -euo pipefail
           unzip -q "$RUNNER_TEMP/hop.zip" -d "$RUNNER_TEMP/isolated-hop"
+          unzip -q "$RUNNER_TEMP/hop.zip" -d "$RUNNER_TEMP/isolated-hop-legacy"
           plugin_zip="$(find .ci/geoprocessing -type f -name 'hop-geoprocessing-plugin-*.zip' -print -quit)"
           geometry_zip="$(find .ci/geometry-type -type f -name 'hop-geometry-type-plugin-*.zip' -print -quit)"
           test -n "$plugin_zip"
@@ -113,7 +114,8 @@ jobs:
           python3 scripts/run-e2e.py \
             --hop-home "$RUNNER_TEMP/isolated-hop/hop" \
             --plugin-zip "$plugin_zip" \
-            --geometry-zip "$geometry_zip"
+            --geometry-zip "$geometry_zip" \
+            --negative-hop-home "$RUNNER_TEMP/isolated-hop-legacy/hop"
 
   publish:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'

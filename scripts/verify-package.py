@@ -39,6 +39,10 @@ PLUGIN_SPECS = {
         "ch/so/agi/hop/geoprocessing/transform/layeraggregate/LayerAggregateMeta.class",
         "ch/so/agi/hop/geoprocessing/transform/layeraggregate/icons/layer-aggregate.svg",
     ),
+    "hop-transform-geometry-converter": (
+        "ch/so/agi/hop/geoprocessing/transform/geometryconverter/GeometryConverterMeta.class",
+        "ch/so/agi/hop/geoprocessing/transform/geometryconverter/icons/geometry-converter.svg",
+    ),
 }
 
 FORBIDDEN_SHARED_LIBRARIES = {
@@ -123,7 +127,7 @@ def validate(path: Path, version: str) -> dict[str, object]:
         }
         if plugin_jars != expected_plugin_jars:
             raise SystemExit(
-                f"Expected exactly the five geoprocessing plugin JARs, found {sorted(plugin_jars)}"
+                f"Expected exactly the six geoprocessing plugin JARs, found {sorted(plugin_jars)}"
             )
 
         core_jars = {

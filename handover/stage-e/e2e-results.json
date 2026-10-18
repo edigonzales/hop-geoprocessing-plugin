@@ -1,0 +1,29 @@
+{
+  "hopVersion": "2.19.0",
+  "java": "21.0.10",
+  "installation": "disposable local Hop copy; CI uses the pinned official download",
+  "existingPipelines": 3,
+  "existingPipelinesResult": "PASS",
+  "converterPipelines": 13,
+  "converterPipelinesResult": "PASS",
+  "negativeCodecInstallation": "PASS (clear GeometryCodec upgrade failure, no normal output)",
+  "errorHop": {"normalRows": 3, "errorRows": 2, "errorIds": [2, 4], "errorCode": "GC_INVALID_WKT"},
+  "returnNull": {"rows": 4, "nullTargetRows": 2},
+  "serialization": {"rows": 5000, "sortSize": 50, "spillLog": "Opening 100 tmp-files", "result": "PASS"},
+  "coordinateOutput": {"rows": 7, "result": "PASS"},
+  "coordinateErrors": {"normalRows": 3, "errorRows": 2, "errorCodes": ["GC_PARTIAL_COORDINATE_NULL", "GC_NONFINITE_COORDINATE"]},
+  "geometryPostgis": {"tests": 142, "failures": 0, "errors": 0, "skipped": 0, "distribution": "PASS"},
+  "calculatorInstalledE2E": "PASS (base pipeline and three documentation examples)",
+  "calculatorUnitTests": "PASS (30 tests with the documented ImageN test-classpath addition)",
+  "benchmark": {
+    "rows": 100000,
+    "wallSeconds": 2.63,
+    "maxChildRssMb": 302.5,
+    "heap": "-Xmx128m",
+    "result": "PASS"
+  },
+  "openManual": [
+    "visible SWT dialog (HiDPI/larger font) on display/xvfb",
+    "Infinity as installed CSV case (covered by core Java test; Hop CSV parser rejects it)"
+  ]
+}
