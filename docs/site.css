@@ -1,0 +1,13 @@
+/* ASCII GUI mockups are rendered with a smaller font than regular code blocks. */
+.listingblock.gui-mockup pre,
+pre.gui-mockup {
+  font-size: 0.75em;
+  line-height: 1.25;
+}
+
+/* Keep the wide operation matrix within the reading column. */
+table.tableblock {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}

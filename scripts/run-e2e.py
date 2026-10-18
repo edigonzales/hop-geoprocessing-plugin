@@ -575,6 +575,11 @@ def main() -> int:
 
         run_converter_e2e(hop_home, env, input_dir, output_dir)
 
+        subprocess.run(
+            ["python3", str(ROOT / "scripts/run-examples.py"), "--hop-home", str(hop_home)],
+            check=True, env=env,
+        )
+
         if args.negative_hop_home is not None:
             negative_hop = args.negative_hop_home.resolve()
             if not (negative_hop / "hop-run.sh").is_file():

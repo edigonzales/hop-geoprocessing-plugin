@@ -1,0 +1,194 @@
+[[coverage-operation]]
+= Coverage Operation
+:plugin-id: COVERAGE_OPERATION_TRANSFORM
+:plugin-type: transform
+:description: One polygon stream with optional grouping fields.
+
+[[coverage-operation-description]]
+== Description
+
+`Coverage Operation` is the coverage-wide toolbox for polygon coverages. It validates, cleans, and
+topology-preservingly simplifies while keeping row cardinality stable.
+
+[[coverage-operation-input]]
+== Input
+
+One polygon stream with optional grouping fields. All rows of a coverage/group must be available before results are emitted.
+
+[[coverage-operation-options]]
+== Options
+
+Open the transform from the pipeline canvas. The sketch lists the controls in dialog order;
+`[choose or enter]` represents an editable field selector or a fixed choice as applicable.
+Controls are enabled or shown according to the selected operation/representation; inactive
+mappings remain stored. The detailed reference below explains the operation-specific settings.
+The field status reports missing or incompatible mappings before accepting the dialog.
+
+[.gui-mockup]
+----
++------------------------------------------------------------------------+
+| Coverage Operation                                                     |
+| Name                             [example]                             |
+| Operation                         [choose or enter]                    |
+| Execution mode                    [read only]                          |
+| Geometry field                    [choose or enter]                    |
+| Group fields (CSV/semicolon)      [value]                              |
+| Gap width                         [value]                              |
+| Disallow coverage holes           [ ]                                  |
+| Simplification tolerance          [value]                              |
+| Target XY resolution (optional)   [value]                              |
+| Target X origin                   [value]                              |
+| Target Y origin                   [value]                              |
+| Snapping distance                 [value]                              |
+| Merge strategy                    [choose or enter]                    |
+| Output mode                       [choose or enter]                    |
+| Output geometry field             [value]                              |
+| Boolean output field              [value]                              |
+| Error type field                  [value]                              |
+| Status / field validation                                              |
+|                                              [OK] [Cancel]             |
++------------------------------------------------------------------------+
+----
+
+[[coverage-operation-output]]
+== Output
+
+One main output row per input in original order. Validation appends boolean, error geometry and error type; invalid rows can also be duplicated to a reject target.
+
+[[coverage-operation-supported-engines]]
+== Supported engines
+
+Apache Hop 2.19.0 local pipeline engine, Java 21 or 25. The installed examples run with
+the local engine. Distributed engines have not been validated by this repository.
+
+[[coverage-operation-examples]]
+== Examples
+
+Download link:../../examples/coverage-operation.hpl[Coverage Operation pipeline],
+link:../../examples/fixtures/geometry.csv[geometry fixture] and
+link:../../examples/fixtures/secondary.csv[secondary fixture].
+See link:../../examples/README.md[parameters and expected results] and the
+link:../../examples/expected/coverage-operation.csv[expected CSV]. Keep the downloaded `examples/`
+layout so that the default fixture paths resolve.
+
+[[coverage-operation-error-handling]]
+== Error handling
+
+Invalid configuration or geometry processing errors stop the transform and pipeline. Validate mappings before running. Coverage validation findings are emitted as result fields and can also reach the optional reject target; they do not remove main rows.
+
+[[coverage-operation-limitations]]
+== Limitations
+
+Coverage operations require polygons and a bounded working set. Linearization rejects ambiguous circles, invalid output and excessively coarse target grids.
+
+== Detailed reference
+
+`Coverage Operation` is the coverage-wide toolbox for polygon coverages. It validates, cleans, and topology-preservingly simplifies while keeping row cardinality stable.
+
+[[coverage-operation-at-a-glance]]
+=== At a Glance
+
+[cols=",",options="header",]
+|===
+|Field |Value
+|Purpose |Validate, clean, and simplify polygon coverages
+|Required Inputs |1 layer, optional `groupFieldNames`
+|Execution Mode |blocking
+|Needs Whole Layer? |yes, at least the full active coverage group
+|Needs Second Layer? |no
+|What Stays in RAM? |all rows of the active coverage group
+|Spatial Index |no
+|Output Behavior |`1:1`, row-preserving
+|===
+
+[[coverage-operation-diagram]]
+=== Diagram
+
+[source,mermaid]
+----
+flowchart LR
+  A["Input rows of one coverage/group"] --> B["Buffer complete coverage"]
+  B --> C{"Operation"}
+  C --> V["Validate coverage"]
+  C --> S["Simplify coverage"]
+  C --> CL["Clean coverage"]
+  V --> O["Emit same row order\n+ status/error geometry"]
+  S --> O2["Emit same row order\n+ simplified geometry"]
+  CL --> O2
+----
+
+[[coverage-operation-operations-in-this-family]]
+=== Operations in This Family
+
+* `coverage++_++linearize` — shared circular boundary subdivision with optional target XY grid
+* `coverage++_++validate`
+* `coverage++_++simplify`
+* `coverage++_++simplify++_++inner`
+* `coverage++_++simplify++_++outer`
+* `coverage++_++clean`
+
+Full list: <<reference-matrix-coverage-operation,Reference Matrix>>
+
+[[coverage-operation-important-parameters]]
+=== Important Parameters
+
+* `geometryFieldName`
+** polygon geometry field used to build the coverage
+* `groupFieldNames`
+** optional grouping fields; each group is processed as a separate coverage
+* operation-specific tolerance parameters
+** simplification, validation, and cleaning use different distance and gap-related settings
+** `coverage++_++validate` can optionally disallow all true coverage holes, independent of `gapWidth`
+* output-field parameters
+** validation appends status and error fields; simplify and clean return row-preserving geometry output
+* optional reject target hop
+** `coverage++_++validate` can also duplicate invalid rows to a second QA/reject output stream
+
+[[coverage-operation-validate-output-streams]]
+=== Validate Output Streams
+
+When the selected operation is `coverage++_++validate`, the transform keeps the main output row-preserving and appends validation result fields. By default these fields are `coverage++_++is++_++valid`, `coverage++_++error`, and `coverage++_++error++_++type`, and all three names are configurable.
+
+[cols=",,,",options="header",]
+|===
+|Stream |Rows included |Fields |Empty when
+|Main output |All input rows, in original row order |All input fields plus the validation boolean field, the error geometry field, and the error type field |Only when the transform receives no input rows
+|Reject target |Only rows whose validation boolean is `false` |The same row structure as the main output |No invalid rows were found, no reject target is connected, or the selected operation is not `coverage++_++validate`
+|===
+
+Validation result semantics:
+
+* With the default field names, valid rows are emitted on the main output with `coverage++_++is++_++valid = true`, `coverage++_++error = null`, and `coverage++_++error++_++type = null`.
+* With the default field names, invalid rows are emitted on the main output with `coverage++_++is++_++valid = false`, `coverage++_++error = ++<++error geometry++>++`, and `coverage++_++error++_++type = ++<++error code++>++`.
+* `Gap width` detects only narrow gaps up to the configured maximum width.
+* `Disallow coverage holes` is stricter: every interior hole in the full coverage union is invalid, regardless of size. Disjoint coverage islands are still allowed.
+* Error-type codes are stable: `COVERAGE++_++INVALID`, `FORBIDDEN++_++HOLE`, and `MULTIPLE`.
+* If both a base coverage error and a forbidden-hole error affect the same polygon, the transform combines both error geometries into `coverage++_++error` and emits `coverage++_++error++_++type = MULTIPLE`.
+* `FORBIDDEN++_++HOLE` and `MULTIPLE` are emitted only when hole-specific validation can be computed from the full coverage union.
+* If the coverage already has base topology errors and hole-specific validation cannot be computed, affected rows may still return only `COVERAGE++_++INVALID`, even when true holes are present in the same coverage.
+* Hole-related error types are row-local: only polygons whose boundary touches the forbidden hole can return `FORBIDDEN++_++HOLE` or `MULTIPLE`. Other polygons in the same coverage can still return `COVERAGE++_++INVALID` or another row-specific result.
+* If a reject target hop is configured, invalid rows are duplicated to that target. They are not removed from the main output.
+* If no coverage errors are found, the reject target remains empty.
+
+[[coverage-operation-common-pitfalls]]
+=== Common Pitfalls
+
+* Coverage operations require polygon geometries and full coverage context.
+* They are blocking even though the result remains `1:1` and row-preserving.
+* `coverage++_++validate` appends validation-status, error-geometry, and error-type fields.
+* `Gap width` is not a strict no-hole rule; use `Disallow coverage holes` if the coverage must not contain any true interior holes.
+* A visible hole does not guarantee `FORBIDDEN++_++HOLE` or `MULTIPLE`; when the coverage is already invalid, a row may still show only `COVERAGE++_++INVALID`.
+* `FORBIDDEN++_++HOLE` and `MULTIPLE` are row-local classifications, not whole-coverage flags.
+* The reject target stream only applies to `coverage++_++validate`; simplify and clean stay single-stream.
+* `coverage++_++simplify++*++` preserves topology across the full coverage, which is different from row-wise `simplify++_++topology`.
+
+[[coverage-operation-related-recipes]]
+=== Related Recipes
+
+* <<recipe-coverage-workflow,Coverage Validate&#44; Clean&#44; Simplify&#44; and Union>>
+* <<recipe-group-aggregation,Group Aggregation / Dissolve>>
+
+[[coverage-operation-circular-boundaries]]
+=== Circular boundaries
+
+For `coverage++_++linearize`, `distanceValue` is the maximum XY chord deviation (sagitta). `targetXyResolution`, `targetXOrigin` and `targetYOrigin` are optional together and must match the writer's grid when exporting a coverage. Opposite directions and different subdivisions of an exact shared circle receive common chords. Invalid output, ambiguous near-coincident circles and coarse grids fail the group; there is no snapping, repair or automatic refinement. See the <<curves,curve contract and limits>>.

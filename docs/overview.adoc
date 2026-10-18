@@ -1,0 +1,77 @@
+[[overview]]
+= Plugin Documentation
+
+This documentation is organized along two axes:
+
+* `What does the transform do?`
+* `How does the transform execute?`
+
+Many transforms look similar on the surface but behave very differently with respect to blocking, RAM, secondary inputs, and spatial index usage.
+
+[[overview-documentation-map]]
+== Documentation Map
+
+* <<execution-models,Execution Models>>
+** row-wise vs cached-secondary vs blocking
+* <<reference-matrix,Reference Matrix>>
+** compact table of all families and operations
+* <<performance-memory,Performance & Memory>>
+** what is buffered, what is indexed, and what can become expensive
+* Families
+** <<geometry-operation,Geometry Operation>>
+** <<spatial-predicate,Spatial Predicate>>
+** <<layer-overlay,Layer Overlay>>
+** <<layer-aggregate,Layer Aggregate>>
+** <<geometry-converter,Geometry Converter>>
+** <<coverage-operation,Coverage Operation>>
+* <<recipes,Recipes>>
+* Implementation records
+** https://github.com/edigonzales/hop-geoprocessing-plugin/blob/main/docs/implementation/geometry-converter-stage-c.md[Geometry Converter Stage C (core schema/runtime)]
+** https://github.com/edigonzales/hop-geoprocessing-plugin/blob/main/docs/implementation/geometry-converter-stage-d.md[Geometry Converter Stage D (transform/dialog/ZIP)]
+** https://github.com/edigonzales/hop-geoprocessing-plugin/blob/main/docs/implementation/geometry-converter-stage-e.md[Geometry Converter Stage E (installed E2E)]
+** https://github.com/edigonzales/hop-geoprocessing-plugin/blob/main/docs/implementation/geometry-converter-acceptance.md[Geometry Converter acceptance matrix]
+
+[[overview-family-overview]]
+== Family Overview
+
+[cols=",>,,,,",options="header",]
+|===
+|Family |Operations |Inputs |Execution |RAM profile |Spatial index
+|Geometry Operation |35 |1 layer |Streaming |current row only |no
+|Spatial Predicate |9 |primary {plus} secondary |Caches secondary layer |full secondary layer in memory |STRtree on secondary
+|Layer Overlay |4 |primary {plus} secondary |Blocking per layer |full secondary layer in memory |STRtree on secondary
+|Layer Aggregate |4 |1 layer, optional grouping |Blocking per layer/group |all rows in layer/group |no
+|Geometry Converter |representation conversion |1 row |Streaming |current row |no
+|Coverage Operation |6 |1 layer, optional grouping |Blocking per layer/group |all rows in layer/group |no
+|===
+
+[[overview-visual-map]]
+== Visual Map
+
+[source,mermaid]
+----
+flowchart LR
+  G["Geometry Operation\n35 ops"] --> G1["1 input"]
+  G --> G2["Streaming"]
+  G --> G3["No cache / no spatial index"]
+
+  S["Spatial Predicate\n9 ops"] --> S1["Primary + secondary"]
+  S --> S2["Secondary cached in RAM"]
+  S --> S3["STRtree on secondary"]
+
+  O["Layer Overlay\n4 ops"] --> O1["Primary + secondary"]
+  O --> O2["Secondary cached in RAM"]
+  O --> O3["STRtree + optional union geometry"]
+
+  A["Layer Aggregate\n4 ops"] --> A1["1 input / optional grouping"]
+  A --> A2["Blocking per layer/group"]
+  A --> A3["No spatial index"]
+
+  C["Coverage Operation\n6 ops"] --> C1["1 input / optional grouping"]
+  C --> C2["Blocking per layer/group"]
+  C --> C3["Row-preserving results"]
+
+  GC["Geometry Converter\nrepresentation conversion"] --> GC1["1 row"]
+  GC --> GC2["Streaming"]
+  GC --> GC3["Shared Geometry codec"]
+----

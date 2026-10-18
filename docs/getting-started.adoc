@@ -1,0 +1,54 @@
+[[getting-started]]
+= Getting started
+
+== Installation
+
+Use Apache Hop 2.19.0 with Java 21 or 25. Obtain the published base snapshots
+`ch.so.agi:hop-geometry-type-plugin:zip:0.2.0-SNAPSHOT` and
+`ch.so.agi:hop-geoprocessing-plugin:zip:0.1.0-SNAPSHOT` from
+https://jars.interlis.guru/[the Maven repository]. Extract both ZIPs into the same
+Hop installation and restart Hop. The Geometry plugin owns the shared value type,
+codec and JTS libraries under `plugins/misc/hop-geometry-type`; the suite installs
+its core and six transform JARs under `plugins/transforms/hop-geoprocessing`.
+
+Replace each plugin directory as a unit when upgrading, and avoid keeping older
+versions of its JARs alongside the new ones. Geometry Converter requires a Geometry
+Type runtime with `GeometryCodec`; an older runtime reports a clear upgrade error.
+
+== First pipeline
+
+The link:../../examples/README.md[examples guide] explains all six runnable
+pipelines. Download a pipeline, its fixture CSVs and expected result, preserving
+the `examples/fixtures` directory layout. Open the `.hpl` in Hop GUI and run it
+with a local pipeline run configuration. `INPUT_DIR` and `OUTPUT_DIR` default to
+directories beside the pipeline and can be overridden in the run dialog.
+
+== Development and verification
+
+Build with Maven, Python 3 and JDK 21. The shared CI helper generates Maven settings
+for the published repositories; repository configuration selects Wagon and mirrors
+Maven Central only. Use the normal Geometry `0.2.0-SNAPSHOT` coordinates. A local
+Geometry source installation can hide an obsolete dependency; CI therefore gives
+every Java/OS build its own fresh Maven repository and compares the resolved
+Geometry JAR with the published runtime ZIP.
+
+The suite inherits the shared `hop-plugin-parent:0.1.0-SNAPSHOT`, including DocLint,
+managed dependencies, plugins and the macOS SWT test profile. Follow
+https://github.com/edigonzales/hop-geoprocessing-plugin/blob/main/AGENTS.md[AGENTS.md]
+for generated settings and the canonical commands. For headless Linux SWT tests,
+run Maven under `xvfb-run -a`. Never disable documentation validation.
+
+The development sync helper rebuilds the assembly and replaces the suite directory
+in a designated development Hop home. The optional converter benchmark checks a
+100,000-point streaming scenario; it is not a timing gate. Installed E2E uses
+separate disposable Hop installations, runs both the existing regression pipelines
+and these public examples, then checks rejection of a legacy Geometry runtime.
+
+== Documentation build
+
+Run `python3 scripts/build-docs.py --serve` from the checkout. Working changes are
+included in a temporary source snapshot; the build never stages or commits them in
+your repository. Generated output is in `target/docs-site`. CI instead builds the
+exact `GITHUB_SHA`, validates links, anchors, downloads, search and loaded GUI
+styles, and deploys Pages exclusively from `main`. The build records its source
+revision and Biblios JAR digest in `build-info.json`.

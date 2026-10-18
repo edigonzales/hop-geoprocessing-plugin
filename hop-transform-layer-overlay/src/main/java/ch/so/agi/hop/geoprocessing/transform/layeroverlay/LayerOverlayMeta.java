@@ -30,12 +30,13 @@ import org.apache.hop.pipeline.transform.stream.StreamIcon;
     description = "Layer overlay operations against a cached secondary layer",
     image = "ch/so/agi/hop/geoprocessing/transform/layeroverlay/icons/layer-overlay.svg",
     categoryDescription = "Geospatial",
-    documentationUrl = "",
+    documentationUrl = "https://edigonzales.github.io/hop-geoprocessing-plugin/geoprocessing/main/index.html#layer-overlay",
     classLoaderGroup = "sogeo-geometry",
     keywords = {"geospatial", "overlay", "intersection", "clip", "identity"})
 public class LayerOverlayMeta extends BaseTransformMeta<LayerOverlay, LayerOverlayData> {
 
   @HopMetadataProperty private String operationId;
+  @HopMetadataProperty private String infoTransformName = "";
   @HopMetadataProperty private String primaryGeometryFieldName;
   @HopMetadataProperty private String secondaryGeometryFieldName;
   @HopMetadataProperty private String outputFieldName;
@@ -70,14 +71,23 @@ public class LayerOverlayMeta extends BaseTransformMeta<LayerOverlay, LayerOverl
   @Override
   public void searchInfoAndTargetTransforms(List<TransformMeta> transforms) {
     for (IStream infoStream : getTransformIOMeta().getInfoStreams()) {
-      infoStream.setTransformMeta(TransformMeta.findTransform(transforms, infoStream.getSubject()));
+      String name = infoStream.getSubject();
+      if (name == null || name.isBlank()) {
+        name = infoTransformName;
+      }
+      infoStream.setTransformMeta(TransformMeta.findTransform(transforms, name));
     }
   }
 
   @Override
   public void convertIOMetaToTransformNames() {
     for (IStream infoStream : getTransformIOMeta().getInfoStreams()) {
-      infoStream.setSubject(infoStream.getTransformName());
+      String name = infoStream.getTransformName();
+      if (name == null || name.isBlank()) {
+        name = infoStream.getSubject();
+      }
+      infoTransformName = name == null ? "" : name;
+      infoStream.setSubject(infoTransformName);
     }
   }
 
@@ -89,6 +99,7 @@ public class LayerOverlayMeta extends BaseTransformMeta<LayerOverlay, LayerOverl
           && fromTransform.getName().equals(infoStream.getTransformMeta().getName())) {
         infoStream.setTransformMeta(null);
         infoStream.setSubject(null);
+        infoTransformName = "";
         return true;
       }
     }
@@ -181,6 +192,11 @@ public class LayerOverlayMeta extends BaseTransformMeta<LayerOverlay, LayerOverl
         .orElseThrow(() -> new IllegalStateException("Unknown overlay operation: " + operationId));
   }
 
+  public void setInfoTransformName(String name) {
+    infoTransformName = name == null ? "" : name;
+    getTransformIOMeta().getInfoStreams().get(0).setSubject(infoTransformName);
+  }
+
   public String getInfoTransformName() {
     List<IStream> infoStreams = getTransformIOMeta().getInfoStreams();
     if (infoStreams.isEmpty()) {
@@ -190,7 +206,7 @@ public class LayerOverlayMeta extends BaseTransformMeta<LayerOverlay, LayerOverl
     if (infoStream.getTransformMeta() != null) {
       return infoStream.getTransformMeta().getName();
     }
-    return infoStream.getSubject() == null ? "" : infoStream.getSubject();
+    return infoStream.getSubject() == null ? infoTransformName : infoStream.getSubject();
   }
 
   private ICheckResult error(String message, TransformMeta transformMeta) {

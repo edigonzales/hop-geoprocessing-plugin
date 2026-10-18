@@ -34,13 +34,14 @@ import org.apache.hop.pipeline.transform.stream.StreamIcon;
     description = "Spatial predicates and inner joins against a secondary layer",
     image = "ch/so/agi/hop/geoprocessing/transform/spatialpredicate/icons/spatial-predicate.svg",
     categoryDescription = "Geospatial",
-    documentationUrl = "",
+    documentationUrl = "https://edigonzales.github.io/hop-geoprocessing-plugin/geoprocessing/main/index.html#spatial-predicate",
     classLoaderGroup = "sogeo-geometry",
     keywords = {"geospatial", "predicate", "intersects", "contains", "join"})
 public class SpatialPredicateMeta
     extends BaseTransformMeta<SpatialPredicate, SpatialPredicateData> {
 
   @HopMetadataProperty private String operationId;
+  @HopMetadataProperty private String infoTransformName = "";
   @HopMetadataProperty private String primaryGeometryFieldName;
   @HopMetadataProperty private String secondaryGeometryFieldName;
   @HopMetadataProperty private DistanceMode distanceMode;
@@ -83,7 +84,11 @@ public class SpatialPredicateMeta
   @Override
   public void searchInfoAndTargetTransforms(List<TransformMeta> transforms) {
     for (IStream infoStream : getTransformIOMeta().getInfoStreams()) {
-      infoStream.setTransformMeta(TransformMeta.findTransform(transforms, infoStream.getSubject()));
+      String name = infoStream.getSubject();
+      if (name == null || name.isBlank()) {
+        name = infoTransformName;
+      }
+      infoStream.setTransformMeta(TransformMeta.findTransform(transforms, name));
     }
     for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
       targetStream.setTransformMeta(TransformMeta.findTransform(transforms, targetStream.getSubject()));
@@ -93,7 +98,12 @@ public class SpatialPredicateMeta
   @Override
   public void convertIOMetaToTransformNames() {
     for (IStream infoStream : getTransformIOMeta().getInfoStreams()) {
-      infoStream.setSubject(infoStream.getTransformName());
+      String name = infoStream.getTransformName();
+      if (name == null || name.isBlank()) {
+        name = infoStream.getSubject();
+      }
+      infoTransformName = name == null ? "" : name;
+      infoStream.setSubject(infoTransformName);
     }
     for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
       targetStream.setSubject(targetStream.getTransformName());
@@ -108,6 +118,7 @@ public class SpatialPredicateMeta
           && fromTransform.getName().equals(infoStream.getTransformMeta().getName())) {
         infoStream.setTransformMeta(null);
         infoStream.setSubject(null);
+        infoTransformName = "";
         return true;
       }
     }
@@ -235,6 +246,11 @@ public class SpatialPredicateMeta
         .orElseThrow(() -> new IllegalStateException("Unknown spatial predicate: " + operationId));
   }
 
+  public void setInfoTransformName(String name) {
+    infoTransformName = name == null ? "" : name;
+    getTransformIOMeta().getInfoStreams().get(0).setSubject(infoTransformName);
+  }
+
   public String getInfoTransformName() {
     List<IStream> infoStreams = getTransformIOMeta().getInfoStreams();
     if (infoStreams.isEmpty()) {
@@ -244,7 +260,7 @@ public class SpatialPredicateMeta
     if (infoStream.getTransformMeta() != null) {
       return infoStream.getTransformMeta().getName();
     }
-    return infoStream.getSubject() == null ? "" : infoStream.getSubject();
+    return infoStream.getSubject() == null ? infoTransformName : infoStream.getSubject();
   }
 
   public String getRejectTransformName() {

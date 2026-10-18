@@ -1,0 +1,23 @@
+= Geoprocessing handbook
+:toc: left
+:toclevels: 3
+:sectanchors:
+
+include::getting-started.adoc[leveloffset=+1]
+include::overview.adoc[leveloffset=+1]
+include::execution-models.adoc[leveloffset=+1]
+include::reference-matrix.adoc[leveloffset=+1]
+include::performance-memory.adoc[leveloffset=+1]
+include::curves.adoc[leveloffset=+1]
+include::transforms/geometry-operation.adoc[leveloffset=+1]
+include::transforms/spatial-predicate.adoc[leveloffset=+1]
+include::transforms/layer-overlay.adoc[leveloffset=+1]
+include::transforms/layer-aggregate.adoc[leveloffset=+1]
+include::transforms/geometry-converter.adoc[leveloffset=+1]
+include::transforms/coverage-operation.adoc[leveloffset=+1]
+include::recipes/index.adoc[leveloffset=+1]
+include::recipes/coverage-workflow.adoc[leveloffset=+1]
+include::recipes/group-aggregation.adoc[leveloffset=+1]
+include::recipes/layer-overlay.adoc[leveloffset=+1]
+include::recipes/row-wise-geometry-editing.adoc[leveloffset=+1]
+include::recipes/point-in-polygon-join.adoc[leveloffset=+1]

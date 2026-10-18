@@ -30,7 +30,7 @@ import org.apache.hop.pipeline.transform.TransformMeta;
     description = "Row-wise geometry editing and constructive operations",
     image = "ch/so/agi/hop/geoprocessing/transform/geometryops/icons/geometry-operation.svg",
     categoryDescription = "Geospatial",
-    documentationUrl = "",
+    documentationUrl = "https://edigonzales.github.io/hop-geoprocessing-plugin/geoprocessing/main/index.html#geometry-operation",
     classLoaderGroup = "sogeo-geometry",
     keywords = {"geospatial", "geometry", "buffer", "intersection", "simplify"})
 public class GeometryOperationMeta

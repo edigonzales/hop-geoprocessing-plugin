@@ -32,6 +32,7 @@ import org.apache.hop.pipeline.transform.TransformErrorMeta;
     description = "Convert geometry representations and point coordinate fields",
     image = "ch/so/agi/hop/geoprocessing/transform/geometryconverter/icons/geometry-converter.svg",
     categoryDescription = "Geospatial",
+    documentationUrl = "https://edigonzales.github.io/hop-geoprocessing-plugin/geoprocessing/main/index.html#geometry-converter",
     classLoaderGroup = "sogeo-geometry",
     keywords = {"geometry", "WKT", "WKB", "EWKT", "EWKB", "coordinates", "point"})
 public class GeometryConverterMeta

@@ -1,0 +1,15 @@
+[[recipes]]
+= Recipes
+
+These pages are worked examples for common pipeline shapes.
+
+* <<recipe-row-wise-geometry-editing,Row-wise Geometry Editing>>
+** family: `Geometry Operation`
+* <<recipe-point-in-polygon-join,Point-in-Polygon Join>>
+** family: `Spatial Predicate`
+* <<recipe-layer-overlay,Overlay Two Layers>>
+** family: `Layer Overlay`
+* <<recipe-group-aggregation,Group Aggregation / Dissolve>>
+** family: `Layer Aggregate`
+* <<recipe-coverage-workflow,Coverage Validate&#44; Clean&#44; Simplify&#44; and Union>>
+** family: `Coverage Operation` plus `Layer Aggregate`

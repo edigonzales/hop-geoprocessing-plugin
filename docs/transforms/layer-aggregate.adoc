@@ -1,0 +1,135 @@
+[[layer-aggregate]]
+= Layer Aggregate
+:plugin-id: LAYER_AGGREGATE_TRANSFORM
+:plugin-type: transform
+:description: One geometry stream and optional grouping fields.
+
+[[layer-aggregate-description]]
+== Description
+
+`Layer Aggregate` computes one geometry result per whole layer or per group.
+
+[[layer-aggregate-input]]
+== Input
+
+One geometry stream and optional grouping fields. The complete layer/group is buffered; the output contains only grouping fields and the aggregate geometry.
+
+[[layer-aggregate-options]]
+== Options
+
+Open the transform from the pipeline canvas. The sketch lists the controls in dialog order;
+`[choose or enter]` represents an editable field selector or a fixed choice as applicable.
+Controls are enabled or shown according to the selected operation/representation; inactive
+mappings remain stored. The detailed reference below explains the operation-specific settings.
+The field status reports missing or incompatible mappings before accepting the dialog.
+
+[.gui-mockup]
+----
++------------------------------------------------------------------------+
+| Layer Aggregate                                                        |
+| Name                             [example]                             |
+| Operation                         [choose or enter]                    |
+| Execution mode                    [read only]                          |
+| Geometry field                    [choose or enter]                    |
+| Group fields (CSV/semicolon)      [value]                              |
+| Output geometry field             [value]                              |
+| Status / field validation                                              |
+|                                              [OK] [Cancel]             |
++------------------------------------------------------------------------+
+----
+
+[[layer-aggregate-output]]
+== Output
+
+One row per group containing grouping fields and the configured aggregate geometry; without grouping, one row for the whole layer.
+
+[[layer-aggregate-supported-engines]]
+== Supported engines
+
+Apache Hop 2.19.0 local pipeline engine, Java 21 or 25. The installed examples run with
+the local engine. Distributed engines have not been validated by this repository.
+
+[[layer-aggregate-examples]]
+== Examples
+
+Download link:../../examples/layer-aggregate.hpl[Layer Aggregate pipeline],
+link:../../examples/fixtures/geometry.csv[geometry fixture] and
+link:../../examples/fixtures/secondary.csv[secondary fixture].
+See link:../../examples/README.md[parameters and expected results] and the
+link:../../examples/expected/layer-aggregate.csv[expected CSV]. Keep the downloaded `examples/`
+layout so that the default fixture paths resolve.
+
+[[layer-aggregate-error-handling]]
+== Error handling
+
+Invalid configuration or geometry processing errors stop the transform and pipeline. Validate mappings before running. Use the pipeline log to identify the operation and failing input.
+
+[[layer-aggregate-limitations]]
+== Limitations
+
+Memory depends on the largest layer/group. coverage_union requires a valid polygon coverage.
+
+== Detailed reference
+
+`Layer Aggregate` computes one geometry result per whole layer or per group.
+
+[[layer-aggregate-at-a-glance]]
+=== At a Glance
+
+[cols=",",options="header",]
+|===
+|Field |Value
+|Purpose |Aggregate geometries per whole layer or per group
+|Required Inputs |1 layer, optional `groupFieldNames`
+|Execution Mode |blocking
+|Needs Whole Layer? |yes, at least the full active group
+|Needs Second Layer? |no
+|What Stays in RAM? |all rows of the active group
+|Spatial Index |no
+|Output Behavior |1 row per group
+|===
+
+[[layer-aggregate-diagram]]
+=== Diagram
+
+[source,mermaid]
+----
+flowchart LR
+  A["Input rows"] --> B["Group by fields\n(optional)"]
+  B --> C["Collect geometries per group"]
+  C --> D["Run aggregate operation"]
+  D --> E["Emit one row per group"]
+----
+
+[[layer-aggregate-operations-in-this-family]]
+=== Operations in This Family
+
+* `dissolve`
+* `unary++_++union`
+* `coverage++_++union`
+* `collect`
+
+Full list: <<reference-matrix-layer-aggregate,Reference Matrix>>
+
+[[layer-aggregate-important-parameters]]
+=== Important Parameters
+
+* `geometryFieldName`
+** geometry field to aggregate
+* `groupFieldNames`
+** optional grouping fields; without them the full layer becomes one working set
+* `operation`
+** one of `dissolve`, `unary++_++union`, `coverage++_++union`, or `collect`
+
+[[layer-aggregate-common-pitfalls]]
+=== Common Pitfalls
+
+* Memory demand is driven by the largest group.
+* Without grouping fields, the full layer becomes one working set.
+* `coverage++_++union` requires polygon coverages with valid shared boundaries.
+
+[[layer-aggregate-related-recipes]]
+=== Related Recipes
+
+* <<recipe-group-aggregation,Group Aggregation / Dissolve>>
+* <<recipe-coverage-workflow,Coverage Validate&#44; Clean&#44; Simplify&#44; and Union>>

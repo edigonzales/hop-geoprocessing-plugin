@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import xml.etree.ElementTree as ET
 import zipfile
@@ -61,14 +62,28 @@ def project_version() -> str:
     return version
 
 
-def pom_property(name: str) -> str:
-    properties = ET.parse(ROOT / "pom.xml").getroot().find(f"{POM_NAMESPACE}properties")
-    if properties is None:
-        raise SystemExit("Missing Maven properties")
-    value = properties.findtext(f"{POM_NAMESPACE}{name}")
-    if not value:
-        raise SystemExit(f"Missing Maven property: {name}")
-    return value
+def pom_property(name: str, maven_repository: Path) -> str:
+    """Read inherited properties from the same published parent Maven resolved."""
+    pom = ROOT / "pom.xml"
+    visited = set()
+    while pom not in visited:
+        visited.add(pom)
+        root = ET.parse(pom).getroot()
+        value = root.findtext(f"{POM_NAMESPACE}properties/{POM_NAMESPACE}{name}")
+        if value:
+            return value
+        parent = root.find(f"{POM_NAMESPACE}parent")
+        if parent is None:
+            break
+        coordinates = [parent.findtext(f"{POM_NAMESPACE}{part}")
+                       for part in ("groupId", "artifactId", "version")]
+        if not all(coordinates):
+            break
+        group, artifact, version = coordinates
+        pom = maven_repository / group.replace(".", "/") / artifact / version / f"{artifact}-{version}.pom"
+        if not pom.is_file():
+            raise SystemExit(f"Missing resolved parent POM: {pom}; pass the build's --maven-repository")
+    raise SystemExit(f"Missing inherited Maven property: {name}")
 
 
 def sha256(path: Path) -> str:
@@ -100,7 +115,7 @@ def validate_jar(name: str, content: bytes, required: tuple[str, ...]) -> None:
             raise SystemExit(f"JAR is missing Jandex metadata: {name}")
 
 
-def validate(path: Path, version: str) -> dict[str, object]:
+def validate(path: Path, version: str, maven_repository: Path) -> dict[str, object]:
     expected_name = f"hop-geoprocessing-plugin-{version}.zip"
     if not path.is_file():
         raise SystemExit(f"Missing package ZIP: {path}")
@@ -159,8 +174,8 @@ def validate(path: Path, version: str) -> dict[str, object]:
     return {
         "schemaVersion": 1,
         "version": version,
-        "hopVersion": pom_property("hop.version"),
-        "geometryTypeVersion": pom_property("hop.geometry.type.version"),
+        "hopVersion": pom_property("hop.version", maven_repository),
+        "geometryTypeVersion": pom_property("hop.geometry.type.version", maven_repository),
         "zipFile": str(path),
         "sha256": sha256(path),
         "pluginRoot": PLUGIN_ROOT,
@@ -179,8 +194,11 @@ def main() -> int:
         default=ROOT
         / f"assemblies/assemblies-hop-geoprocessing-suite/target/hop-geoprocessing-plugin-{version}.zip",
     )
+    parser.add_argument("--maven-repository", type=Path,
+                        default=Path(os.environ.get("MAVEN_REPO_LOCAL", Path.home() / ".m2/repository")),
+                        help="Local Maven repository used by the build (for inherited parent metadata)")
     args = parser.parse_args()
-    report = validate(args.zip, version)
+    report = validate(args.zip, version, args.maven_repository)
     output = ROOT / "target/package-verification.json"
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

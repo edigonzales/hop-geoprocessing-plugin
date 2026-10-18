@@ -1,0 +1,43 @@
+[[recipe-group-aggregation]]
+= Recipe: Group Aggregation / Dissolve
+
+[[recipe-group-aggregation-goal]]
+== Goal
+
+Build one geometry result per whole layer or per logical group.
+
+Examples:
+
+* dissolve parcels by municipality
+* collect all geometries per object class
+* coverage-union polygons per district
+
+[[recipe-group-aggregation-pipeline-sketch]]
+== Pipeline Sketch
+
+[source,mermaid]
+----
+flowchart LR
+  A["Input rows"] --> G["Group fields\n(optional)"]
+  G --> L["Layer Aggregate"]
+  L --> R["One row per group"]
+----
+
+[[recipe-group-aggregation-operation-variants-in-this-example]]
+== Operation Variants in This Example
+
+* `dissolve`
+** group-wise merge of geometries
+* `unary++_++union`
+** robust group-wise union
+* `coverage++_++union`
+** efficient union for valid polygon coverages
+* `collect`
+** keep all member geometries as a collected result
+
+[[recipe-group-aggregation-constraints-and-caveats]]
+== Constraints and Caveats
+
+* the largest group controls memory demand
+* without grouping, the full layer becomes one working set
+* `coverage++_++union` requires polygon coverages with valid shared boundaries

@@ -1,0 +1,158 @@
+[[spatial-predicate]]
+= Spatial Predicate
+:plugin-id: SPATIAL_PREDICATE_TRANSFORM
+:plugin-type: transform
+:description: A primary stream and one secondary info stream.
+
+[[spatial-predicate-description]]
+== Description
+
+`Spatial Predicate` compares a primary row against a cached secondary layer and returns either a
+boolean, a filter decision, or an inner join.
+
+[[spatial-predicate-input]]
+== Input
+
+A primary stream and one secondary info stream. Connect the secondary input as an info hop and choose both native Geometry fields; use Select Values to convert source WKT first.
+
+[[spatial-predicate-options]]
+== Options
+
+Open the transform from the pipeline canvas. The sketch lists the controls in dialog order;
+`[choose or enter]` represents an editable field selector or a fixed choice as applicable.
+Controls are enabled or shown according to the selected operation/representation; inactive
+mappings remain stored. The detailed reference below explains the operation-specific settings.
+The field status reports missing or incompatible mappings before accepting the dialog.
+
+[.gui-mockup]
+----
++------------------------------------------------------------------------+
+| Spatial Predicate                                                      |
+| Name                             [example]                             |
+| Operation                         [choose or enter]                    |
+| Execution mode                    [read only]                          |
+| Secondary info transform          [read only]                          |
+| Primary geometry field            [choose or enter]                    |
+| Secondary geometry field          [choose or enter]                    |
+| Distance mode                     [choose or enter]                    |
+| Static distance                   [value]                              |
+| Distance field                    [choose or enter]                    |
+| Result mode                       [choose or enter]                    |
+| Boolean output field              [value]                              |
+| Join field prefix                 [value]                              |
+| Status / field validation                                              |
+|                                              [OK] [Cancel]             |
++------------------------------------------------------------------------+
+----
+
+[[spatial-predicate-output]]
+== Output
+
+BOOLEAN_COLUMN appends a boolean. KEEP_MATCHED and KEEP_UNMATCHED filter rows and optionally route the opposite result to a reject target. INNER_JOIN emits one row per match.
+
+[[spatial-predicate-supported-engines]]
+== Supported engines
+
+Apache Hop 2.19.0 local pipeline engine, Java 21 or 25. The installed examples run with
+the local engine. Distributed engines have not been validated by this repository.
+
+[[spatial-predicate-examples]]
+== Examples
+
+Download link:../../examples/spatial-predicate.hpl[Spatial Predicate pipeline],
+link:../../examples/fixtures/geometry.csv[geometry fixture] and
+link:../../examples/fixtures/secondary.csv[secondary fixture].
+See link:../../examples/README.md[parameters and expected results] and the
+link:../../examples/expected/spatial-predicate.csv[expected CSV]. Keep the downloaded `examples/`
+layout so that the default fixture paths resolve.
+
+[[spatial-predicate-error-handling]]
+== Error handling
+
+Invalid configuration or geometry processing errors stop the transform and pipeline. Validate mappings before running. Predicate filter rejects are normal routing, not data errors.
+
+[[spatial-predicate-limitations]]
+== Limitations
+
+The secondary layer must fit in memory. INNER_JOIN is unsupported for disjoint and distance_gte.
+
+== Detailed reference
+
+`Spatial Predicate` compares a primary row against a cached secondary layer and returns either a boolean, a filter decision, or an inner join.
+
+[[spatial-predicate-at-a-glance]]
+=== At a Glance
+
+[cols=",",options="header",]
+|===
+|Field |Value
+|Purpose |Evaluate primary features against a secondary layer
+|Required Inputs |primary input {plus} secondary info stream
+|Execution Mode |cached-secondary
+|Needs Whole Layer? |secondary layer only
+|Needs Second Layer? |yes
+|What Stays in RAM? |full secondary layer
+|Spatial Index |yes, STRtree on the secondary layer
+|Output Behavior |boolean column, filter, or `0:n` inner join
+|===
+
+[[spatial-predicate-diagram]]
+=== Diagram
+
+[source,mermaid]
+----
+flowchart LR
+  S["Secondary layer"] --> C["Cache secondary FeatureRows"]
+  C --> I["Build STRtree"]
+  P["Primary row"] --> Q["Query candidate envelopes"]
+  I --> Q
+  Q --> T["Evaluate predicate"]
+  T --> R{"Result mode"}
+  R --> R1["Boolean column"]
+  R --> R2["Keep matched/unmatched"]
+  R --> R3["Inner join rows"]
+----
+
+[[spatial-predicate-operations-in-this-family]]
+=== Operations in This Family
+
+* topological predicates: `intersects`, `contains`, `within`, `touches`, `crosses`, `overlaps`, `disjoint`
+* distance predicates: `distance++_++lte`, `distance++_++gte`
+
+Full list: <<reference-matrix-spatial-predicate,Reference Matrix>>
+
+[[spatial-predicate-important-parameters]]
+=== Important Parameters
+
+* `primaryGeometryFieldName`
+** geometry field from the primary input
+* `secondaryGeometryFieldName`
+** geometry field from the secondary info stream
+* `resultMode`
+** controls whether the output is a boolean column, a filter, or an inner join
+* optional reject target hop
+** `KEEP++_++MATCHED` and `KEEP++_++UNMATCHED` can send the opposite filter result to a second output stream
+* `distance`
+** threshold for `distance++_++lte` and `distance++_++gte`
+* `BOOLEAN++_++COLUMN`
+** writes `true/false` to a new column
+* `KEEP++_++MATCHED`
+** keeps matched primary rows
+* `KEEP++_++UNMATCHED`
+** keeps unmatched primary rows
+* `INNER++_++JOIN`
+** one primary row can produce multiple output rows
+
+[[spatial-predicate-common-pitfalls]]
+=== Common Pitfalls
+
+* The secondary layer is fully read before the first primary row is processed.
+* `INNER++_++JOIN` is not supported for `disjoint` or `distance++_++gte`.
+* The reject target stream is only meaningful for the filter modes `KEEP++_++MATCHED` and `KEEP++_++UNMATCHED`.
+* The spatial index reduces the candidate set, but full geometry evaluation is still required.
+
+[[spatial-predicate-related-recipes]]
+=== Related Recipes
+
+* <<recipe-point-in-polygon-join,Point-in-Polygon Join>>
+* <<recipe-layer-overlay,Overlay Two Layers>>

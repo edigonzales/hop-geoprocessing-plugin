@@ -39,11 +39,9 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
 
   @Override
   public boolean processRow() throws HopException {
-    if (!data.initialized) {
-      initialize();
-    }
-
-    Object[] primaryRow = getRowFrom(data.primaryRowSet);
+    Object[] primaryRow = data.initialized
+        ? getRowFrom(data.primaryRowSet)
+        : initialize();
     if (primaryRow == null) {
       setOutputDone();
       return false;
@@ -95,7 +93,7 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
     return true;
   }
 
-  private void initialize() throws HopException {
+  private Object[] initialize() throws HopException {
     data.initialized = true;
     String infoTransformName = meta.getInfoTransformName();
     if (infoTransformName.isBlank()) {
@@ -110,8 +108,20 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
     if (data.primaryRowSet == null) {
       throw new HopTransformException("Primary input row set was not found");
     }
+    // Row metadata is published with the first row, not when the row set is connected.
+    Object[] firstSecondaryRow = getRowFrom(data.secondaryRowSet);
+    Object[] firstPrimaryRow = getRowFrom(data.primaryRowSet);
+    if (firstPrimaryRow == null) {
+      while (getRowFrom(data.secondaryRowSet) != null) {
+        // Drain the independent secondary producer when the primary input is empty.
+      }
+      return null;
+    }
     data.primaryRowMeta = data.primaryRowSet.getRowMeta();
     data.secondaryRowMeta = data.secondaryRowSet.getRowMeta();
+    if (data.secondaryRowMeta == null) {
+      data.secondaryRowMeta = getPipelineMeta().getTransformFields(this, infoTransformName);
+    }
     GeometryFieldSelection primarySelection =
         GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(data.primaryRowMeta, meta.getPrimaryGeometryFieldName());
     GeometryFieldSelection secondarySelection =
@@ -143,10 +153,11 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
 
     List<FeatureRow> secondaryFeatures = new ArrayList<>();
     long featureId = 0L;
-    Object[] secondaryRow;
-    while ((secondaryRow = getRowFrom(data.secondaryRowSet)) != null) {
+    Object[] secondaryRow = firstSecondaryRow;
+    while (secondaryRow != null) {
       secondaryFeatures.add(
           FeatureRow.fromRow(data.secondaryRowMeta, data.secondaryGeometryFieldIndex, secondaryRow, featureId++));
+      secondaryRow = getRowFrom(data.secondaryRowSet);
     }
 
     LayerCache secondaryLayerCache =
@@ -166,6 +177,7 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
               ? data.outputRowMeta.indexOfValue(meta.getBooleanFieldName())
               : -1;
     }
+    return firstPrimaryRow;
   }
 
   private void logSelectionWarning(String warning) {

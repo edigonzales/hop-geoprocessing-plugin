@@ -1,0 +1,35 @@
+[[recipe-point-in-polygon-join]]
+= Recipe: Point-in-Polygon Join
+
+[[recipe-point-in-polygon-join-goal]]
+== Goal
+
+Attach polygon attributes to points, or filter points by whether they fall into polygons.
+
+[[recipe-point-in-polygon-join-pipeline-sketch]]
+== Pipeline Sketch
+
+[source,mermaid]
+----
+flowchart LR
+  P["Points (primary input)"] --> J["Spatial Predicate\noperation: within or intersects"]
+  A["Polygons (secondary info stream)"] --> J
+  J --> R["Boolean column, filter, or inner join output"]
+----
+
+[[recipe-point-in-polygon-join-operation-variants-in-this-example]]
+== Operation Variants in This Example
+
+* `within` {plus} `INNER++_++JOIN`
+** add polygon attributes to each point
+* `within` {plus} `BOOLEAN++_++COLUMN`
+** mark whether a point lies inside any polygon
+* `intersects` {plus} `KEEP++_++MATCHED`
+** keep only points that hit a polygon
+
+[[recipe-point-in-polygon-join-constraints-and-caveats]]
+== Constraints and Caveats
+
+* the polygon layer must fit in memory
+* `INNER++_++JOIN` can produce multiple rows per point if polygons overlap
+* the primary and secondary geometry fields must be configured explicitly

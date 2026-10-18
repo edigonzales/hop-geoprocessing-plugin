@@ -1,160 +1,91 @@
 # hop-geoprocessing-plugin
 
-Apache Hop geoprocessing plugin suite for geometry editing, spatial predicates, layer overlay,
-coverage processing, and layer aggregation based on JTS and `hop-geometry-type`.
+Apache Hop transforms for geometry editing, predicates, overlays, aggregation,
+representation conversion and polygon coverages, using the shared Geometry Type runtime.
+
+## Features
+
+- Geometry Operation: 35 streaming operations, including explicit curve linearization.
+- Spatial Predicate: nine predicates against a cached secondary layer, with filter and join modes.
+- Layer Overlay: intersection, clip, erase and identity against a secondary layer.
+- Layer Aggregate: dissolve, unary union, coverage union and collect per layer/group.
+- Geometry Converter: native geometry, WKT/EWKT, binary/hex WKB/EWKB and Point coordinates.
+- Coverage Operation: six operations for validation, cleaning, simplification and shared curve linearization.
+
+## Requirements
+
+Apache Hop 2.19.0 and Java 21 (Java 25 is also tested). Install the published
+Geometry Type 0.2.0-SNAPSHOT plugin separately. Building requires Maven and Python 3;
+SWT tests need a display (`xvfb-run -a` on headless Linux).
+
+## Install
+
+Download the published ZIPs from [the Maven repository](https://jars.interlis.guru/)
+and extract both into the same Hop home:
+
+```bash
+unzip hop-geometry-type-plugin-0.2.0-SNAPSHOT.zip -d "$HOP_HOME"
+unzip hop-geoprocessing-plugin-0.1.0-SNAPSHOT.zip -d "$HOP_HOME"
+```
+
+Geometry Type installs under `plugins/misc/hop-geometry-type`; this suite installs
+under `plugins/transforms/hop-geoprocessing`. Restart Hop after installation.
+See the [handbook](https://edigonzales.github.io/hop-geoprocessing-plugin/geoprocessing/main/index.html)
+for version compatibility and configuration.
 
 ## Documentation
 
-Detailed documentation lives in [docs/README.md](docs/README.md).
+The English, searchable [handbook](https://edigonzales.github.io/hop-geoprocessing-plugin/geoprocessing/main/index.html)
+is built from [docs/index.adoc](docs/index.adoc) and [docs/master.adoc](docs/master.adoc).
+Runnable [examples](examples/README.md) include local fixtures and expected results.
+Build the current working documentation with `python3 scripts/build-docs.py`;
+output is in `target/docs-site`. Use `--serve` for a local preview.
 
-- [Overview](docs/README.md)
-- [Execution Models](docs/execution-models.md)
-- [Reference Matrix](docs/reference-matrix.md)
-- [Performance & Memory](docs/performance-memory.md)
-- Family docs:
-  - [Geometry Operation](docs/families/geometry-operation.md)
-  - [Spatial Predicate](docs/families/spatial-predicate.md)
-  - [Layer Overlay](docs/families/layer-overlay.md)
-  - [Layer Aggregate](docs/families/layer-aggregate.md)
-  - [Geometry Converter](docs/families/geometry-converter.md)
-  - [Coverage Operation](docs/families/coverage-operation.md)
-- [Recipes](docs/recipes/README.md)
+## Build and development
 
-## Transform Families
-
-- `Geometry Operation`
-  - 35 operations
-  - single input
-  - execution: `Streaming`
-- `Spatial Predicate`
-  - 9 operations
-  - primary input + secondary info stream
-  - execution: `Caches secondary layer`
-- `Layer Overlay`
-  - 4 operations
-  - primary input + secondary info stream
-  - execution: `Blocking per layer`
-- `Layer Aggregate`
-- `Geometry Converter`
-  - 4 operations
-  - single input, optional grouping
-  - execution: `Blocking per layer/group`
-- `Coverage Operation`
-  - 6 operations
-  - single input, optional grouping
-  - execution: `Blocking per layer/group`
-
-## Geometry Converter
-
-`Geometry Converter` converts native geometry, WKT/EWKT, WKB/EWKB/hex and point coordinate
-fields without reprojecting. It contains the schema/runtime layer in
-`hop-geoprocessing-core` and a transform plus SWT dialog in
-`hop-transform-geometry-converter`; the transform is part of this ZIP.
-
-See [docs/families/geometry-converter.md](docs/families/geometry-converter.md) for the
-format table, Point-only coordinate rules, SRID semantics and error modes. The implementation
-records are [stage C](docs/implementation/geometry-converter-stage-c.md),
-[stage D](docs/implementation/geometry-converter-stage-d.md) and
-[stage E](docs/implementation/geometry-converter-stage-e.md).
-
-## Build
+Follow [AGENTS.md](AGENTS.md) for the shared CI contracts, generated Maven settings,
+Java versions and installed-Hop checks. The shared Maven parent supplies dependency
+and plugin management, SWT profiles and mandatory DocLint checks.
 
 ```bash
-mvn -U -B -ntp clean verify
+python3 "$HOP_CI_DIR/scripts/write_maven_settings.py" --output "$MAVEN_SETTINGS"
+mvn -s "$MAVEN_SETTINGS" -U -B -ntp clean verify
+python3 -m unittest discover -s scripts/tests -v
+python3 scripts/verify-package.py
 ```
 
-Build prerequisites:
+Maven resolves Geometry and its real POM from the published repositories. Repository
+configuration selects Wagon and a mirror for Central only. For a development Hop
+installation, `scripts/dev-sync-hop-plugin.sh "$HOP_HOME"` rebuilds and replaces the
+suite directory; install Geometry Type separately first. Implementation reports in
+[docs/implementation](docs/implementation) and [handover](handover) are historical records.
+The optional streaming smoke benchmark is `scripts/benchmark-converter.py`.
 
-- Java 21 (Java 25 is part of the CI compatibility matrix)
-- Maven
-- `ch.so.agi:hop-geometry-type:0.2.0-SNAPSHOT` available through the configured Maven snapshot
-  repository or installed locally from the current Geometry Type build
+## Modules and artifacts
 
-The project targets Apache Hop `2.19.0` and keeps its own version at `0.1.0-SNAPSHOT`. Maven
-resolves the Geometry Type dependency by its normal base version; no timestamped snapshot is
-recorded in this repository.
-
-## Install In Hop
-
-```bash
-unzip -o assemblies/assemblies-hop-geoprocessing-suite/target/hop-geoprocessing-plugin-<version>.zip -d "$HOP_HOME"
-```
-
-This installs:
-
-```text
-$HOP_HOME/plugins/transforms/hop-geoprocessing
-```
-
-The installable Maven ZIP is published as:
-
-```text
-ch.so.agi:hop-geoprocessing-plugin:0.1.0-SNAPSHOT
-```
-
-The ZIP contains the six geoprocessing transform JARs and `hop-geoprocessing-core.jar`. The
-Geometry Type plugin is installed separately at `plugins/misc/hop-geometry-type`; its shared
-JTS/Geometry runtime is deliberately not duplicated in this ZIP.
+The suite parent is `ch.so.agi:hop-geoprocessing-plugin-parent:0.1.0-SNAPSHOT`,
+inheriting `ch.so.agi:hop-plugin-parent:0.1.0-SNAPSHOT`. It contains
+`hop-geoprocessing-core`, six `hop-transform-*` modules and the assembly modules.
+The installable artifact is `ch.so.agi:hop-geoprocessing-plugin:zip:0.1.0-SNAPSHOT`.
+Its ZIP contains the six transform JARs and the core JAR; Geometry Type and JTS are
+provided by their separately installed plugin.
 
 ## CI and publication
 
-The local workflow tests six combinations:
+The workflows follow `hop-plugin-ci@main` with `ci-ref: main`. Ubuntu/Java 21 builds
+the canonical ZIP with `clean verify`, package checks, the repository contract and
+DocLint. Linux/macOS/Windows × Java 21/25 form the compatibility matrix.
+Each matrix build uses a fresh Maven repository. A dependency job downloads the
+published Geometry ZIP once; the canonical job compares its JAR bytes with the
+published JAR resolved by Maven. Installed E2E consumes that same ZIP and canonical
+suite bundle, including converter scenarios, all six user examples and the legacy
+GeometryCodec negative test.
 
-```text
-Ubuntu, macOS, Windows × Java 21, Java 25
-```
+Successful `main` runs publish the exact verified bundle to the snapshot repository
+without rebuilding, then download it through Maven for comparison. Publishing uses
+`INTERLIS_MAVEN_USERNAME` and `INTERLIS_MAVEN_TOKEN`. PRs only verify. A separate
+Biblios workflow checks the exact commit and deploys Pages only from `main`.
 
-Ubuntu/Java 21 is the canonical run. It executes `clean verify`, validates the ZIP and creates the
-publishable bundle. The other five runs execute `clean test` for compatibility only. Linux tests
-use `xvfb-run` when available and macOS tests use `-XstartOnFirstThread`.
+## License
 
-The canonical bundle is then installed into a fresh Apache Hop 2.19.0 installation together with
-the current Geometry Type snapshot. The Installed-Hop E2E keeps the three original centroid and
-curve-linearization checks and adds the converter suite under `e2e/geometry-converter/`: coordinate
-layouts, Select Values binary conversion, encoded output, curves, overwrite, RETURN_NULL, a real
-error hop, SortRows spilling, variable field names, EMPTY/error regressions and coordinate-output
-row balance. A second isolated Hop installation verifies that a Geometry Type runtime without
-`GeometryCodec` is rejected with a clear upgrade message. Pull requests never publish artifacts. A
-successful `main` run publishes the exact verified ZIP to
-`https://jars.interlis.guru/snapshots/` without rebuilding it; GitHub plugin Releases are not used.
-
-The Maven publish job requires the protected secrets `INTERLIS_MAVEN_USERNAME` and
-`INTERLIS_MAVEN_TOKEN`. Package validation can be run locally with:
-
-```bash
-python3 scripts/verify-package.py
-python3 scripts/run-e2e.py --help
-python3 scripts/benchmark-converter.py --help
-```
-
-## Fast Local Sync
-
-```bash
-./scripts/dev-sync-hop-plugin.sh "$HOP_HOME"
-```
-
-The script rebuilds the suite assembly, removes the target plugin directory, and unzips the latest
-artifact into the given Hop home.
-
-## Explicit curve linearization
-
-`Geometry Operation / linearize_curves` converts exact circular curves to linear JTS geometries.
-The distance parameter is `maxError`: maximum XY chord deviation (the sagitta/Pfeilhöhe), in
-coordinate units. It must be positive and finite. Z/M are interpolated on each side of the
-original intermediate control point. Opposite representations use identical XY sample positions.
-This row operation does not coordinate differently partitioned boundaries in other rows.
-
-`Coverage Operation / coverage_linearize` first gathers the whole layer or configured group.
-It splits shared straight/circular edges at all supplied boundary nodes before constructing
-common chords. This handles opposite ring directions and different subdivisions of the same
-exact circle. Output attributes and SRIDs are retained. Optional target XY resolution and X/Y
-origins must be supplied together and should match the eventual FileGDB writer. Grid displacement
-is deducted from the error budget; excessive coarseness or collapsed edges fail.
-
-The operation validates output polygons, coverage overlaps, and changes of holes/adjacency
-introduced by the target grid. It does not snap, repair or automatically refine invalid input.
-Nearly coincident circles whose definitions are numerically ambiguous are rejected rather than
-silently merged. Use analytically consistent source boundaries. The entire group must succeed
-before output; this operation buffers the layer and has pairwise validation work, so it is intended
-for bounded groups rather than unbounded streams. These checks do not constitute a general exact
-arithmetic topology engine for arbitrary intersecting curved input.
+MIT. See [LICENSE](LICENSE).

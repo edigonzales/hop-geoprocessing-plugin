@@ -37,7 +37,7 @@ import org.apache.hop.pipeline.transform.stream.StreamIcon;
     description = "Blocking coverage validation, simplification, cleaning, and related operations",
     image = "ch/so/agi/hop/geoprocessing/transform/coverageops/icons/coverage-operation.svg",
     categoryDescription = "Geospatial",
-    documentationUrl = "",
+    documentationUrl = "https://edigonzales.github.io/hop-geoprocessing-plugin/geoprocessing/main/index.html#coverage-operation",
     classLoaderGroup = "sogeo-geometry",
     keywords = {"geospatial", "coverage", "validate", "simplify", "clean"})
 public class CoverageOperationMeta

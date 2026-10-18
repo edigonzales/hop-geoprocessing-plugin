@@ -1,0 +1,123 @@
+[[reference-matrix]]
+= Reference Matrix
+
+This is the fastest way to scan the plugin from an operator perspective.
+
+[[reference-matrix-family-summary]]
+== Family Summary
+
+[cols=",>,,,,,",options="header",]
+|===
+|Transform |Operations |Inputs |Execution |RAM |Spatial Index |Output style
+|Geometry Operation |35 |1 layer |Streaming |current row |no |mostly 1:1, sometimes 1:n
+|Spatial Predicate |9 |primary {plus} secondary |Caches secondary layer |full secondary layer |STRtree on secondary |boolean, filter, or join; optional reject stream for filters
+|Layer Overlay |4 |primary {plus} secondary |Blocking per layer |full secondary layer |STRtree on secondary |0:n overlay rows
+|Layer Aggregate |4 |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |1 row per group
+|Coverage Operation |6 |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |row-preserving 1:1; optional reject stream for validate
+|Geometry Converter |representation conversion |1 row |Streaming |current row |no |1:1; RETURN++_++NULL/ROUTE++_++TO++_++ERROR preserve row count
+|===
+
+[[reference-matrix-geometry-converter]]
+== Geometry Converter
+
+All representations are handled by the shared Geometry Type codec. Coordinates are Point-only; non-Point input to coordinate output follows the selected error mode. SRID handling is not reprojection. See <<geometry-converter,Geometry Converter>> for the format table, NULL/EMPTY rules and the required error connection.
+
+[[reference-matrix-geometry-operation]]
+== Geometry Operation
+
+[cols=",,,,,,,,",options="header",]
+|===
+|Transform |Operation |Category |Inputs |Execution |RAM |Spatial Index |Output-Cardinality |Effect
+|Geometry Operation |`buffer` |Constructive |1 layer / same row |Streaming |current row |no |1:1 |creates a basic buffer
+|Geometry Operation |`buffer++_++extended` |Constructive |1 layer / same row |Streaming |current row |no |1:1 |creates a buffer with cap and join controls
+|Geometry Operation |`centroid` |Measure |1 layer / same row |Streaming |current row |no |1:1 |creates a centroid point
+|Geometry Operation |`interior++_++point` |Measure |1 layer / same row |Streaming |current row |no |1:1 |creates an interior point
+|Geometry Operation |`boundary` |Conversion |1 layer / same row |Streaming |current row |no |1:1 |extracts the boundary
+|Geometry Operation |`convex++_++hull` |Constructive |1 layer / same row |Streaming |current row |no |1:1 |creates a convex hull
+|Geometry Operation |`concave++_++hull` |Constructive |1 layer / same row |Streaming |current row |no |1:1 |creates a concave hull
+|Geometry Operation |`simplify` |Edit |1 layer / same row |Streaming |current row |no |1:1 |simplifies with Douglas-Peucker
+|Geometry Operation |`simplify++_++vw` |Edit |1 layer / same row |Streaming |current row |no |1:1 |simplifies with Visvalingam-Whyatt
+|Geometry Operation |`simplify++_++topology` |Edit |1 layer / same row |Streaming |current row |no |1:1 |simplifies while preserving single-geometry topology
+|Geometry Operation |`densify` |Edit |1 layer / same row |Streaming |current row |no |1:1 |adds intermediate vertices
+|Geometry Operation |`reverse` |Edit |1 layer / same row |Streaming |current row |no |1:1 |reverses line or ring direction
+|Geometry Operation |`explode` |Collection |1 layer / same row |Streaming |current row |no |1:n |splits multi-geometries into parts
+|Geometry Operation |`line++_++merge` |Collection |1 layer / same row |Streaming |current row |no |1:1 |merges connected lines
+|Geometry Operation |`polygonize` |Constructive |1 layer / same row |Streaming |current row |no |1:1 |polygonizes linework
+|Geometry Operation |`remove++_++small++_++holes` |Edit |1 layer / same row |Streaming |current row |no |1:1 |removes holes below a threshold
+|Geometry Operation |`remove++_++all++_++holes` |Edit |1 layer / same row |Streaming |current row |no |1:1 |removes all polygon holes
+|Geometry Operation |`fix++_++geometry` |Edit |1 layer / same row |Streaming |current row |no |1:1 |repairs invalid geometry
+|Geometry Operation |`reduce++_++precision` |Edit |1 layer / same row |Streaming |current row |no |1:1 |rounds coordinates to a precision grid
+|Geometry Operation |`to++_++2d` |Conversion |1 layer / same row |Streaming |current row |no |1:1 |removes Z and M ordinates
+|Geometry Operation |`to++_++multi` |Conversion |1 layer / same row |Streaming |current row |no |1:1 |converts single geometry to multi geometry
+|Geometry Operation |`extract++_++coordinates` |Conversion |1 layer / same row |Streaming |current row |no |1:1 |emits coordinates as points
+|Geometry Operation |`envelope` |Measure |1 layer / same row |Streaming |current row |no |1:1 |creates a bounding box geometry
+|Geometry Operation |`minimum++_++bounding++_++rectangle` |Measure |1 layer / same row |Streaming |current row |no |1:1 |creates a minimum bounding rectangle
+|Geometry Operation |`minimum++_++diameter` |Measure |1 layer / same row |Streaming |current row |no |1:1 |creates a minimum diameter line
+|Geometry Operation |`mbc` |Measure |1 layer / same row |Streaming |current row |no |1:1 |creates a minimum bounding circle
+|Geometry Operation |`linear++_++referencing` |Measure |1 layer / same row |Streaming |current row |no |1:1 |creates a point at a linear distance
+|Geometry Operation |`intersection` |Overlay |1 layer / same row |Streaming |current row |no |1:1 |intersects two geometry fields
+|Geometry Operation |`difference` |Overlay |1 layer / same row |Streaming |current row |no |1:1 |subtracts one geometry field from another
+|Geometry Operation |`sym++_++difference` |Overlay |1 layer / same row |Streaming |current row |no |1:1 |computes the symmetric difference
+|Geometry Operation |`union` |Overlay |1 layer / same row |Streaming |current row |no |1:1 |unions two geometry fields
+|Geometry Operation |`snap` |Edit |1 layer / same row |Streaming |current row |no |1:1 |snaps to a second geometry field
+|Geometry Operation |`snap++_++to++_++self` |Edit |1 layer / same row |Streaming |current row |no |1:1 |snaps a geometry to itself
+|Geometry Operation |`split` |Edit |1 layer / same row |Streaming |current row |no |1:1 |splits geometry with another geometry
+|===
+
+++|++ Geometry Operation ++|++ `linearize++_++curves` ++|++ Conversion ++|++ 1 layer / same row ++|++ Streaming ++|++ current row ++|++ no ++|++ 1:1 ++|++ linearizes exact curves with a maximum XY chord error ++|++
+
+[[reference-matrix-spatial-predicate]]
+== Spatial Predicate
+
+[cols=",,,,,,,,",options="header",]
+|===
+|Transform |Operation |Category |Inputs |Execution |RAM |Spatial Index |Output-Cardinality |Effect
+|Spatial Predicate |`intersects` |Predicate |primary {plus} secondary |Caches secondary layer |full secondary layer |STRtree on secondary |0..n by result mode |tests whether geometries intersect
+|Spatial Predicate |`contains` |Predicate |primary {plus} secondary |Caches secondary layer |full secondary layer |STRtree on secondary |0..n by result mode |tests whether the primary contains the secondary
+|Spatial Predicate |`within` |Predicate |primary {plus} secondary |Caches secondary layer |full secondary layer |STRtree on secondary |0..n by result mode |tests whether the primary is within the secondary
+|Spatial Predicate |`touches` |Predicate |primary {plus} secondary |Caches secondary layer |full secondary layer |STRtree on secondary |0..n by result mode |tests whether geometries touch
+|Spatial Predicate |`crosses` |Predicate |primary {plus} secondary |Caches secondary layer |full secondary layer |STRtree on secondary |0..n by result mode |tests whether geometries cross
+|Spatial Predicate |`overlaps` |Predicate |primary {plus} secondary |Caches secondary layer |full secondary layer |STRtree on secondary |0..n by result mode |tests whether geometries overlap
+|Spatial Predicate |`disjoint` |Predicate |primary {plus} secondary |Caches secondary layer |full secondary layer |STRtree on secondary |0..1 or filter |tests whether geometries are disjoint
+|Spatial Predicate |`distance++_++lte` |Predicate |primary {plus} secondary |Caches secondary layer |full secondary layer |STRtree on secondary |0..n by result mode |tests whether distance is below a threshold
+|Spatial Predicate |`distance++_++gte` |Predicate |primary {plus} secondary |Caches secondary layer |full secondary layer |STRtree on secondary |0..1 or filter |tests whether distance is above a threshold
+|===
+
+[[reference-matrix-layer-overlay]]
+== Layer Overlay
+
+[cols=",,,,,,,,",options="header",]
+|===
+|Transform |Operation |Category |Inputs |Execution |RAM |Spatial Index |Output-Cardinality |Effect
+|Layer Overlay |`intersection` |Overlay |primary {plus} secondary |Blocking per layer |full secondary layer |STRtree on secondary |0:n |creates overlap fragments with attributes from both inputs
+|Layer Overlay |`clip` |Overlay |primary {plus} secondary |Blocking per layer |full secondary layer |STRtree on secondary |0:n |keeps only the primary portion inside the secondary
+|Layer Overlay |`erase` |Overlay |primary {plus} secondary |Blocking per layer |full secondary layer |STRtree on secondary |0:n |removes primary portions covered by the secondary
+|Layer Overlay |`identity` |Overlay |primary {plus} secondary |Blocking per layer |full secondary layer |STRtree on secondary |0:n |keeps primary coverage and adds secondary attributes where present
+|===
+
+[[reference-matrix-layer-aggregate]]
+== Layer Aggregate
+
+[cols=",,,,,,,,",options="header",]
+|===
+|Transform |Operation |Category |Inputs |Execution |RAM |Spatial Index |Output-Cardinality |Effect
+|Layer Aggregate |`dissolve` |Aggregate |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |1 row per group |merges geometries per group
+|Layer Aggregate |`unary++_++union` |Aggregate |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |1 row per group |performs a robust union per group
+|Layer Aggregate |`coverage++_++union` |Aggregate |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |1 row per group |unions a valid polygon coverage efficiently
+|Layer Aggregate |`collect` |Aggregate |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |1 row per group |collects group member geometries
+|===
+
+[[reference-matrix-coverage-operation]]
+== Coverage Operation
+
+[cols=",,,,,,,,",options="header",]
+|===
+|Transform |Operation |Category |Inputs |Execution |RAM |Spatial Index |Output-Cardinality |Effect
+|Coverage Operation |`coverage++_++validate` |Coverage |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |1:1 row-preserving |finds coverage errors
+|Coverage Operation |`coverage++_++simplify` |Coverage |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |1:1 row-preserving |simplifies while preserving coverage topology
+|Coverage Operation |`coverage++_++simplify++_++inner` |Coverage |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |1:1 row-preserving |simplifies inner edges only
+|Coverage Operation |`coverage++_++simplify++_++outer` |Coverage |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |1:1 row-preserving |simplifies outer edges only
+|Coverage Operation |`coverage++_++clean` |Coverage |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |1:1 row-preserving |cleans and snaps a coverage
+|===
+
+++|++ Coverage Operation ++|++ `coverage++_++linearize` ++|++ Coverage ++|++ 1 layer, optional grouping ++|++ Blocking per layer/group ++|++ active layer/group ++|++ no ++|++ 1:1 ++|++ coordinates shared circular boundaries and an optional target grid ++|++

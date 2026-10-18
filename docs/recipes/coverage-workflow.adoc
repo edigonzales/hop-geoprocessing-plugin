@@ -1,0 +1,57 @@
+[[recipe-coverage-workflow]]
+= Recipe: Coverage Validate, Clean, Simplify, and Union
+
+[[recipe-coverage-workflow-goal]]
+== Goal
+
+Process a polygon coverage safely, keep row identity during QA and cleaning, and optionally produce a group-wide final union.
+
+[[recipe-coverage-workflow-pipeline-sketch]]
+== Pipeline Sketch
+
+[source,mermaid]
+----
+flowchart LR
+  A["Coverage polygons"] --> V["Coverage Validate"]
+  V --> C["Coverage Clean\n(optional)"]
+  C --> S["Coverage Simplify\n(optional)"]
+  S --> U["Layer Aggregate:\ncoverage_union\n(optional)"]
+----
+
+[[recipe-coverage-workflow-example-sequence]]
+== Example Sequence
+
+[arabic]
+. `coverage++_++validate`
+* find overlaps, mismatched edges, or narrow gaps
+* enable `Disallow coverage holes` if the coverage must not contain any true interior holes
+. `coverage++_++clean`
+* snap and merge small discrepancies where needed
+. `coverage++_++simplify`, `coverage++_++simplify++_++inner`, or `coverage++_++simplify++_++outer`
+* simplify while preserving coverage topology
+. `coverage++_++union`
+* aggregate to one geometry per layer or group if required
+
+[[recipe-coverage-workflow-inspecting-validation-results]]
+== Inspecting Validation Results
+
+If you inspect `Coverage Validate` with the Geometry Inspector:
+
+* `Geometry source = Output` shows the transform's main output rows, not the optional reject target stream.
+* In practice, `Auto` also stays on output for `Coverage Validate`, because the transform emits a main output row for every input row.
+* Select the original coverage geometry field when you want to inspect the validated coverage geometries in row-preserving order.
+* Select the validation error geometry field when you want to visualize reported coverage problems. Rows without an error keep a `null` error geometry and therefore do not render an error feature.
+* Use the validation error type field when you need to distinguish `COVERAGE++_++INVALID`, `FORBIDDEN++_++HOLE`, and `MULTIPLE` in downstream QA or routing steps.
+* If `Disallow coverage holes` is enabled, polygons bordering a forbidden coverage hole are marked invalid and their shared hole boundary appears in the error geometry field with `coverage++_++error++_++type = FORBIDDEN++_++HOLE`.
+* `FORBIDDEN++_++HOLE` means the current row borders a forbidden hole and the hole-specific check succeeded for the current coverage group.
+* A row can still show only `COVERAGE++_++INVALID` although the overall coverage contains holes, if another coverage error prevents hole-specific classification.
+* Therefore, `coverage++_++error++_++type = COVERAGE++_++INVALID` does not prove that no forbidden hole exists elsewhere in the same coverage group.
+* If you want to inspect only rejected invalid rows, inspect the downstream reject target transform or a transform connected to that reject hop.
+
+[[recipe-coverage-workflow-constraints-and-caveats]]
+== Constraints and Caveats
+
+* all coverage operations are blocking
+* inputs must be polygonal
+* very large coverage groups can be memory-intensive
+* `coverage++_++union` belongs to `Layer Aggregate`, not to `Coverage Operation`

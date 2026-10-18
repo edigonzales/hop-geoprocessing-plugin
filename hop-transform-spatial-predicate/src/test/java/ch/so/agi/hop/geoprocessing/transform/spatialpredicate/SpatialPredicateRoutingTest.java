@@ -53,6 +53,19 @@ class SpatialPredicateRoutingTest {
   }
 
   @Test
+  void firstRowsPublishMetadataBeforeFieldResolution() throws Exception {
+    TestSpatialPredicate transform = createTransform(SpatialPredicateResultMode.KEEP_MATCHED);
+    transform.delayMetadataUntilFirstRead();
+    BlockingRowSet mainOutput = addOutputRowSet(transform, "main");
+    BlockingRowSet rejectOutput = addOutputRowSet(transform, "reject");
+
+    runTransform(transform);
+
+    assertThat(ids(drainRows(mainOutput))).containsExactly(1L);
+    assertThat(ids(drainRows(rejectOutput))).containsExactly(2L);
+  }
+
+  @Test
   void targetAndInfoStreamsRoundTripWithConfiguredNames() {
     SpatialPredicateMeta meta = new SpatialPredicateMeta();
     meta.setDefault();
@@ -215,8 +228,21 @@ class SpatialPredicateRoutingTest {
       return rowSet;
     }
 
+    private final Map<IRowSet, org.apache.hop.core.row.IRowMeta> deferredMetadata =
+        new java.util.IdentityHashMap<>();
+
+    void delayMetadataUntilFirstRead() {
+      for (IRowSet rowSet : inputRowSets) {
+        deferredMetadata.put(rowSet, rowSet.getRowMeta());
+        rowSet.setRowMeta(null);
+      }
+    }
+
     @Override
     public Object[] getRowFrom(IRowSet rowSet) {
+      if (deferredMetadata.containsKey(rowSet)) {
+        rowSet.setRowMeta(deferredMetadata.remove(rowSet));
+      }
       return rowSet.getRowImmediate();
     }
   }

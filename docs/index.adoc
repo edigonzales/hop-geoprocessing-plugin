@@ -1,0 +1,3 @@
+= Geoprocessing handbook
+
+include::master.adoc[]

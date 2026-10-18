@@ -15,3 +15,10 @@ out/
 
 # OS files
 .DS_Store
+
+# CI inputs, fresh Maven caches and generated documentation
+/.ci/
+/docs/.downloads/
+/docs/build/
+/docs/.biblios-cache/
+__pycache__/
