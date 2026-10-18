@@ -62,9 +62,8 @@ All representations are handled by the shared Geometry Type codec. Coordinates a
 |Geometry Operation |`snap` |Edit |1 layer / same row |Streaming |current row |no |1:1 |snaps to a second geometry field
 |Geometry Operation |`snap++_++to++_++self` |Edit |1 layer / same row |Streaming |current row |no |1:1 |snaps a geometry to itself
 |Geometry Operation |`split` |Edit |1 layer / same row |Streaming |current row |no |1:1 |splits geometry with another geometry
+|Geometry Operation |`linearize++_++curves` |Conversion |1 layer / same row |Streaming |current row |no |1:1 |linearizes exact curves with a maximum XY chord error
 |===
-
-++|++ Geometry Operation ++|++ `linearize++_++curves` ++|++ Conversion ++|++ 1 layer / same row ++|++ Streaming ++|++ current row ++|++ no ++|++ 1:1 ++|++ linearizes exact curves with a maximum XY chord error ++|++
 
 [[reference-matrix-spatial-predicate]]
 == Spatial Predicate
@@ -118,6 +117,5 @@ All representations are handled by the shared Geometry Type codec. Coordinates a
 |Coverage Operation |`coverage++_++simplify++_++inner` |Coverage |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |1:1 row-preserving |simplifies inner edges only
 |Coverage Operation |`coverage++_++simplify++_++outer` |Coverage |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |1:1 row-preserving |simplifies outer edges only
 |Coverage Operation |`coverage++_++clean` |Coverage |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |1:1 row-preserving |cleans and snaps a coverage
+|Coverage Operation |`coverage++_++linearize` |Coverage |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |1:1 |coordinates shared circular boundaries and an optional target grid
 |===
-
-++|++ Coverage Operation ++|++ `coverage++_++linearize` ++|++ Coverage ++|++ 1 layer, optional grouping ++|++ Blocking per layer/group ++|++ active layer/group ++|++ no ++|++ 1:1 ++|++ coordinates shared circular boundaries and an optional target grid ++|++

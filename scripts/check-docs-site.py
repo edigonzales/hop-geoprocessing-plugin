@@ -19,15 +19,27 @@ class Page(HTMLParser):
     def __init__(self, text):
         super().__init__()
         self.ids, self.links = set(), []
+        self.table_cells, self.cell = [], None
         self.feed(text)
 
     def handle_starttag(self, tag, attrs):
+        if tag == "td":
+            self.cell = []
         values = dict(attrs)
         if 'id' in values:
             self.ids.add(values['id'])
         for key in ('href', 'src'):
             if values.get(key):
                 self.links.append(values[key])
+
+    def handle_data(self, data):
+        if self.cell is not None:
+            self.cell.append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "td" and self.cell is not None:
+            self.table_cells.append(''.join(self.cell).strip())
+            self.cell = None
 
 
 def check(root):
@@ -64,6 +76,8 @@ def check(root):
     for transform in TRANSFORMS:
         for section in REQUIRED_SECTIONS:
             assert f'{transform}-{section}' in pages[handbook].ids, f'Missing {transform}: {section}'
+    for operation in ('linearize_curves', 'coverage_linearize'):
+        assert operation in pages[handbook].table_cells, f'Operation absent from reference table: {operation}'
     handbook_text = handbook.read_text()
     assert handbook_text.count('class="listingblock gui-mockup"') == 6, 'Expected six GUI mockups'
     assert 'site-assets/styles.css' in handbook_text, 'Theme/GUI stylesheet is not loaded'
