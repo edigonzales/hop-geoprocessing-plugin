@@ -98,6 +98,11 @@
       </plugin>
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <HOP_AUDIT_FOLDER>${project.build.directory}/audit</HOP_AUDIT_FOLDER>
+          </systemPropertyVariables>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>io.smallrye</groupId>
