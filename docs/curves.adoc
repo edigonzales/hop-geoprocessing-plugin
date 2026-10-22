@@ -6,3 +6,13 @@
 `Coverage Operation / coverage++_++linearize` first gathers the whole layer or configured group. It splits shared straight/circular edges at all supplied boundary nodes before constructing common chords. This handles opposite ring directions and different subdivisions of the same exact circle. Output attributes and SRIDs are retained. Optional target XY resolution and X/Y origins must be supplied together and should match the eventual FileGDB writer. Grid displacement is deducted from the error budget; excessive coarseness or collapsed edges fail.
 
 The operation validates output polygons, coverage overlaps, and changes of holes/adjacency introduced by the target grid. It does not snap, repair or automatically refine invalid input. Nearly coincident circles whose definitions are numerically ambiguous are rejected rather than silently merged. Use analytically consistent source boundaries. The entire group must succeed before output; this operation buffers the layer and has pairwise validation work, so it is intended for bounded groups rather than unbounded streams. These checks do not constitute a general exact arithmetic topology engine for arbitrary intersecting curved input.
+
+== Reprojection after linearization
+
+`Geometry Reproject` rejects exact curves, including curves inside collections
+and transformations between identical CRS. A circular arc generally does not
+remain circular after reprojection, so transforming its control points would not
+preserve its shape. Explicitly linearize in the source CRS before reprojection;
+choose the chord error in source coordinate units. Use coverage linearization
+when shared boundaries need coordinated chords. Reprojection transforms the
+resulting vertices without adding more vertices or coordinating rows.

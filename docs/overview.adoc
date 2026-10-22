@@ -23,6 +23,7 @@ Many transforms look similar on the surface but behave very differently with res
 ** <<layer-overlay,Layer Overlay>>
 ** <<layer-aggregate,Layer Aggregate>>
 ** <<geometry-converter,Geometry Converter>>
+** <<geometry-reproject,Geometry Reproject>>
 ** <<coverage-operation,Coverage Operation>>
 * <<recipes,Recipes>>
 * Implementation records
@@ -42,6 +43,7 @@ Many transforms look similar on the surface but behave very differently with res
 |Layer Overlay |4 |primary {plus} secondary |Blocking per layer |full secondary layer in memory |STRtree on secondary
 |Layer Aggregate |4 |1 layer, optional grouping |Blocking per layer/group |all rows in layer/group |no
 |Geometry Converter |representation conversion |1 row |Streaming |current row |no
+|Geometry Reproject |XY coordinate reprojection |1 row |Streaming |current row and up to 64 cached CRS operations |no
 |Coverage Operation |6 |1 layer, optional grouping |Blocking per layer/group |all rows in layer/group |no
 |===
 
@@ -74,4 +76,8 @@ flowchart LR
   GC["Geometry Converter\nrepresentation conversion"] --> GC1["1 row"]
   GC --> GC2["Streaming"]
   GC --> GC3["Shared Geometry codec"]
+
+  GR["Geometry Reproject\nXY coordinates"] --> GR1["1 row"]
+  GR --> GR2["Streaming"]
+  GR --> GR3["Shared GeoTools EPSG runtime"]
 ----

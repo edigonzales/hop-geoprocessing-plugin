@@ -33,16 +33,49 @@
     <module>hop-transform-layer-overlay</module>
     <module>hop-transform-layer-aggregate</module>
     <module>hop-transform-geometry-converter</module>
+    <module>hop-transform-geometry-reproject</module>
     <module>assemblies</module>
   </modules>
 
   <properties>
     <hop.geometry.type.version>0.2.0-SNAPSHOT</hop.geometry.type.version>
     <jts.version>1.20.0</jts.version>
+    <geotools.version>35.1</geotools.version>
+    <indriya.version>2.2</indriya.version>
   </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.geotools</groupId>
+        <artifactId>gt-bom</artifactId>
+        <version>${geotools.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.geotools</groupId>
+        <artifactId>gt-platform-dependencies</artifactId>
+        <version>${geotools.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>tech.units</groupId>
+        <artifactId>indriya</artifactId>
+        <version>${indriya.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <!-- Bootstrap the published parent before its repositories are inherited. -->
   <repositories>
+    <repository>
+      <id>osgeo</id>
+      <url>https://repo.osgeo.org/repository/release/</url>
+      <releases><enabled>true</enabled></releases>
+      <snapshots><enabled>false</enabled></snapshots>
+    </repository>
     <repository>
       <id>sogeo-snapshots</id>
       <url>https://jars.interlis.guru/snapshots/</url>

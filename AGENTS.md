@@ -13,6 +13,11 @@ Keep transform IDs, metadata fields, Maven coordinates and `sogeo-geometry`
 classloader ownership compatible. Geometry Type/JTS belong to the separately
 installed Geometry Type plugin and must not enter the Geoprocessing ZIP.
 
+Geometry Reproject also uses the shared GeoTools 35.1 EPSG runtime and Indriya
+2.2 as `provided` dependencies. Do not add a Raster Type dependency or duplicate
+these libraries in the ZIP. Its installed tests exercise XY-only reprojection,
+Z/M preservation and the real shared plugin classloader without Vector/Raster.
+
 ## CI and tests
 
 Run commands from the repository root with Bash, Python 3, Maven and JDK 21

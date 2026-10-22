@@ -19,6 +19,10 @@ PLUGIN_ROOT = "plugins/transforms/hop-geoprocessing"
 CORE_JAR = f"{PLUGIN_ROOT}/lib/hop-geoprocessing-core.jar"
 
 PLUGIN_SPECS = {
+    "hop-transform-geometry-reproject": (
+        "ch/so/agi/hop/geoprocessing/transform/geometryreproject/GeometryReprojectMeta.class",
+        "ch/so/agi/hop/geoprocessing/transform/geometryreproject/icons/geometry-reproject.svg",
+    ),
     "hop-transform-geometry-ops": (
         "ch/so/agi/hop/geoprocessing/transform/geometryops/GeometryOperationMeta.class",
         "ch/so/agi/hop/geoprocessing/transform/geometryops/GeoprocessingClassLoaderBootstrap.class",
@@ -142,7 +146,7 @@ def validate(path: Path, version: str, maven_repository: Path) -> dict[str, obje
         }
         if plugin_jars != expected_plugin_jars:
             raise SystemExit(
-                f"Expected exactly the six geoprocessing plugin JARs, found {sorted(plugin_jars)}"
+                f"Expected exactly {len(PLUGIN_SPECS)} geoprocessing plugin JARs, found {sorted(plugin_jars)}"
             )
 
         core_jars = {

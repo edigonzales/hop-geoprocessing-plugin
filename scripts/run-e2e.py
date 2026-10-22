@@ -6,8 +6,11 @@ from __future__ import annotations
 import argparse
 import csv
 import io
+import math
 import os
 from pathlib import Path
+import re
+import shutil
 import subprocess
 import struct
 import tempfile
@@ -428,6 +431,68 @@ def run_converter_e2e(
 
 
 
+def run_reproject_e2e(
+    hop_home: Path, env: dict[str, str], input_dir: Path, output_dir: Path, work: Path
+) -> None:
+    # Only Hop itself belongs on this launcher's classpath. Plugins must be found
+    # by Hop's real registry and must share Geometry Type's runtime.
+    classes = work / "reproject-probe"
+    classes.mkdir()
+    classpath = os.pathsep.join(str(p) for p in sorted((hop_home / "lib").rglob("*.jar")))
+    java_home = Path(env.get("JAVA_HOME", ""))
+    javac = java_home / "bin/javac"
+    java = java_home / "bin/java"
+    if not javac.is_file() or not java.is_file():
+        javac = Path(shutil.which("javac") or "javac")
+        java = Path(shutil.which("java") or "java")
+    subprocess.run(
+        [str(javac), "-proc:none", "-cp", classpath, "-d", str(classes),
+         str(ROOT / "e2e/geometry-reproject/RuntimeIdentityProbe.java")],
+        check=True, env=env, timeout=120,
+    )
+    subprocess.run(
+        [str(java), "-cp", str(classes) + os.pathsep + classpath, "RuntimeIdentityProbe"],
+        check=True, env=env, cwd=hop_home, timeout=180,
+    )
+    source_rows = [
+        ["1", "SRID=4326;POINT ZM (7 47 123 456)"],
+        ["2", "POINT (7 47)"],
+        ["3", "SRID=4326;CIRCULARSTRING (7 47, 8 48, 9 47)"],
+        ["4", "SRID=4979;POINT Z (7 47 100)"],
+        ["5", "SRID=4326;POINT EMPTY"],
+        ["6", "SRID=4326;POINT (0 0)"],
+        ["7", "SRID=999999;POINT (7 47)"],
+        ["8", ""],
+    ]
+    write_input(input_dir / "geometry-reproject.csv", ["id", "wkt"], source_rows)
+    for mode in ("route", "null"):
+        run_pipeline(hop_home, ROOT / f"e2e/geometry-reproject/{mode}.hpl",
+                     env, input_dir, output_dir)
+        rows = read_output(output_dir / f"reproject-{mode}.csv")
+        assert rows[0] == ["id", "out"], rows
+        expected_ids = ["1", "5", "6", "8"] if mode == "route" else [str(i) for i in range(1, 9)]
+        assert [r[0] for r in rows[1:]] == expected_ids, rows
+        values = {r[0]: r[1] for r in rows[1:]}
+        match = re.fullmatch(r"SRID=3857;POINT ZM \(([^ ]+) ([^ ]+) 123 456\)", values["1"])
+        assert match, values
+        assert math.isclose(float(match[1]), 779236.435552915, rel_tol=0, abs_tol=1e-6), values
+        assert math.isclose(float(match[2]), 5942074.072431108, rel_tol=0, abs_tol=1e-6), values
+        assert values["5"] == "SRID=3857;POINT EMPTY", values
+        match = re.fullmatch(r"SRID=3857;POINT \(([^ ]+) ([^ ]+)\)", values["6"])
+        assert match and all(abs(float(v)) < 1e-6 for v in match.groups()), values
+        assert values["8"] == "", values
+        if mode == "null":
+            assert all(values[i] == "" for i in ("2", "3", "4", "7")), values
+    errors = read_output(output_dir / "reproject-errors.csv")
+    assert errors[0] == ["id", "wkt", "errors", "error_desc", "error_fields", "error_codes"], errors
+    assert [r[0] for r in errors[1:]] == ["2", "3", "4", "7"], errors
+    original = dict(source_rows)
+    for row in errors[1:]:
+        assert row[1] == original[row[0]] and row[2] == "1", row
+        assert row[3] and row[4] == "geometry" and row[5], row
+    print("Installed Geometry Reproject EPSG, XYZM, EMPTY, NULL and error routing OK", flush=True)
+
+
 def make_legacy_geometry_zip(geometry_zip: Path, target: Path) -> Path:
     """Create a test-only Geometry ZIP whose plugin JAR lacks GeometryCodec."""
     with zipfile.ZipFile(geometry_zip) as source, zipfile.ZipFile(
@@ -574,6 +639,7 @@ def main() -> int:
                 raise SystemExit(f"Unexpected curve linearization output: {rows!r}")
 
         run_converter_e2e(hop_home, env, input_dir, output_dir)
+        run_reproject_e2e(hop_home, env, input_dir, output_dir, work)
 
         subprocess.run(
             ["python3", str(ROOT / "scripts/run-examples.py"), "--hop-home", str(hop_home)],

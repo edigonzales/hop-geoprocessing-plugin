@@ -17,6 +17,12 @@
   <dependencies>
     <dependency>
       <groupId>ch.so.agi</groupId>
+      <artifactId>hop-transform-geometry-reproject</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>ch.so.agi</groupId>
       <artifactId>hop-transform-geometry-ops</artifactId>
       <version>${project.version}</version>
       <scope>runtime</scope>

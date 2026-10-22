@@ -1,0 +1,168 @@
+[[geometry-reproject]]
+= Geometry Reproject
+:plugin-id: GEOMETRY_REPROJECT_TRANSFORM
+:plugin-type: transform
+:description: Reproject native Geometry XY coordinates between two-dimensional EPSG coordinate reference systems.
+
+[[geometry-reproject-description]]
+== Description
+
+*Geometry Reproject* transforms the XY coordinates of a native Geometry between
+two-dimensional geographic or projected EPSG coordinate reference systems (CRS).
+It processes one row at a time, preserves the other fields and creates a new
+Geometry with the target SRID. The input Geometry object is never modified.
+
+Use <<geometry-converter,Geometry Converter>> before this transform when the
+input is WKT/EWKT, WKB/EWKB or Point coordinate fields. Assigning an SRID in the
+converter labels coordinates; this transform actually changes them.
+
+[[geometry-reproject-input]]
+== Input
+
+One stream with a *native Geometry* field supplied by the separately installed
+Geometry Type plugin. Text and binary values must be converted explicitly first.
+Linear Point, LineString, Polygon, MultiPoint, MultiLineString, MultiPolygon and
+GeometryCollection values are supported, including holes and nested collections.
+
+[[geometry-reproject-options]]
+== Options
+
+Open Geometry Reproject from the pipeline canvas. The sketch follows dialog
+order; square brackets stand for text controls, field selectors or fixed choices.
+*Source EPSG* remains stored but is enabled and resolved only for *Explicit EPSG
+override*. Settings are applied with *OK*; *Cancel* discards dialog edits.
+
+[.gui-mockup]
+----
++----------------------------------------------------------------------------+
+| Geometry Reproject                                                         |
+| Transform name             [example]                                       |
+| Geometry field             [geometry                       v]              |
+| Source CRS mode            [From geometry SRID             v]              |
+| Source EPSG                [disabled]                                      |
+| Target EPSG                [EPSG:3857]                                     |
+| Output field               [geometry_reprojected]                          |
+| Overwrite existing field   [ ]                                             |
+| On data error              [FAIL                           v]              |
+| X/Y order: easting/northing or longitude/latitude.                         |
+| Z and M are preserved; heights are not transformed.                        |
+| Status                                                                     |
+|                                                     [OK] [Cancel]          |
++----------------------------------------------------------------------------+
+----
+
+[cols="1,1,3",options="header"]
+|===
+|Setting |Default |Meaning
+|Geometry field |required |Native Geometry field to read.
+|Source CRS mode |From geometry SRID |Use the consistent SRID of the Geometry tree, or select Explicit EPSG override.
+|Source EPSG |empty |Required only for Explicit EPSG override; determines how to interpret the source XY coordinates.
+|Target EPSG |required |One target CRS for the whole transform copy.
+|Output field |`geometry_reprojected` |Field receiving the new native Geometry.
+|Overwrite existing field |disabled |Permit replacing an existing output field; otherwise a field-name collision is a configuration error.
+|On data error |`FAIL` |Stop, return a NULL target or send the original row to an error connection.
+|===
+
+EPSG controls accept positive decimal numbers such as `2056`, or `EPSG:2056`.
+WKT CRS definitions, other authorities and CRS codes read from row fields are not
+accepted. Field names and active EPSG settings support Hop variables. Raw
+expressions are persisted and resolved once when the transform is prepared;
+unresolved or empty required expressions are configuration errors. An inactive
+Source EPSG expression is neither resolved nor validated.
+
+*From geometry SRID* requires a consistent positive SRID throughout the Geometry
+tree. A positive SRID on a child can supply an otherwise unknown root SRID, but
+different positive SRIDs and any negative SRID are errors. *Explicit EPSG
+override* permits an unknown SRID or a different consistent positive SRID; it
+interprets the coordinates using the configured source code. It does not repair
+internally mixed or negative SRIDs.
+
+[[geometry-reproject-output]]
+== Output
+
+Each successful row contains a new native Geometry of the same structure, with
+the target SRID applied recursively to every component and ring. Other fields
+and input order are retained. Coordinate-sequence layouts XY, XYZ, XYM and XYZM
+are preserved: *only X/Y change*. Z and M keep their original values, including
+their existing units and vertical reference.
+
+NULL produces NULL. EMPTY stays empty and receives the target SRID after normal
+source-CRS validation; it is not converted to NULL. Identical source/target CRS
+still produce a copy and perform the same validation as other transformations.
+
+[[geometry-reproject-supported-engines]]
+== Supported engines
+
+Apache Hop 2.19.0 local pipeline engine, Java 21 or 25. Installed tests and the
+public example use the local engine. Distributed engines have not been validated.
+
+[[geometry-reproject-examples]]
+== Examples
+
+Download link:../../examples/geometry-reproject.hpl[Geometry Reproject pipeline],
+link:../../examples/fixtures/reproject.csv[XYZM Point fixture] and
+link:../../examples/expected/geometry-reproject.csv[expected CSV]. Keep the
+`examples/fixtures` layout, or override `INPUT_DIR`. The
+link:../../examples/README.md[examples guide] describes parameters and execution.
+
+The example converts EWKT to native Geometry, reprojects from EPSG:4326 to
+EPSG:3857, then extracts Point X/Y/Z/M with Geometry Converter. The CSV writer
+formats each numeric output with `0.000` and a decimal point, explicitly rounding
+the display to three decimal places for stable comparison. It does not change
+the Geometry's stored precision. For `(7, 47, 500, 12.5)`, projected XY is
+approximately `(779236.436, 5942074.072)` metres, while Z/M remain `500` and `12.5`.
+
+[[geometry-reproject-error-handling]]
+== Error handling
+
+[cols="1,3",options="header"]
+|===
+|Mode |Behaviour
+|`FAIL` |Stop the pipeline at the first data error. No error connection is required.
+|`RETURN_NULL` |Emit the row normally with only the configured output field set to NULL. No error connection is required.
+|`ROUTE_TO_ERROR` |Send the original input row to an enabled Hop error connection, with error code, Geometry field and description. An enabled error connection with a target is required in this mode.
+|===
+
+Data errors include missing, mixed, negative or unknown source SRIDs, exact
+curves, unsuitable source CRS dimensions, non-finite XY and coordinate-operation
+failures. A source code encountered on a row is checked when first used.
+Configuration errors, invalid fixed CRS settings, missing shared runtime classes
+and classloader integration failures always stop the transform in every mode.
+No mode silently falls back to a lenient transformation.
+
+[[geometry-reproject-limitations]]
+== Limitations
+
+* The source and target must be *two-dimensional geographic or projected EPSG
+  CRS*. Geocentric, compound, vertical and three-dimensional CRS are not supported.
+* Axis order is always *X/Y*: easting/northing, or longitude/latitude for geographic
+  CRS, even where EPSG formally defines latitude first. Values use the units
+  defined by the CRS: for example, degrees for EPSG:4326 and metres for EPSG:3857.
+* Z/M preservation is not height transformation. No vertical datum, geoid or
+  height-unit conversion is performed.
+* Exact `CIRCULARSTRING`, `COMPOUNDCURVE`, `CURVEPOLYGON`, `MULTICURVE` and
+  `MULTISURFACE` values are rejected, including curves nested in collections and
+  identity transformations. First use `Geometry Operation / linearize_curves`,
+  or `Coverage Operation / coverage_linearize` for shared polygon boundaries.
+  See <<curves,Explicit curve linearization>>.
+* Only existing vertices are transformed. There is no implicit densification,
+  geometry repair, topology preservation across rows or antimeridian splitting.
+  Densify explicitly in the source CRS when a straight source segment needs a
+  closer approximation after reprojection.
+* This version uses the available GeoTools EPSG operations. It supplies no
+  CHENyx06 fine-correction grid and makes no grid-based LV03/LV95 accuracy claim.
+  Select CRS suitable for the input's area and required accuracy; successful
+  execution alone is not an accuracy guarantee.
+
+== Runtime and operation selection
+
+GeoTools 35.1, its EPSG database and JTS come from the shared Geometry Type
+runtime; the Geoprocessing ZIP carries no duplicate CRS or geometry libraries.
+There is no dependency on the Raster or Vector/Raster plugins.
+
+CRS factories are called with a temporary plugin classloader context, restored
+after the call. Operations use strict GeoTools selection and must transform two
+source ordinates to two target ordinates. Each transform copy holds at most 64
+cached source/target operations; eviction only affects later lookup cost.
+The pipeline log records selected operation names, identifiers and available
+accuracy metadata when an operation is first resolved.

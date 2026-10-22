@@ -10,16 +10,20 @@ The plugin has three distinct execution models. Understanding them is more impor
 |===
 |Transform family |Execution mode |Needs whole layer? |Needs second layer? |What stays in RAM? |Spatial index
 |Geometry Operation |Streaming |no |no |current row only |no
+|Geometry Converter |Streaming |no |no |current row only |no
+|Geometry Reproject |Streaming |no |no |current row and up to 64 cached CRS operations |no
 |Spatial Predicate |Caches secondary layer |primary: no, secondary: yes |yes |full secondary layer |STRtree on secondary
 |Layer Overlay |Blocking per layer |effectively yes |yes |full secondary layer, optional union geometry |STRtree on secondary
 |Layer Aggregate |Blocking per layer/group |yes |no |all rows in layer or group |no
 |Coverage Operation |Blocking per layer/group |yes |no |all rows in layer or group |no
 |===
 
-[[1-streaming-row]]
+[[execution-models-streaming-row]]
 == 1. Streaming Row
 
-Used by `Geometry Operation` and `Geometry Converter`.
+Used by `Geometry Operation`, `Geometry Converter` and `Geometry Reproject`.
+Geometry Reproject caches a bounded set of source/target CRS operations rather
+than buffering rows or a layer.
 
 [source,mermaid]
 ----
@@ -36,7 +40,7 @@ Characteristics:
 * no spatial index
 * output can be emitted immediately after the current row is processed
 
-[[2-cached-secondary-layer]]
+[[execution-models-cached-secondary-layer]]
 == 2. Cached Secondary Layer
 
 Used by `Spatial Predicate`.
@@ -59,7 +63,7 @@ Characteristics:
 * primary input is still processed row-by-row after initialization
 * first output appears only after the secondary cache and STRtree are ready
 
-[[3-blocking-per-layer-or-group]]
+[[execution-models-blocking-per-layer-or-group]]
 == 3. Blocking Per Layer or Group
 
 Used by `Layer Overlay`, `Layer Aggregate`, and `Coverage Operation`.

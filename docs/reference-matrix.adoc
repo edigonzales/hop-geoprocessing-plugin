@@ -15,12 +15,24 @@ This is the fastest way to scan the plugin from an operator perspective.
 |Layer Aggregate |4 |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |1 row per group
 |Coverage Operation |6 |1 layer, optional grouping |Blocking per layer/group |active layer/group |no |row-preserving 1:1; optional reject stream for validate
 |Geometry Converter |representation conversion |1 row |Streaming |current row |no |1:1; RETURN++_++NULL/ROUTE++_++TO++_++ERROR preserve row count
+|Geometry Reproject |XY coordinate reprojection |1 row |Streaming |current row and up to 64 cached CRS operations |no |1:1; optional error connection
 |===
 
 [[reference-matrix-geometry-converter]]
 == Geometry Converter
 
 All representations are handled by the shared Geometry Type codec. Coordinates are Point-only; non-Point input to coordinate output follows the selected error mode. SRID handling is not reprojection. See <<geometry-converter,Geometry Converter>> for the format table, NULL/EMPTY rules and the required error connection.
+
+[[reference-matrix-geometry-reproject]]
+== Geometry Reproject
+
+Reprojects native Geometry XY between two-dimensional geographic or projected EPSG
+CRS. Source CRS comes from the consistent Geometry SRID or an explicit EPSG
+override; one target CRS applies to the transform. Z/M remain unchanged. Exact
+curves must be linearized first. No Swiss fine-correction grid or height
+transformation is included. An error connection is required only for
+`ROUTE_TO_ERROR`. See <<geometry-reproject,Geometry Reproject>> for axis order,
+NULL/EMPTY behaviour, limitations and the runnable example.
 
 [[reference-matrix-geometry-operation]]
 == Geometry Operation

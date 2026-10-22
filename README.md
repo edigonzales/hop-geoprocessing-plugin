@@ -1,7 +1,7 @@
 # hop-geoprocessing-plugin
 
 Apache Hop transforms for geometry editing, predicates, overlays, aggregation,
-representation conversion and polygon coverages, using the shared Geometry Type runtime.
+representation conversion, coordinate reprojection and polygon coverages, using the shared Geometry Type runtime.
 
 ## Features
 
@@ -10,6 +10,7 @@ representation conversion and polygon coverages, using the shared Geometry Type 
 - Layer Overlay: intersection, clip, erase and identity against a secondary layer.
 - Layer Aggregate: dissolve, unary union, coverage union and collect per layer/group.
 - Geometry Converter: native geometry, WKT/EWKT, binary/hex WKB/EWKB and Point coordinates.
+- Geometry Reproject: streaming XY reprojection between 2D EPSG CRS, preserving Z/M.
 - Coverage Operation: six operations for validation, cleaning, simplification and shared curve linearization.
 
 ## Requirements
@@ -65,9 +66,9 @@ The optional streaming smoke benchmark is `scripts/benchmark-converter.py`.
 
 The suite parent is `ch.so.agi:hop-geoprocessing-plugin-parent:0.1.0-SNAPSHOT`,
 inheriting `ch.so.agi:hop-plugin-parent:0.1.0-SNAPSHOT`. It contains
-`hop-geoprocessing-core`, six `hop-transform-*` modules and the assembly modules.
+`hop-geoprocessing-core`, seven `hop-transform-*` modules and the assembly modules.
 The installable artifact is `ch.so.agi:hop-geoprocessing-plugin:zip:0.1.0-SNAPSHOT`.
-Its ZIP contains the six transform JARs and the core JAR; Geometry Type and JTS are
+Its ZIP contains the seven transform JARs and the core JAR; Geometry Type and JTS are
 provided by their separately installed plugin.
 
 ## CI and publication
@@ -78,7 +79,7 @@ DocLint. Linux/macOS/Windows × Java 21/25 form the compatibility matrix.
 Each matrix build uses a fresh Maven repository. A dependency job downloads the
 published Geometry ZIP once; the canonical job compares its JAR bytes with the
 published JAR resolved by Maven. Installed E2E consumes that same ZIP and canonical
-suite bundle, including converter scenarios, all six user examples and the legacy
+suite bundle, including converter and reprojection scenarios, all seven user examples and the legacy
 GeometryCodec negative test.
 
 Successful `main` runs publish the exact verified bundle to the snapshot repository

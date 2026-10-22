@@ -10,6 +10,8 @@ This page explains where the plugin holds data in memory, where spatial indexing
 |===
 |Family |Main memory consumer |Spatial index |Practical risk
 |Geometry Operation |current row only |no |low
+|Geometry Converter |current row only |no |low
+|Geometry Reproject |current row and up to 64 cached CRS operations per copy |no |EPSG initialization and complex current geometries
 |Spatial Predicate |full secondary layer |STRtree on secondary |medium to high if secondary is large
 |Layer Overlay |full secondary layer, optional union geometry |STRtree on secondary |high for large or complex secondary layers
 |Layer Aggregate |all rows of the active layer/group |no |high for large groups
@@ -62,6 +64,14 @@ Important:
 * execution is truly streaming
 * almost no incremental memory growth with dataset size
 * memory is bounded mainly by the current row and the current operation state
+
+[[performance-memory-geometry-reproject]]
+== Geometry Reproject
+
+* streams one row at a time and copies its Geometry before transforming XY
+* initializes the shared EPSG database and caches up to 64 source/target operations per transform copy
+* mixed-SRID streams reuse cached operations; cache eviction does not change coordinates or buffer rows
+* no secondary layer or spatial index is needed
 
 [[performance-memory-spatial-predicate]]
 == Spatial Predicate

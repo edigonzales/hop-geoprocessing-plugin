@@ -9,9 +9,9 @@ from urllib.parse import unquote, urlsplit
 
 PAGES_BASE = '/hop-geoprocessing-plugin/'
 HANDBOOK = 'geoprocessing/main/index.html'
-HANDBOOK_ANCHORS = ['geometry-operation', 'spatial-predicate', 'layer-overlay', 'layer-aggregate', 'geometry-converter', 'coverage-operation', 'overview', 'execution-models', 'reference-matrix', 'curves', 'recipes']
-HPL_DOWNLOADS = 6
-TRANSFORMS = ['coverage-operation', 'geometry-converter', 'geometry-operation', 'layer-aggregate', 'layer-overlay', 'spatial-predicate']
+HANDBOOK_ANCHORS = ['geometry-operation', 'spatial-predicate', 'layer-overlay', 'layer-aggregate', 'geometry-converter', 'geometry-reproject', 'coverage-operation', 'overview', 'execution-models', 'execution-models-streaming-row', 'execution-models-cached-secondary-layer', 'execution-models-blocking-per-layer-or-group', 'reference-matrix', 'curves', 'recipes']
+HPL_DOWNLOADS = 7
+TRANSFORMS = ['coverage-operation', 'geometry-converter', 'geometry-operation', 'geometry-reproject', 'layer-aggregate', 'layer-overlay', 'spatial-predicate']
 REQUIRED_SECTIONS = ['description', 'input', 'options', 'output', 'supported-engines', 'examples', 'error-handling', 'limitations']
 
 
@@ -79,7 +79,7 @@ def check(root):
     for operation in ('linearize_curves', 'coverage_linearize'):
         assert operation in pages[handbook].table_cells, f'Operation absent from reference table: {operation}'
     handbook_text = handbook.read_text()
-    assert handbook_text.count('class="listingblock gui-mockup"') == 6, 'Expected six GUI mockups'
+    assert handbook_text.count('class="listingblock gui-mockup"') == 7, 'Expected seven GUI mockups'
     assert 'site-assets/styles.css' in handbook_text, 'Theme/GUI stylesheet is not loaded'
     styles = (root / 'site-assets/styles.css').read_text()
     assert '.listingblock.gui-mockup pre' in styles and 'font-size: 0.75em' in styles, \
@@ -89,7 +89,7 @@ def check(root):
     search = list(root.rglob('*search*.json'))
     assert search, 'Missing search JSON'
     combined = '\n'.join(p.read_text() for p in search)
-    for name in ['Geometry Operation', 'Spatial Predicate', 'Layer Overlay', 'Layer Aggregate', 'Geometry Converter', 'Coverage Operation', 'Supported engines', 'Error handling']:
+    for name in ['Geometry Operation', 'Spatial Predicate', 'Layer Overlay', 'Layer Aggregate', 'Geometry Converter', 'Geometry Reproject', 'Coverage Operation', 'Supported engines', 'Error handling']:
         assert name in combined, 'Search lacks ' + name
     for path in search:
         json.loads(path.read_text())
