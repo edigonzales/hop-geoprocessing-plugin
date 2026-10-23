@@ -12,6 +12,9 @@ is needed. Keep `fixtures/` alongside the pipelines. Each transform uses one cop
 | [layer-overlay.hpl](layer-overlay.hpl) | intersection | The west square plus the shared boundary of the east square |
 | [layer-aggregate.hpl](layer-aggregate.hpl) | collect | One MultiPolygon containing both squares |
 | [geometry-converter.hpl](geometry-converter.hpl) | WKT to EWKT | Both polygons with SRID=2056 assigned, coordinates unchanged |
+| [geometry-geojson-rfc7946.hpl](geometry-geojson-rfc7946.hpl) | RFC 7946 Geometry roundtrip | WGS84 longitude/latitude points and lines |
+| [geometry-geojson-legacy2008.hpl](geometry-geojson-legacy2008.hpl) | Legacy GeoJSON roundtrip | LV95 coordinates and EPSG:2056 preserved |
+| [geometry-geojson-jsonfg.hpl](geometry-geojson-jsonfg.hpl) | JSON-FG roundtrip | LV95 M and CircularString preserved, including measure context |
 | [geometry-reproject.hpl](geometry-reproject.hpl) | EPSG:4326 to EPSG:3857 | Two projected XYZM Points; XY changes, Z/M stays unchanged |
 | [coverage-operation.hpl](coverage-operation.hpl) | coverage_validate | Both adjacent squares are valid |
 
@@ -21,6 +24,17 @@ Parameters shared by all pipelines:
 | --- | --- | --- |
 | `INPUT_DIR` | `${Internal.Pipeline.Filename.Directory}/fixtures` | Directory containing `geometry.csv`, `secondary.csv` and `reproject.csv` |
 | `OUTPUT_DIR` | `${Internal.Pipeline.Filename.Directory}/output` | Writable directory; each pipeline writes its own named CSV |
+
+The three `geometry-geojson-*` examples read JSON text from their matching local
+CSV fixtures (semicolon separator, single-quote enclosure so JSON quotes stay literal), decode it to native Geometry, encode it again in the same profile,
+and decode the generated JSON to EWKT for an independently readable result.
+Their context fields carry CRS and M metadata through the native stage. All three
+converter error connections are enabled; valid fixtures produce no error rows.
+No reprojection, curve linearization, axis loss or EMPTY replacement is enabled.
+The JSON-FG example keeps the M value `12.5`, its unit/description and all three
+CircularString control points. The CSV expectations check coordinates and SRIDs;
+codec tests additionally check the context metadata. `INPUT_DIR` also locates these
+three `geometry-geojson-*.csv` fixtures.
 
 The geometry fixture contains two adjacent 2 × 2 squares in an arbitrary planar
 coordinate system. The secondary fixture contains the identical west square.

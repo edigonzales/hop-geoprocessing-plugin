@@ -7,11 +7,15 @@ import ch.so.agi.hop.geoprocessing.core.converter.ConverterInputFormat;
 import ch.so.agi.hop.geoprocessing.core.converter.ConverterOutputFormat;
 import ch.so.agi.hop.geoprocessing.core.converter.ConverterSridMode;
 import ch.so.agi.hop.geoprocessing.core.converter.GeometryConverterSettings;
+import com.atolcd.hop.gis.geometry.codec.GeoJsonProfile;
 import com.atolcd.hop.gis.geometry.codec.GeometryByteOrder;
 import java.util.List;
 import org.apache.hop.core.variables.IVariables;
 
-/** Headless, testable dialog draft. The SWT dialog only moves strings between this model and widgets. */
+/**
+ * Headless, testable dialog draft. The SWT dialog only moves strings between this model and
+ * widgets.
+ */
 final class GeometryConverterDialogModel {
   private final GeometryConverterMeta meta;
 
@@ -38,8 +42,9 @@ final class GeometryConverterDialogModel {
       return List.of();
     } catch (ConverterConfigurationException e) {
       return e.issues().isEmpty()
-          ? List.of(ConfigurationIssue.error(
-              ConfigurationIssue.GC_CONFIG_INVALID, "settings", null, e.getMessage()))
+          ? List.of(
+              ConfigurationIssue.error(
+                  ConfigurationIssue.GC_CONFIG_INVALID, "settings", null, e.getMessage()))
           : e.issues();
     }
   }
@@ -193,6 +198,62 @@ final class GeometryConverterDialogModel {
     meta.setErrorMode(value);
   }
 
+  GeoJsonProfile geoJsonInputProfile() {
+    return meta.getGeoJsonInputProfile();
+  }
+
+  void geoJsonInputProfile(GeoJsonProfile value) {
+    meta.setGeoJsonInputProfile(value);
+  }
+
+  GeoJsonProfile geoJsonOutputProfile() {
+    return meta.getGeoJsonOutputProfile();
+  }
+
+  void geoJsonOutputProfile(GeoJsonProfile value) {
+    meta.setGeoJsonOutputProfile(value);
+  }
+
+  String geoJsonInputContextField() {
+    return meta.getGeoJsonInputContextField();
+  }
+
+  void geoJsonInputContextField(String value) {
+    meta.setGeoJsonInputContextField(value);
+  }
+
+  String geoJsonOutputContextField() {
+    return meta.getGeoJsonOutputContextField();
+  }
+
+  void geoJsonOutputContextField(String value) {
+    meta.setGeoJsonOutputContextField(value);
+  }
+
+  boolean geoJsonDropZ() {
+    return meta.isGeoJsonDropZ();
+  }
+
+  void geoJsonDropZ(boolean value) {
+    meta.setGeoJsonDropZ(value);
+  }
+
+  boolean geoJsonDropM() {
+    return meta.isGeoJsonDropM();
+  }
+
+  void geoJsonDropM(boolean value) {
+    meta.setGeoJsonDropM(value);
+  }
+
+  boolean geoJsonEmptyToNull() {
+    return meta.isGeoJsonEmptyToNull();
+  }
+
+  void geoJsonEmptyToNull(boolean value) {
+    meta.setGeoJsonEmptyToNull(value);
+  }
+
   boolean inputUsesCoordinates() {
     return inputFormat() == ConverterInputFormat.COORDINATES;
   }
@@ -216,6 +277,7 @@ final class GeometryConverterDialogModel {
   String defaultOutputName(ConverterOutputFormat format) {
     return switch (format) {
       case GEOMETRY -> "geometry";
+      case GEOJSON -> "geometry_json";
       case WKT -> "geometry_wkt";
       case EWKT -> "geometry_ewkt";
       case WKB_BYTES -> "geometry_wkb";
@@ -228,7 +290,7 @@ final class GeometryConverterDialogModel {
 
   String defaultOutputName(ConverterInputFormat format) {
     return switch (format) {
-      case GEOMETRY, WKT_EWKT, WKB_BYTES, WKB_HEX -> "geometry";
+      case GEOMETRY, WKT_EWKT, WKB_BYTES, WKB_HEX, GEOJSON -> "geometry";
       case COORDINATES -> "geometry";
     };
   }

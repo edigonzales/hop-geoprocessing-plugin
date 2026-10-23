@@ -1,0 +1,3 @@
+id;geometry
+point;{"type":"Point","coordinates":[7,47]}
+line;{"type":"LineString","coordinates":[[7,47],[8,46]]}

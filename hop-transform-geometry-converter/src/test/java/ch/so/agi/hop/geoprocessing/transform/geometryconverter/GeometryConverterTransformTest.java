@@ -12,8 +12,8 @@ import org.apache.hop.core.exception.HopException;
 import org.apache.hop.core.row.IRowMeta;
 import org.apache.hop.core.row.RowMeta;
 import org.apache.hop.core.row.value.ValueMetaString;
-import org.apache.hop.pipeline.engines.local.LocalPipelineEngine;
 import org.apache.hop.pipeline.PipelineMeta;
+import org.apache.hop.pipeline.engines.local.LocalPipelineEngine;
 import org.apache.hop.pipeline.transform.TransformErrorMeta;
 import org.apache.hop.pipeline.transform.TransformMeta;
 import org.junit.jupiter.api.BeforeAll;
@@ -58,6 +58,35 @@ class GeometryConverterTransformTest {
     assertThat(rows.get(3)[1]).isNull();
     assertThat(harness.data.errorRows).isEqualTo(1);
     assertThat(harness.data.nullOutputRows).isEqualTo(2);
+  }
+
+  @Test
+  void geoJsonReturnNullKeepsContextAndFollowingRowsAligned() throws Exception {
+    Harness harness = harness(ConverterErrorMode.RETURN_NULL);
+    harness.meta.setInputFormat(ConverterInputFormat.GEOJSON);
+    harness.meta.setGeoJsonOutputContextField("context");
+    harness.add("{\"type\":\"Point\",\"coordinates\":[7,47]}");
+    harness.add("{broken");
+    harness.add("{\"type\":\"Point\",\"coordinates\":[8,46]}");
+    harness.runAll();
+    var rows = harness.outputRows();
+    assertThat(rows).hasSize(3);
+    assertThat(rows.get(0)[1]).isInstanceOf(Geometry.class);
+    assertThat(rows.get(0)[2]).isInstanceOf(String.class);
+    assertThat(rows.get(1)).containsExactly("{broken", null, null);
+    assertThat(((Geometry) rows.get(2)[1]).getCoordinate().x).isEqualTo(8);
+    assertThat(harness.data.errorRows).isEqualTo(1);
+  }
+
+  @Test
+  void geoJsonFailStopsAtTheFirstMalformedGeometry() throws Exception {
+    Harness harness = harness(ConverterErrorMode.FAIL);
+    harness.meta.setInputFormat(ConverterInputFormat.GEOJSON);
+    harness.add("{broken");
+    assertThatThrownBy(harness::runAll)
+        .isInstanceOf(HopException.class)
+        .hasMessageContaining("GC_");
+    assertThat(harness.outputRows()).isEmpty();
   }
 
   @Test

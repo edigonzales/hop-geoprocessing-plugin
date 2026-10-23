@@ -9,7 +9,7 @@ representation conversion, coordinate reprojection and polygon coverages, using 
 - Spatial Predicate: nine predicates against a cached secondary layer, with filter and join modes.
 - Layer Overlay: intersection, clip, erase and identity against a secondary layer.
 - Layer Aggregate: dissolve, unary union, coverage union and collect per layer/group.
-- Geometry Converter: native geometry, WKT/EWKT, binary/hex WKB/EWKB and Point coordinates.
+- Geometry Converter: native geometry, WKT/EWKT, binary/hex WKB/EWKB, GeoJSON RFC 7946/2008, JSON-FG 1.0 and Point coordinates.
 - Geometry Reproject: streaming XY reprojection between 2D EPSG CRS, preserving Z/M.
 - Coverage Operation: six operations for validation, cleaning, simplification and shared curve linearization.
 
@@ -79,7 +79,7 @@ DocLint. Linux/macOS/Windows × Java 21/25 form the compatibility matrix.
 Each matrix build uses a fresh Maven repository. A dependency job downloads the
 published Geometry ZIP once; the canonical job compares its JAR bytes with the
 published JAR resolved by Maven. Installed E2E consumes that same ZIP and canonical
-suite bundle, including converter and reprojection scenarios, all seven user examples and the legacy
+suite bundle, including converter and reprojection scenarios, all ten user examples and the legacy
 GeometryCodec negative test.
 
 Successful `main` runs publish the exact verified bundle to the snapshot repository

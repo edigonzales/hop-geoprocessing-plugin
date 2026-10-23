@@ -46,6 +46,12 @@
 
   <dependencyManagement>
     <dependencies>
+      <!-- Same Jackson 3 streaming runtime supplied by Geometry Type / GeoTools 35.1. -->
+      <dependency>
+        <groupId>tools.jackson.core</groupId>
+        <artifactId>jackson-core</artifactId>
+        <version>3.2.0</version>
+      </dependency>
       <dependency>
         <groupId>org.geotools</groupId>
         <artifactId>gt-bom</artifactId>

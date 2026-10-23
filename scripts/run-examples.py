@@ -21,8 +21,8 @@ def read_csv(path):
 def run_examples(hop_home: Path, env: dict[str, str], output: Path):
     examples = ROOT / 'examples'
     pipelines = sorted(examples.glob('*.hpl'))
-    if len(pipelines) != 7 or {p.stem for p in pipelines} != {p.stem for p in (examples / 'expected').glob('*.csv')}:
-        raise SystemExit('Expected seven example pipelines, each with one expected CSV')
+    if len(pipelines) != 10 or {p.stem for p in pipelines} != {p.stem for p in (examples / 'expected').glob('*.csv')}:
+        raise SystemExit('Expected ten example pipelines, each with one expected CSV')
     for pipeline in pipelines:
         expected = examples / 'expected' / (pipeline.stem + '.csv')
         command = [str(hop_home / 'hop-run.sh'), '-r', 'local', '-f', str(pipeline),
@@ -36,7 +36,7 @@ def run_examples(hop_home: Path, env: dict[str, str], output: Path):
             raise SystemExit(f'{pipeline.name}: expected {read_csv(expected)!r}; '
                              f'actual {read_csv(actual) if actual.exists() else "missing"!r}\n'
                              f'{result.stdout}\n{result.stderr}')
-    print('All seven public examples match their expected results', flush=True)
+    print('All ten public examples match their expected results', flush=True)
 
 
 def main():

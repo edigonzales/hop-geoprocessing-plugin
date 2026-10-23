@@ -15,13 +15,11 @@ import org.apache.hop.core.variables.IVariables;
     id = "GeoprocessingClassLoaderBootstrap",
     extensionPointId = "HopEnvironmentAfterInit",
     description = "Initialize the shared Geometry Type classloader for Geoprocessing")
-public final class GeoprocessingClassLoaderBootstrap
-    implements IExtensionPoint<PluginRegistry> {
+public final class GeoprocessingClassLoaderBootstrap implements IExtensionPoint<PluginRegistry> {
 
   static final String GEOMETRY_CLASSLOADER_GROUP = "sogeo-geometry";
   static final String GEOMETRY_VALUE_META_PLUGIN_ID = "43663879";
-  static final String GEOMETRY_CODEC_CLASS =
-      "com.atolcd.hop.gis.geometry.codec.GeometryCodec";
+  static final String GEOMETRY_CODEC_CLASS = "com.atolcd.hop.gis.geometry.codec.GeometryCodec";
 
   @Override
   public void callExtensionPoint(
@@ -46,10 +44,16 @@ public final class GeoprocessingClassLoaderBootstrap
       ClassLoader geometryClassLoader = pluginRegistry.getClassLoader(geometryPlugin);
       try {
         Class.forName(GEOMETRY_CODEC_CLASS, false, geometryClassLoader);
+        Class.forName(
+            "com.atolcd.hop.gis.geometry.codec.GeoJsonProfile", false, geometryClassLoader);
+        Class.forName(
+            "com.atolcd.hop.gis.geometry.codec.GeoJsonContext", false, geometryClassLoader);
+        Class.forName("tools.jackson.core.json.JsonFactory", false, geometryClassLoader);
       } catch (ClassNotFoundException | LinkageError e) {
         throw new HopException(
-            "Geometry Converter requires the updated Geometry Type runtime with GeometryCodec. "
-                + "Update plugins/misc/hop-geometry-type together with the Geoprocessing ZIP.",
+            "Geometry Converter requires the updated Geometry Type runtime with GeometryCodec and"
+                + " GeoJSON support. Update plugins/misc/hop-geometry-type together with the"
+                + " Geoprocessing ZIP.",
             e);
       }
     } catch (HopPluginException e) {

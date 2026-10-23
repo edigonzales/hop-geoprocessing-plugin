@@ -45,8 +45,7 @@ public final class GeometryConverterSchema {
               : requireIndex(inputRowMeta, settings.inputMFieldName(), "input_m_field");
       coordinateLayout = CoordinateLayout.of(inputZIndex >= 0, inputMIndex >= 0);
     } else {
-      singleInputIndex =
-          requireIndex(inputRowMeta, settings.inputFieldName(), "input_field");
+      singleInputIndex = requireIndex(inputRowMeta, settings.inputFieldName(), "input_field");
     }
 
     List<OutputBinding> bindings = new ArrayList<>();
@@ -74,6 +73,19 @@ public final class GeometryConverterSchema {
           createValueMeta(settings.outputFormat(), settings.outputFieldName(), origin));
     }
 
+    if (settings.usesGeoJson()
+        && settings.geoJsonOutputContextField() != null
+        && !settings.geoJsonOutputContextField().isBlank()) {
+      addBinding(
+          outputRowMeta,
+          bindings,
+          targetKeys,
+          OutputRole.CONTEXT,
+          settings.geoJsonOutputContextField(),
+          createValueMeta(
+              ConverterOutputFormat.GEOJSON, settings.geoJsonOutputContextField(), origin));
+    }
+
     WktWriteOptions wktOptions =
         switch (settings.outputFormat()) {
           case WKT -> WktWriteOptions.wkt();
@@ -82,8 +94,7 @@ public final class GeometryConverterSchema {
         };
     WkbWriteOptions wkbOptions =
         switch (settings.outputFormat()) {
-          case WKB_BYTES, WKB_HEX ->
-              WkbWriteOptions.iso(settings.byteOrder());
+          case WKB_BYTES, WKB_HEX -> WkbWriteOptions.iso(settings.byteOrder());
           case EWKB_BYTES, EWKB_HEX -> WkbWriteOptions.ewkb(settings.byteOrder());
           default -> null;
         };
@@ -158,7 +169,7 @@ public final class GeometryConverterSchema {
     IValueMeta valueMeta =
         switch (format) {
           case GEOMETRY -> new ValueMetaGeometry(fieldName);
-          case WKT, EWKT, WKB_HEX, EWKB_HEX -> new ValueMetaString(fieldName);
+          case WKT, EWKT, WKB_HEX, EWKB_HEX, GEOJSON -> new ValueMetaString(fieldName);
           case WKB_BYTES, EWKB_BYTES -> new ValueMetaBinary(fieldName);
           case COORDINATES -> new ValueMetaNumber(fieldName);
         };

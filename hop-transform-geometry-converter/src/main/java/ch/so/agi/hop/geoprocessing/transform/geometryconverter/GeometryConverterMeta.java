@@ -10,6 +10,7 @@ import ch.so.agi.hop.geoprocessing.core.converter.ConverterSridMode;
 import ch.so.agi.hop.geoprocessing.core.converter.GeometryConverterSchema;
 import ch.so.agi.hop.geoprocessing.core.converter.GeometryConverterSettings;
 import ch.so.agi.hop.geoprocessing.core.converter.GeometryConverterValidator;
+import com.atolcd.hop.gis.geometry.codec.GeoJsonProfile;
 import com.atolcd.hop.gis.geometry.codec.GeometryByteOrder;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,8 +24,8 @@ import org.apache.hop.metadata.api.HopMetadataProperty;
 import org.apache.hop.metadata.api.IHopMetadataProvider;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.pipeline.transform.BaseTransformMeta;
-import org.apache.hop.pipeline.transform.TransformMeta;
 import org.apache.hop.pipeline.transform.TransformErrorMeta;
+import org.apache.hop.pipeline.transform.TransformMeta;
 
 @Transform(
     id = "GEOMETRY_CONVERTER_TRANSFORM",
@@ -32,9 +33,20 @@ import org.apache.hop.pipeline.transform.TransformErrorMeta;
     description = "Convert geometry representations and point coordinate fields",
     image = "ch/so/agi/hop/geoprocessing/transform/geometryconverter/icons/geometry-converter.svg",
     categoryDescription = "Geospatial",
-    documentationUrl = "https://edigonzales.github.io/hop-geoprocessing-plugin/geoprocessing/main/index.html#geometry-converter",
+    documentationUrl =
+        "https://edigonzales.github.io/hop-geoprocessing-plugin/geoprocessing/main/index.html#geometry-converter",
     classLoaderGroup = "sogeo-geometry",
-    keywords = {"geometry", "WKT", "WKB", "EWKT", "EWKB", "coordinates", "point"})
+    keywords = {
+      "geometry",
+      "WKT",
+      "WKB",
+      "EWKT",
+      "EWKB",
+      "coordinates",
+      "point",
+      "GeoJSON",
+      "JSON-FG"
+    })
 public class GeometryConverterMeta
     extends BaseTransformMeta<GeometryConverter, GeometryConverterData> {
 
@@ -92,6 +104,27 @@ public class GeometryConverterMeta
   @HopMetadataProperty(key = "error_mode")
   private ConverterErrorMode errorMode = ConverterErrorMode.FAIL;
 
+  @HopMetadataProperty(key = "geojson_input_profile")
+  private GeoJsonProfile geoJsonInputProfile = GeoJsonProfile.AUTO;
+
+  @HopMetadataProperty(key = "geojson_output_profile")
+  private GeoJsonProfile geoJsonOutputProfile = GeoJsonProfile.RFC7946;
+
+  @HopMetadataProperty(key = "geojson_input_context_field")
+  private String geoJsonInputContextField = "";
+
+  @HopMetadataProperty(key = "geojson_output_context_field")
+  private String geoJsonOutputContextField = "";
+
+  @HopMetadataProperty(key = "geojson_drop_z")
+  private boolean geoJsonDropZ = false;
+
+  @HopMetadataProperty(key = "geojson_drop_m")
+  private boolean geoJsonDropM = false;
+
+  @HopMetadataProperty(key = "geojson_empty_to_null")
+  private boolean geoJsonEmptyToNull = false;
+
   @Override
   public void setDefault() {
     configurationVersion = 1;
@@ -112,6 +145,13 @@ public class GeometryConverterMeta
     sridValue = "";
     overwriteExistingFields = false;
     errorMode = ConverterErrorMode.FAIL;
+    geoJsonInputProfile = GeoJsonProfile.AUTO;
+    geoJsonOutputProfile = GeoJsonProfile.RFC7946;
+    geoJsonInputContextField = "";
+    geoJsonOutputContextField = "";
+    geoJsonDropZ = false;
+    geoJsonDropM = false;
+    geoJsonEmptyToNull = false;
   }
 
   @Override
@@ -148,10 +188,12 @@ public class GeometryConverterMeta
     try {
       settings = toSettings(variables);
     } catch (ConverterConfigurationException e) {
-      issues.addAll(e.issues().isEmpty()
-          ? List.of(ConfigurationIssue.error(
-              ConfigurationIssue.GC_CONFIG_INVALID, "settings", null, e.getMessage()))
-          : e.issues());
+      issues.addAll(
+          e.issues().isEmpty()
+              ? List.of(
+                  ConfigurationIssue.error(
+                      ConfigurationIssue.GC_CONFIG_INVALID, "settings", null, e.getMessage()))
+              : e.issues());
     }
     if (prev == null || prev.isEmpty()) {
       issues.add(
@@ -169,7 +211,8 @@ public class GeometryConverterMeta
               ConfigurationIssue.GC_ERROR_HOP_REQUIRED,
               "error_mode",
               null,
-              "Geometry Converter requires an enabled Hop error connection with a target transform"));
+              "Geometry Converter requires an enabled Hop error connection with a target"
+                  + " transform"));
     } else if (settings != null && settings.errorMode() != ConverterErrorMode.ROUTE_TO_ERROR) {
       issues.add(
           ConfigurationIssue.warning(
@@ -206,10 +249,14 @@ public class GeometryConverterMeta
     String inputZ = null;
     String inputM = null;
     if (inputFormat == ConverterInputFormat.COORDINATES) {
-      inputX = ConverterFieldNameResolver.resolveRequired(inputXFieldName, "input_x_field", variables);
-      inputY = ConverterFieldNameResolver.resolveRequired(inputYFieldName, "input_y_field", variables);
-      inputZ = ConverterFieldNameResolver.resolveOptional(inputZFieldName, "input_z_field", variables);
-      inputM = ConverterFieldNameResolver.resolveOptional(inputMFieldName, "input_m_field", variables);
+      inputX =
+          ConverterFieldNameResolver.resolveRequired(inputXFieldName, "input_x_field", variables);
+      inputY =
+          ConverterFieldNameResolver.resolveRequired(inputYFieldName, "input_y_field", variables);
+      inputZ =
+          ConverterFieldNameResolver.resolveOptional(inputZFieldName, "input_z_field", variables);
+      inputM =
+          ConverterFieldNameResolver.resolveOptional(inputMFieldName, "input_m_field", variables);
     } else {
       inputField =
           ConverterFieldNameResolver.resolveRequired(inputFieldName, "input_field", variables);
@@ -236,9 +283,24 @@ public class GeometryConverterMeta
 
     Integer srid = null;
     if (sridMode == ConverterSridMode.SET_IF_MISSING || sridMode == ConverterSridMode.REPLACE) {
-      String resolved = ConverterFieldNameResolver.resolveRequired(sridValue, "srid_value", variables);
+      String resolved =
+          ConverterFieldNameResolver.resolveRequired(sridValue, "srid_value", variables);
       srid = parseSrid(resolved);
     }
+
+    boolean geoJson =
+        inputFormat == ConverterInputFormat.GEOJSON
+            || outputFormat == ConverterOutputFormat.GEOJSON;
+    String inputContext =
+        geoJson
+            ? ConverterFieldNameResolver.resolveOptional(
+                geoJsonInputContextField, "geojson_input_context_field", variables)
+            : null;
+    String outputContext =
+        geoJson
+            ? ConverterFieldNameResolver.resolveOptional(
+                geoJsonOutputContextField, "geojson_output_context_field", variables)
+            : null;
 
     GeometryConverterSettings settings =
         new GeometryConverterSettings(
@@ -259,7 +321,16 @@ public class GeometryConverterMeta
             sridMode,
             srid,
             overwriteExistingFields,
-            errorMode);
+            errorMode,
+            inputFormat == ConverterInputFormat.GEOJSON ? geoJsonInputProfile : GeoJsonProfile.AUTO,
+            outputFormat == ConverterOutputFormat.GEOJSON
+                ? geoJsonOutputProfile
+                : GeoJsonProfile.RFC7946,
+            inputContext,
+            outputContext,
+            outputFormat == ConverterOutputFormat.GEOJSON && geoJsonDropZ,
+            outputFormat == ConverterOutputFormat.GEOJSON && geoJsonDropM,
+            outputFormat == ConverterOutputFormat.GEOJSON && geoJsonEmptyToNull);
     List<ConfigurationIssue> issues = GeometryConverterValidator.validateSettings(settings);
     if (!issues.isEmpty()) {
       throw new ConverterConfigurationException(issues);
@@ -283,15 +354,15 @@ public class GeometryConverterMeta
       }
       return (int) parsed;
     } catch (NumberFormatException e) {
-      throw new ConverterConfigurationException(
-          "SRID is not a valid integer: " + value, e);
+      throw new ConverterConfigurationException("SRID is not a valid integer: " + value, e);
     }
   }
 
   private ConverterConfigurationException configurationError(String property, String message) {
     return new ConverterConfigurationException(
-        List.of(ConfigurationIssue.error(
-            ConfigurationIssue.GC_CONFIG_INVALID, property, null, message)));
+        List.of(
+            ConfigurationIssue.error(
+                ConfigurationIssue.GC_CONFIG_INVALID, property, null, message)));
   }
 
   private boolean hasUsableErrorHop(TransformMeta transformMeta) {
@@ -299,11 +370,8 @@ public class GeometryConverterMeta
       return false;
     }
     TransformErrorMeta errorMeta = transformMeta.getTransformErrorMeta();
-    return errorMeta != null
-        && errorMeta.isEnabled()
-        && errorMeta.getTargetTransform() != null;
+    return errorMeta != null && errorMeta.isEnabled() && errorMeta.getTargetTransform() != null;
   }
-
 
   /** Copies all persisted properties from another meta instance without sharing the object. */
   void copyFrom(GeometryConverterMeta source) {
@@ -325,6 +393,13 @@ public class GeometryConverterMeta
     setSridValue(source.getSridValue());
     setOverwriteExistingFields(source.isOverwriteExistingFields());
     setErrorMode(source.getErrorMode());
+    setGeoJsonInputProfile(source.getGeoJsonInputProfile());
+    setGeoJsonOutputProfile(source.getGeoJsonOutputProfile());
+    setGeoJsonInputContextField(source.getGeoJsonInputContextField());
+    setGeoJsonOutputContextField(source.getGeoJsonOutputContextField());
+    setGeoJsonDropZ(source.isGeoJsonDropZ());
+    setGeoJsonDropM(source.isGeoJsonDropM());
+    setGeoJsonEmptyToNull(source.isGeoJsonEmptyToNull());
   }
 
   public int getConfigurationVersion() {
@@ -469,5 +544,61 @@ public class GeometryConverterMeta
 
   public void setErrorMode(ConverterErrorMode errorMode) {
     this.errorMode = errorMode;
+  }
+
+  public GeoJsonProfile getGeoJsonInputProfile() {
+    return geoJsonInputProfile;
+  }
+
+  public void setGeoJsonInputProfile(GeoJsonProfile value) {
+    geoJsonInputProfile = value;
+  }
+
+  public GeoJsonProfile getGeoJsonOutputProfile() {
+    return geoJsonOutputProfile;
+  }
+
+  public void setGeoJsonOutputProfile(GeoJsonProfile value) {
+    geoJsonOutputProfile = value;
+  }
+
+  public String getGeoJsonInputContextField() {
+    return geoJsonInputContextField;
+  }
+
+  public void setGeoJsonInputContextField(String value) {
+    geoJsonInputContextField = value;
+  }
+
+  public String getGeoJsonOutputContextField() {
+    return geoJsonOutputContextField;
+  }
+
+  public void setGeoJsonOutputContextField(String value) {
+    geoJsonOutputContextField = value;
+  }
+
+  public boolean isGeoJsonDropZ() {
+    return geoJsonDropZ;
+  }
+
+  public void setGeoJsonDropZ(boolean value) {
+    geoJsonDropZ = value;
+  }
+
+  public boolean isGeoJsonDropM() {
+    return geoJsonDropM;
+  }
+
+  public void setGeoJsonDropM(boolean value) {
+    geoJsonDropM = value;
+  }
+
+  public boolean isGeoJsonEmptyToNull() {
+    return geoJsonEmptyToNull;
+  }
+
+  public void setGeoJsonEmptyToNull(boolean value) {
+    geoJsonEmptyToNull = value;
   }
 }

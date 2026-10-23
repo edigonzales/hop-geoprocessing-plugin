@@ -25,39 +25,48 @@ Open the transform from the pipeline canvas. The sketch lists the controls in di
 `[choose or enter]` represents an editable field selector or a fixed choice as applicable.
 The sketch includes the alternative format controls. COORDINATES shows X/Y/Z/M and hides
 the single Field; other formats show Field instead. Byte order appears only for binary/hex
-output; SRID Value appears only for SET_IF_MISSING or REPLACE. Inactive
+output. GeoJSON profile controls appear for the corresponding JSON direction; context
+fields appear when either direction is GeoJSON and loss options appear only for GeoJSON
+output. The content scrolls if it does not fit on screen. SRID Value appears only for SET_IF_MISSING or REPLACE. Inactive
 mappings remain stored. The detailed reference below explains the operation-specific settings.
 The field status reports missing or incompatible mappings before accepting the dialog.
 
 [.gui-mockup]
 ----
-+------------------------------------------------------------------------+
-| Geometry Converter                                                     |
-| Transform name                             [example]                   |
-| INPUT                                                                  |
-| Representation                    [choose or enter]                    |
-| Field                             [choose or enter]                    |
-| X field                           [choose or enter]                    |
-| Y field                           [choose or enter]                    |
-| Z field (optional)                [choose or enter]                    |
-| M field (optional)                [choose or enter]                    |
-| OUTPUT                                                                 |
-| Representation                    [choose or enter]                    |
-| Field                             [choose or enter]                    |
-| X field                           [choose or enter]                    |
-| Y field                           [choose or enter]                    |
-| Z field (optional)                [choose or enter]                    |
-| M field (optional)                [choose or enter]                    |
-| Overwrite existing fields         [ ]                                  |
-| Byte order                        [choose or enter]                    |
-| SRID                                                                   |
-| Handling                          [choose or enter]                    |
-| Value                             [value]                              |
-| ERRORS                                                                 |
-| On data error                     [choose or enter]                    |
-| Status / field validation                                              |
-|                                              [OK] [Cancel]             |
-+------------------------------------------------------------------------+
++----------------------------------------------------------------------------------------+
+| Geometry Converter                                                                     |
+| Transform name                            [example]                                    |
+| INPUT                                                                                  |
+| Representation                            [choose or enter]                            |
+| Field                                     [choose or enter]                            |
+| GeoJSON input profile                     [AUTO]                                       |
+| Input context field (optional)            [choose or enter]                            |
+| X field                                   [choose or enter]                            |
+| Y field                                   [choose or enter]                            |
+| Z field (optional)                        [choose or enter]                            |
+| M field (optional)                        [choose or enter]                            |
+| OUTPUT                                                                                 |
+| Representation                            [choose or enter]                            |
+| Field                                     [choose or enter]                            |
+| GeoJSON output profile                    [RFC7946]                                    |
+| Output context field (optional)           [choose or enter]                            |
+| Drop Z explicitly                         [ ]                                          |
+| Drop M explicitly                         [ ]                                          |
+| Replace unrepresentable EMPTY with NULL   [ ]                                          |
+| X field                                   [choose or enter]                            |
+| Y field                                   [choose or enter]                            |
+| Z field (optional)                        [choose or enter]                            |
+| M field (optional)                        [choose or enter]                            |
+| Overwrite existing fields                 [ ]                                          |
+| Byte order                                [choose or enter]                            |
+| SRID                                                                                   |
+| Handling                                  [choose or enter]                            |
+| Value                                     [value]                                      |
+| ERRORS                                                                                 |
+| On data error                             [choose or enter]                            |
+| Status / field validation                                                              |
+|                                                                   [OK] [Cancel]        |
++----------------------------------------------------------------------------------------+
 ----
 
 [[geometry-converter-output]]
@@ -81,6 +90,15 @@ See link:../../examples/README.md[parameters and expected results] and the
 link:../../examples/expected/geometry-converter.csv[expected CSV]. Keep the downloaded `examples/`
 layout so that the default fixture paths resolve.
 
+The three JSON roundtrip examples include local JSON fixtures and expected EWKT:
+link:../../examples/geometry-geojson-rfc7946.hpl[RFC 7946],
+link:../../examples/geometry-geojson-legacy2008.hpl[Legacy 2008] and
+link:../../examples/geometry-geojson-jsonfg.hpl[JSON-FG with M and a CircularString].
+Download the matching fixture from
+link:../../examples/fixtures/geometry-geojson-rfc7946.csv[RFC fixture],
+link:../../examples/fixtures/geometry-geojson-legacy2008.csv[Legacy fixture] or
+link:../../examples/fixtures/geometry-geojson-jsonfg.csv[JSON-FG fixture].
+
 [[geometry-converter-error-handling]]
 == Error handling
 
@@ -89,7 +107,7 @@ An enabled Hop error connection is mandatory. FAIL stops on the first data error
 [[geometry-converter-limitations]]
 == Limitations
 
-Coordinate input/output is Point-only. SRID assignment does not reproject. An outdated Geometry Type plugin without GeometryCodec is rejected.
+Coordinate input/output is Point-only. SRID assignment does not reproject. An outdated Geometry Type plugin without the GeoJSON codec API is rejected.
 
 == Detailed reference
 
@@ -101,13 +119,72 @@ The *Geometry Converter* transform changes the representation of an existing geo
 [cols=",",options="header",]
 |===
 |Direction |Values
-|Input |`GEOMETRY`, `WKT++_++EWKT`, `WKB++_++BYTES`, `WKB++_++HEX`, `COORDINATES`
-|Output |`GEOMETRY`, `WKT`, `EWKT`, `WKB++_++BYTES`, `EWKB++_++BYTES`, `WKB++_++HEX`, `EWKB++_++HEX`, `COORDINATES`
+|Input |`GEOMETRY`, `WKT++_++EWKT`, `WKB++_++BYTES`, `WKB++_++HEX`, `GEOJSON`, `COORDINATES`
+|Output |`GEOMETRY`, `WKT`, `EWKT`, `WKB++_++BYTES`, `EWKB++_++BYTES`, `WKB++_++HEX`, `EWKB++_++HEX`, `GEOJSON`, `COORDINATES`
 |===
 
 `GEOMETRY` is the native Hop value type from the Geometry Type plugin. Binary input is raw WKB/EWKB without any Hop stream framing. Hex input is plain hexadecimal (case-insensitive, optional `0x`), not WKT.
 
 `WKT` writes no SRID prefix. `EWKT` writes `SRID=++<++n++>++;` when a positive effective SRID is known. ISO WKB and WKT omit SRID; EWKB stores it in the root header. `COORDINATES` output never carries SRID information. `sridOmitted` in the converter summary records this case.
+
+[[geometry-converter-geojson]]
+=== GeoJSON Geometry conversion
+
+`GEOJSON` reads and writes one Geometry object in a Hop String field. Features and
+FeatureCollections belong to the Vector/Raster Feature transforms and Vector
+Reader/Writer; the converter rejects these wrappers with a data error. It delegates
+all JSON parsing, validation, CRS handling and writing to the shared Geometry Type
+codec. The existing Geometry value's default string serialization remains EWKT.
+
+[cols="1,3",options="header"]
+|===
+|Profile |Meaning
+|`RFC7946` |GeoJSON RFC 7946: WGS84 longitude/latitude, no legacy `crs`.
+|`LEGACY2008` |GeoJSON 2008 with supported named EPSG CRS and X/Y coordinates.
+|`JSONFG10` |OGC JSON-FG 1.0.0: native CRS, supported curves and M values.
+|`AUTO` |Input only: identify JSON-FG markers or legacy `crs`; otherwise RFC 7946.
+|===
+
+The input default is `AUTO`; the output default is `RFC7946`. JSON-FG coordinates
+follow the formal axis order of their declared CRS. The codec maps them to/from the
+native Geometry X/Y convention; for EPSG:4326 this exchanges latitude/longitude at
+the JSON boundary. RFC 7946 remains longitude/latitude. No coordinates, datum,
+units or heights are reprojected. Use <<geometry-reproject,Geometry Reproject>> as
+an explicit pipeline step when a different horizontal CRS is required.
+
+*Input context field* reads versioned JSON text from a String field. *Output
+context field* writes the context returned by JSON decoding alongside the result.
+Keep it through native processing and pass it to a later encoder to retain compound
+CRS details and measure units/descriptions. A described measure or compound CRS
+cannot be decoded to native output without an output context field. The context
+is separate from `Geometry.userData`. Field names support Hop variables and use
+the same collision/overwrite rules as the main result field. An explicitly supplied
+context survives a NULL geometry. Without an input context, NULL geometry and its
+context output remain NULL. For a non-NULL geometry, SRID assignment also updates the context's horizontal
+CRS reference; an explicit compound vertical reference and measure metadata remain.
+`CLEAR` removes the CRS reference from both geometry and context. These are label
+changes only. Export still validates the chosen profile, CRS dimensions and height
+reference; assigning a projected SRID cannot make coordinates valid RFC 7946.
+
+WGS84 output requires a known appropriate CRS; assigning SRID 4326 does not
+transform arbitrary coordinates. A Z value is not automatically a WGS84
+ellipsoidal height. Unsupported CRS, conflicting SRIDs/context, non-finite values,
+curves in ordinary GeoJSON and ordinates that the selected profile cannot express
+are data errors. Linearize curves explicitly before RFC/Legacy export. JSON-FG
+also has representability limits: a CircularString supports at most eleven control
+points; collections do not permit every nested or curved structure of the native
+type. No automatic splitting or linearization occurs.
+
+Loss options are disabled by default. *Drop Z explicitly* and *Drop M explicitly*
+remove only the selected ordinate on output; *Replace unrepresentable EMPTY with
+NULL* permits JSON `null` when that EMPTY geometry has no lossless representation.
+They never mutate the input Geometry. A NULL Hop input remains a NULL Hop output.
+No additional rounding, repair or dateline splitting is performed. Polygon ring
+orientation may be normalized on a copy for RFC output.
+
+See https://www.rfc-editor.org/rfc/rfc7946.html[RFC 7946],
+https://geojson.org/geojson-spec.html[GeoJSON 2008] and
+https://docs.ogc.org/is/21-045r1/21-045r1.html[OGC JSON-FG 1.0.0].
 
 [[geometry-converter-coordinate-input-and-output]]
 === Coordinate input and output
@@ -134,7 +211,7 @@ Coordinate output is also Point-only. The selected X/Y fields are always written
 |`CLEAR` |Remove the SRID.
 |===
 
-SRID handling is *not* a coordinate transformation. No EPSG database lookup or reprojection is performed. The configured value must be a positive decimal integer and may use Hop variables. Inactive SRID values are not parsed.
+SRID handling is *not* a coordinate transformation. SRID assignment performs no EPSG database lookup or reprojection. GeoJSON conversion separately resolves CRS metadata when required. The configured value must be a positive decimal integer and may use Hop variables. Inactive SRID values are not parsed.
 
 [[geometry-converter-null-and-empty]]
 === NULL and EMPTY
@@ -178,12 +255,12 @@ Configuration, plan and classloader failures are fatal in all modes. Data errors
 [[geometry-converter-shared-installation]]
 === Shared installation
 
-The transform is part of the existing Geoprocessing ZIP, not a separately installable plugin. Install the updated Geometry Type ZIP and the Geoprocessing ZIP together. The Geoprocessing ZIP does not contain a second Geometry Type or JTS runtime. If the installed Geometry Type is too old and lacks `GeometryCodec`, startup fails with a clear upgrade message instead of falling back to a text or reflection bridge.
+The transform is part of the existing Geoprocessing ZIP, not a separately installable plugin. Install the updated Geometry Type ZIP and the Geoprocessing ZIP together. The Geoprocessing ZIP does not contain a second Geometry Type or JTS runtime. If the installed Geometry Type is too old and lacks the GeoJSON codec API, startup fails with a clear upgrade message instead of falling back to a text or reflection bridge.
 
 [[geometry-converter-installed-e2e]]
 === Installed E2E
 
-The installed suite under `e2e/geometry-converter/` covers coordinate layouts, Select Values binary conversion, encoded output, curves, overwrite, RETURN++_++NULL, a real error hop, SortRows spilling, variable field names, EMPTY/error regressions and coordinate-output row balance. A second isolated Hop installation verifies that an outdated Geometry Type runtime without `GeometryCodec` is rejected with an upgrade error.
+The installed suite under `e2e/geometry-converter/` and the public JSON examples cover coordinate layouts, Select Values binary conversion, encoded output, curves, overwrite, RETURN++_++NULL, a real error hop, SortRows spilling, variable field names, EMPTY/error regressions and coordinate-output row balance. A second isolated Hop installation verifies that an outdated Geometry Type runtime without `GeometryCodec` is rejected with an upgrade error. A second negative pass retains GeometryCodec but removes its GeoJSON API and must also fail clearly.
 
 A 100,000-point streaming smoke profile is available through `scripts/benchmark-converter.py`; it is not a hard performance gate.
 

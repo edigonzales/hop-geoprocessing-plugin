@@ -21,7 +21,7 @@ This is the fastest way to scan the plugin from an operator perspective.
 [[reference-matrix-geometry-converter]]
 == Geometry Converter
 
-All representations are handled by the shared Geometry Type codec. Coordinates are Point-only; non-Point input to coordinate output follows the selected error mode. SRID handling is not reprojection. See <<geometry-converter,Geometry Converter>> for the format table, NULL/EMPTY rules and the required error connection.
+Native Geometry, WKT/EWKT, WKB/EWKB, Point ordinates, GeoJSON RFC 7946/2008 and JSON-FG 1.0 are handled by the shared Geometry Type codec. Coordinates are Point-only; non-Point input to coordinate output follows the selected error mode. SRID handling is not reprojection. See <<geometry-converter,Geometry Converter>> for the format table, NULL/EMPTY rules and the required error connection.
 
 [[reference-matrix-geometry-reproject]]
 == Geometry Reproject

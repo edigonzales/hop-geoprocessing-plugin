@@ -19,13 +19,10 @@ import com.atolcd.hop.gis.geometry.codec.GeometryByteOrder;
 import com.atolcd.hop.gis.geometry.codec.GeometryCodecErrorCode;
 import com.atolcd.hop.gis.geometry.codec.GeometryCodecException;
 import com.atolcd.hop.gis.geometry.codec.WkbWriteOptions;
-import com.atolcd.hop.gis.geometry.curve.CurvePolygon;
 import java.math.BigDecimal;
 import org.apache.hop.core.exception.HopValueException;
-import org.apache.hop.core.row.IRowMeta;
 import org.apache.hop.core.row.RowMeta;
 import org.apache.hop.core.row.value.ValueMetaBigNumber;
-import org.apache.hop.core.row.value.ValueMetaNumber;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Geometry;
@@ -61,8 +58,7 @@ class GeometryConverterRuntimeTest {
     input.addValueMeta(string("geom"));
     CompiledConversionPlan plan =
         compile(
-            input,
-            settings(ConverterInputFormat.WKT_EWKT, ConverterOutputFormat.GEOMETRY).build());
+            input, settings(ConverterInputFormat.WKT_EWKT, ConverterOutputFormat.GEOMETRY).build());
     GeometryConverterRuntime runtime = runtime(plan);
 
     Geometry empty = (Geometry) runtime.convert(new Object[] {"POINT EMPTY"}).row()[1];
@@ -73,27 +69,22 @@ class GeometryConverterRuntimeTest {
   @Test
   void binaryAndHexInputsUseTheSharedCodec() throws Exception {
     byte[] wkb =
-        CODEC.writeBinary(
-            CODEC.readText("POINT (1 2)"), WkbWriteOptions.standardFieldBinary());
-    for (ConverterInputFormat format : new ConverterInputFormat[] {ConverterInputFormat.WKB_BYTES, ConverterInputFormat.WKB_HEX}) {
+        CODEC.writeBinary(CODEC.readText("POINT (1 2)"), WkbWriteOptions.standardFieldBinary());
+    for (ConverterInputFormat format :
+        new ConverterInputFormat[] {ConverterInputFormat.WKB_BYTES, ConverterInputFormat.WKB_HEX}) {
       RowMeta input = rowMeta();
-      input.addValueMeta(format == ConverterInputFormat.WKB_BYTES ? binary("geom") : string("geom"));
+      input.addValueMeta(
+          format == ConverterInputFormat.WKB_BYTES ? binary("geom") : string("geom"));
       CompiledConversionPlan plan =
           compile(
-              input,
-              settings(format, ConverterOutputFormat.GEOMETRY)
-                  .inputField("geom")
-                  .build());
+              input, settings(format, ConverterOutputFormat.GEOMETRY).inputField("geom").build());
       Object value =
-          format == ConverterInputFormat.WKB_BYTES
-              ? wkb
-              : java.util.HexFormat.of().formatHex(wkb);
+          format == ConverterInputFormat.WKB_BYTES ? wkb : java.util.HexFormat.of().formatHex(wkb);
       Point point = (Point) runtime(plan).convert(new Object[] {value}).row()[1];
       assertThat(point.getX()).isEqualTo(1);
       assertThat(point.getY()).isEqualTo(2);
     }
   }
-
 
   @Test
   void serializedOutputOptionsFollowTheExplicitFormatContract() throws Exception {
@@ -196,7 +187,9 @@ class GeometryConverterRuntimeTest {
             .sridMode(ConverterSridMode.REPLACE)
             .srid(4326)
             .build();
-    assertThat(((Geometry) runtime(compile(input, replace)).convert(new Object[] {unknown}).row()[1]).getSRID())
+    assertThat(
+            ((Geometry) runtime(compile(input, replace)).convert(new Object[] {unknown}).row()[1])
+                .getSRID())
         .isEqualTo(4326);
 
     GeometryConverterSettings clear =
@@ -204,7 +197,9 @@ class GeometryConverterRuntimeTest {
             .inputField("geom")
             .sridMode(ConverterSridMode.CLEAR)
             .build();
-    assertThat(((Geometry) runtime(compile(input, clear)).convert(new Object[] {known}).row()[1]).getSRID())
+    assertThat(
+            ((Geometry) runtime(compile(input, clear)).convert(new Object[] {known}).row()[1])
+                .getSRID())
         .isZero();
     assertThat(known.getSRID()).isEqualTo(2056);
   }
@@ -235,10 +230,7 @@ class GeometryConverterRuntimeTest {
       CompiledConversionPlan plan = compile(input, builder.build());
       Object[] row =
           new Object[] {
-            1.0,
-            2L,
-            layout.hasZ() ? BigDecimal.valueOf(3) : null,
-            layout.hasM() ? 4.0 : null
+            1.0, 2L, layout.hasZ() ? BigDecimal.valueOf(3) : null, layout.hasM() ? 4.0 : null
           };
 
       Point point = (Point) runtime(plan).convert(row).row()[plan.outputBindings().get(0).index()];
@@ -297,6 +289,10 @@ class GeometryConverterRuntimeTest {
     Geometry geometry = CODEC.readText("POINT Z (1 2 3)");
     geometry.setSRID(2056);
     for (ConverterOutputFormat format : ConverterOutputFormat.values()) {
+      // GeoJSON has CRS/loss requirements and is covered by GeometryConverterGeoJsonTest.
+      if (format == ConverterOutputFormat.GEOJSON) {
+        continue;
+      }
       ConverterTestSupport.SettingsBuilder builder =
           settings(ConverterInputFormat.WKT_EWKT, format).inputField("geom");
       if (format == ConverterOutputFormat.COORDINATES) {
@@ -337,7 +333,8 @@ class GeometryConverterRuntimeTest {
           ConverterSridMode.CLEAR
         }) {
       ConverterTestSupport.SettingsBuilder builder =
-          settings(ConverterInputFormat.GEOMETRY, ConverterOutputFormat.GEOMETRY).inputField("geom");
+          settings(ConverterInputFormat.GEOMETRY, ConverterOutputFormat.GEOMETRY)
+              .inputField("geom");
       if (mode == ConverterSridMode.SET_IF_MISSING || mode == ConverterSridMode.REPLACE) {
         builder.sridMode(mode).srid(4326);
       } else {
@@ -376,14 +373,17 @@ class GeometryConverterRuntimeTest {
     Geometry geometry = CODEC.readText("POINT (1 2)");
     geometry.setSRID(2056);
     for (ConverterOutputFormat format : ConverterOutputFormat.values()) {
+      // GeoJSON has CRS/loss requirements and is covered by GeometryConverterGeoJsonTest.
+      if (format == ConverterOutputFormat.GEOJSON) {
+        continue;
+      }
       ConverterTestSupport.SettingsBuilder builder =
           settings(ConverterInputFormat.WKT_EWKT, format).inputField("geom");
       if (format == ConverterOutputFormat.COORDINATES) {
         builder.outputX("xo").outputY("yo");
       }
       ConversionResult result =
-          runtime(compile(input, builder.build()))
-              .convert(new Object[] {"SRID=2056;POINT (1 2)"});
+          runtime(compile(input, builder.build())).convert(new Object[] {"SRID=2056;POINT (1 2)"});
       boolean expected =
           format == ConverterOutputFormat.WKT
               || format == ConverterOutputFormat.WKB_BYTES

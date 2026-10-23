@@ -55,6 +55,13 @@ class GeometryConverterMetaInjectionTest {
     values.put("srid_value", "4326");
     values.put("overwrite_existing_fields", "Y");
     values.put("error_mode", "ROUTE_TO_ERROR");
+    values.put("geojson_input_profile", "JSONFG10");
+    values.put("geojson_output_profile", "LEGACY2008");
+    values.put("geojson_input_context_field", "context_in");
+    values.put("geojson_output_context_field", "context_out");
+    values.put("geojson_drop_z", "Y");
+    values.put("geojson_drop_m", "Y");
+    values.put("geojson_empty_to_null", "Y");
 
     for (Map.Entry<String, String> entry : values.entrySet()) {
       RowMeta rowsMeta = new RowMeta();
@@ -79,6 +86,15 @@ class GeometryConverterMetaInjectionTest {
     assertThat(meta.isOverwriteExistingFields()).isTrue();
     assertThat(meta.getErrorMode()).isEqualTo(ConverterErrorMode.ROUTE_TO_ERROR);
 
+    assertThat(meta.getGeoJsonInputProfile())
+        .isEqualTo(com.atolcd.hop.gis.geometry.codec.GeoJsonProfile.JSONFG10);
+    assertThat(meta.getGeoJsonOutputProfile())
+        .isEqualTo(com.atolcd.hop.gis.geometry.codec.GeoJsonProfile.LEGACY2008);
+    assertThat(meta.getGeoJsonInputContextField()).isEqualTo("context_in");
+    assertThat(meta.getGeoJsonOutputContextField()).isEqualTo("context_out");
+    assertThat(meta.isGeoJsonDropZ()).isTrue();
+    assertThat(meta.isGeoJsonDropM()).isTrue();
+    assertThat(meta.isGeoJsonEmptyToNull()).isTrue();
     var settings = meta.toSettings(new Variables());
     assertThat(settings.inputXFieldName()).isEqualTo("east");
     assertThat(settings.outputFormat()).isEqualTo(ConverterOutputFormat.EWKB_BYTES);

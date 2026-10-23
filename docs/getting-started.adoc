@@ -17,7 +17,7 @@ Type runtime with `GeometryCodec`; an older runtime reports a clear upgrade erro
 
 == First pipeline
 
-The link:../../examples/README.md[examples guide] explains all seven runnable
+The link:../../examples/README.md[examples guide] explains all ten runnable
 pipelines. Download a pipeline, its fixture CSVs and expected result, preserving
 the `examples/fixtures` directory layout. Open the `.hpl` in Hop GUI and run it
 with a local pipeline run configuration. `INPUT_DIR` and `OUTPUT_DIR` default to

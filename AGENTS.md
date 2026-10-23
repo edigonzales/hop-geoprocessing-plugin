@@ -60,8 +60,13 @@ python3 scripts/run-e2e.py --hop-home /absolute/disposable/hop \
   --negative-hop-home /absolute/second-disposable/hop
 ```
 
-This runs the original installed pipelines, converter suite, public examples and
-the legacy-runtime negative test. E2E consumes the canonical ZIP without rebuilding.
+Geometry Converter's GeoJSON path uses the shared Geometry Type codec and its
+GeoJSON context API. Keep Geometry Type/Jackson/GeoTools out of this ZIP; install
+the updated Geometry Type ZIP together with Geoprocessing. Public examples include
+RFC 7946, Legacy 2008 and JSON-FG roundtrips, preserving context across native fields.
+
+This runs the original installed pipelines, converter suite, all ten public examples and
+negative tests for missing GeometryCodec and missing GeoJSON API. E2E consumes the canonical ZIP without rebuilding.
 Only successful main builds publish; PRs never publish. Publication resolves the
 published ZIP in a fresh repository and compares it with the canonical bundle.
 

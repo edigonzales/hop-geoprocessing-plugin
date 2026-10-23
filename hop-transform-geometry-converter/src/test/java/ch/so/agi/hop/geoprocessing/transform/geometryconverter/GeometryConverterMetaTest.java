@@ -10,6 +10,7 @@ import ch.so.agi.hop.geoprocessing.core.converter.ConverterOutputFormat;
 import ch.so.agi.hop.geoprocessing.core.converter.ConverterSridMode;
 import ch.so.agi.hop.geoprocessing.core.converter.GeometryConverterSettings;
 import com.atolcd.hop.core.row.value.ValueMetaGeometry;
+import com.atolcd.hop.gis.geometry.codec.GeoJsonProfile;
 import com.atolcd.hop.gis.geometry.codec.GeometryByteOrder;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +40,8 @@ class GeometryConverterMetaTest {
     assertThat(meta.getOutputFormat()).isEqualTo(ConverterOutputFormat.GEOMETRY);
     assertThat(meta.getByteOrder()).isEqualTo(GeometryByteOrder.BIG_ENDIAN);
     assertThat(meta.getSridMode()).isEqualTo(ConverterSridMode.KEEP);
-    assertThat(meta.getErrorMode()).isEqualTo(ch.so.agi.hop.geoprocessing.core.converter.ConverterErrorMode.FAIL);
+    assertThat(meta.getErrorMode())
+        .isEqualTo(ch.so.agi.hop.geoprocessing.core.converter.ConverterErrorMode.FAIL);
     assertThat(meta.getOutputFieldName()).isEqualTo("geometry");
     assertThat(meta.getOutputXFieldName()).isEqualTo("x");
     assertThat(meta.getOutputYFieldName()).isEqualTo("y");
@@ -96,9 +98,11 @@ class GeometryConverterMetaTest {
     meta.setInputFieldName("${MISSING}");
     assertThatThrownBy(() -> meta.toSettings(new Variables()))
         .isInstanceOf(ConverterConfigurationException.class)
-        .satisfies(error -> assertThat(issues(error))
-            .extracting(ConfigurationIssue::code)
-            .contains(ConfigurationIssue.GC_UNRESOLVED_VARIABLE));
+        .satisfies(
+            error ->
+                assertThat(issues(error))
+                    .extracting(ConfigurationIssue::code)
+                    .contains(ConfigurationIssue.GC_UNRESOLVED_VARIABLE));
   }
 
   @Test
@@ -132,11 +136,19 @@ class GeometryConverterMetaTest {
     meta.setSridMode(ConverterSridMode.SET_IF_MISSING);
     meta.setSridValue("${SRID}");
     meta.setOverwriteExistingFields(true);
+    meta.setGeoJsonInputProfile(GeoJsonProfile.JSONFG10);
+    meta.setGeoJsonOutputProfile(GeoJsonProfile.LEGACY2008);
+    meta.setGeoJsonInputContextField("${INPUT_CONTEXT}");
+    meta.setGeoJsonOutputContextField("${OUTPUT_CONTEXT}");
+    meta.setGeoJsonDropZ(true);
+    meta.setGeoJsonDropM(true);
+    meta.setGeoJsonEmptyToNull(true);
 
     GeometryConverterMeta copy = new GeometryConverterMeta();
     copy.setDefault();
     copy.loadXml(
-        XmlHandler.loadXmlString("<transform>" + meta.getXml() + "</transform>", TransformMeta.XML_TAG),
+        XmlHandler.loadXmlString(
+            "<transform>" + meta.getXml() + "</transform>", TransformMeta.XML_TAG),
         null);
 
     assertThat(copy.getXml()).isEqualTo(meta.getXml());
@@ -144,6 +156,28 @@ class GeometryConverterMetaTest {
     assertThat(copy.getSridValue()).isEqualTo("${SRID}");
     assertThat(copy.getByteOrder()).isEqualTo(GeometryByteOrder.LITTLE_ENDIAN);
     assertThat(copy.isOverwriteExistingFields()).isTrue();
+  }
+
+  @Test
+  void jsonContextNamesResolveOnlyWhenActiveAndDoNotChangeStoredExpressions() throws Exception {
+    GeometryConverterMeta meta = baseMeta();
+    meta.setGeoJsonInputContextField("${CTX_IN}");
+    meta.setGeoJsonOutputContextField("${CTX_OUT}");
+    assertThat(meta.toSettings(new Variables()).geoJsonInputContextField()).isNull();
+    meta.setInputFormat(ConverterInputFormat.GEOJSON);
+    Variables variables = new Variables();
+    variables.setVariable("CTX_IN", "source_context");
+    variables.setVariable("CTX_OUT", "result_context");
+    var settings = meta.toSettings(variables);
+    assertThat(settings.geoJsonInputContextField()).isEqualTo("source_context");
+    assertThat(settings.geoJsonOutputContextField()).isEqualTo("result_context");
+    assertThat(settings.geoJsonInputProfile()).isEqualTo(GeoJsonProfile.AUTO);
+    assertThat(settings.geoJsonDropZ()).isFalse();
+    assertThat(meta.getGeoJsonInputContextField()).isEqualTo("${CTX_IN}");
+    meta.setOutputFormat(ConverterOutputFormat.GEOJSON);
+    meta.setGeoJsonOutputProfile(GeoJsonProfile.AUTO);
+    assertThatThrownBy(() -> meta.toSettings(variables))
+        .isInstanceOf(ConverterConfigurationException.class);
   }
 
   @Test
@@ -167,9 +201,7 @@ class GeometryConverterMetaTest {
         "<transform><configuration_version>1</configuration_version>"
             + "<input_format>NOT_A_FORMAT</input_format></transform>";
     assertThatThrownBy(
-            () ->
-                meta.loadXml(
-                    XmlHandler.loadXmlString(xml, TransformMeta.XML_TAG), null))
+            () -> meta.loadXml(XmlHandler.loadXmlString(xml, TransformMeta.XML_TAG), null))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -190,7 +222,8 @@ class GeometryConverterMetaTest {
     TransformMeta source = new TransformMeta();
     TransformMeta target = new TransformMeta();
     TransformErrorMeta errorMeta =
-        new TransformErrorMeta(source, target, "errors", "error_desc", "error_fields", "error_codes");
+        new TransformErrorMeta(
+            source, target, "errors", "error_desc", "error_fields", "error_codes");
     errorMeta.setEnabled(true);
     TransformMeta transformMeta = new TransformMeta();
     transformMeta.setTransformErrorMeta(errorMeta);
@@ -198,8 +231,10 @@ class GeometryConverterMetaTest {
     meta.check(remarks, null, transformMeta, prev, null, null, null, new Variables(), null);
     assertThat(remarks)
         .extracting(ICheckResult::getText)
-        .noneMatch(text -> text.contains(ConfigurationIssue.GC_ERROR_HOP_REQUIRED)
-            && text.contains("requires an enabled"));
+        .noneMatch(
+            text ->
+                text.contains(ConfigurationIssue.GC_ERROR_HOP_REQUIRED)
+                    && text.contains("requires an enabled"));
   }
 
   @Test

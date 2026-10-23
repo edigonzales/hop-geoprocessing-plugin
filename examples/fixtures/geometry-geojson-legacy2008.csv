@@ -1,0 +1,3 @@
+id;geometry
+point;{"type":"Point","coordinates":[2600000,1200000],"crs":{"type":"name","properties":{"name":"urn:ogc:def:crs:EPSG::2056"}}}
+line;{"type":"LineString","coordinates":[[2600000,1200000],[2600010,1200020]],"crs":{"type":"name","properties":{"name":"urn:ogc:def:crs:EPSG::2056"}}}

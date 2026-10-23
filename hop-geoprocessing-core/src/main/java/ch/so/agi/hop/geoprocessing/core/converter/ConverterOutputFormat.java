@@ -2,6 +2,7 @@ package ch.so.agi.hop.geoprocessing.core.converter;
 
 public enum ConverterOutputFormat {
   GEOMETRY,
+  GEOJSON,
   WKT,
   EWKT,
   WKB_BYTES,

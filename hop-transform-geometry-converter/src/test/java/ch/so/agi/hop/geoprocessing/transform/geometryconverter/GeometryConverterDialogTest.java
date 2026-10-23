@@ -48,6 +48,24 @@ class GeometryConverterDialogTest {
   }
 
   @Test
+  void jsonOptionsStayInDraftUntilAccepted() {
+    GeometryConverterMeta source = baseMeta();
+    GeometryConverterDialogModel draft = GeometryConverterDialogModel.from(source);
+    draft.outputFormat(ConverterOutputFormat.GEOJSON);
+    draft.geoJsonOutputProfile(com.atolcd.hop.gis.geometry.codec.GeoJsonProfile.JSONFG10);
+    draft.geoJsonOutputContextField("context");
+    draft.geoJsonDropM(true);
+    assertThat(source.getOutputFormat()).isEqualTo(ConverterOutputFormat.GEOMETRY);
+    assertThat(source.isGeoJsonDropM()).isFalse();
+    assertThat(source.getGeoJsonOutputContextField()).isEmpty();
+    source.copyFrom(draft.toMeta());
+    assertThat(source.getOutputFormat()).isEqualTo(ConverterOutputFormat.GEOJSON);
+    assertThat(source.isGeoJsonDropM()).isTrue();
+    assertThat(source.getGeoJsonOutputContextField()).isEqualTo("context");
+    assertThat(draft.defaultOutputName(ConverterOutputFormat.GEOJSON)).isEqualTo("geometry_json");
+  }
+
+  @Test
   void inactiveInvalidSridTextIsNotParsedButActiveInvalidTextIsAValidationError() {
     GeometryConverterMeta meta = baseMeta();
     meta.setSridMode(ConverterSridMode.KEEP);
@@ -111,9 +129,12 @@ class GeometryConverterDialogTest {
     assertThat(model.defaultOutputName(ConverterOutputFormat.WKT)).isEqualTo("geometry_wkt");
     assertThat(model.defaultOutputName(ConverterOutputFormat.EWKT)).isEqualTo("geometry_ewkt");
     assertThat(model.defaultOutputName(ConverterOutputFormat.WKB_BYTES)).isEqualTo("geometry_wkb");
-    assertThat(model.defaultOutputName(ConverterOutputFormat.EWKB_BYTES)).isEqualTo("geometry_ewkb");
-    assertThat(model.defaultOutputName(ConverterOutputFormat.WKB_HEX)).isEqualTo("geometry_wkb_hex");
-    assertThat(model.defaultOutputName(ConverterOutputFormat.EWKB_HEX)).isEqualTo("geometry_ewkb_hex");
+    assertThat(model.defaultOutputName(ConverterOutputFormat.EWKB_BYTES))
+        .isEqualTo("geometry_ewkb");
+    assertThat(model.defaultOutputName(ConverterOutputFormat.WKB_HEX))
+        .isEqualTo("geometry_wkb_hex");
+    assertThat(model.defaultOutputName(ConverterOutputFormat.EWKB_HEX))
+        .isEqualTo("geometry_ewkb_hex");
   }
 
   private static GeometryConverterMeta baseMeta() {

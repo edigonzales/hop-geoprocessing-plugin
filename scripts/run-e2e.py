@@ -493,8 +493,8 @@ def run_reproject_e2e(
     print("Installed Geometry Reproject EPSG, XYZM, EMPTY, NULL and error routing OK", flush=True)
 
 
-def make_legacy_geometry_zip(geometry_zip: Path, target: Path) -> Path:
-    """Create a test-only Geometry ZIP whose plugin JAR lacks GeometryCodec."""
+def make_legacy_geometry_zip(geometry_zip: Path, target: Path, missing_geojson: bool = False) -> Path:
+    """Create a test-only Geometry ZIP missing the codec or its new GeoJSON API."""
     with zipfile.ZipFile(geometry_zip) as source, zipfile.ZipFile(
         target, "w", compression=zipfile.ZIP_DEFLATED
     ) as destination:
@@ -508,8 +508,9 @@ def make_legacy_geometry_zip(geometry_zip: Path, target: Path) -> Path:
                     rewritten, "w", compression=zipfile.ZIP_DEFLATED
                 ) as output_jar:
                     for jar_entry in plugin_jar.infolist():
+                        removed = "GeoJson" if missing_geojson else "GeometryCodec"
                         if jar_entry.filename.startswith(
-                            "com/atolcd/hop/gis/geometry/codec/GeometryCodec"
+                            "com/atolcd/hop/gis/geometry/codec/" + removed
                         ):
                             continue
                         output_jar.writestr(jar_entry, plugin_jar.read(jar_entry.filename))
@@ -525,10 +526,15 @@ def run_negative_installation(
     env: dict[str, str],
     input_dir: Path,
     work: Path,
+    missing_geojson: bool = False,
 ) -> None:
     if (hop_home / PLUGIN_ROOT).exists() or (hop_home / GEOMETRY_ROOT).exists():
         raise SystemExit(f"Negative Hop home is not clean: {hop_home}")
-    legacy_zip = make_legacy_geometry_zip(geometry_zip, work / "legacy-geometry.zip")
+    legacy_zip = make_legacy_geometry_zip(
+        geometry_zip,
+        work / ("pre-geojson-geometry.zip" if missing_geojson else "legacy-geometry.zip"),
+        missing_geojson,
+    )
     extract_plugin(legacy_zip, hop_home, GEOMETRY_ROOT)
     extract_plugin(plugin_zip, hop_home, PLUGIN_ROOT)
 
@@ -566,7 +572,11 @@ def run_negative_installation(
         )
     if output_file.exists() and output_file.stat().st_size > 0:
         raise SystemExit("Negative installation produced normal output despite missing GeometryCodec")
-    print("Negative GeometryCodec installation rejected as expected", flush=True)
+    print(
+        "Negative " + ("GeoJSON codec API" if missing_geojson else "GeometryCodec")
+        + " installation rejected as expected",
+        flush=True,
+    )
 
 
 def main() -> int:
@@ -657,6 +667,19 @@ def main() -> int:
                 env,
                 input_dir,
                 work,
+            )
+            # The explicitly supplied negative home is a disposable installation. Reuse it
+            # for the narrower pre-GeoJSON API regression after the original legacy test.
+            shutil.rmtree(negative_hop / PLUGIN_ROOT)
+            shutil.rmtree(negative_hop / GEOMETRY_ROOT)
+            run_negative_installation(
+                negative_hop,
+                args.plugin_zip.resolve(),
+                args.geometry_zip.resolve(),
+                env,
+                input_dir,
+                work,
+                missing_geojson=True,
             )
 
     print("Installed Hop Geoprocessing E2E OK")

@@ -10,7 +10,7 @@ from urllib.parse import unquote, urlsplit
 PAGES_BASE = '/hop-geoprocessing-plugin/'
 HANDBOOK = 'geoprocessing/main/index.html'
 HANDBOOK_ANCHORS = ['geometry-operation', 'spatial-predicate', 'layer-overlay', 'layer-aggregate', 'geometry-converter', 'geometry-reproject', 'coverage-operation', 'overview', 'execution-models', 'execution-models-streaming-row', 'execution-models-cached-secondary-layer', 'execution-models-blocking-per-layer-or-group', 'reference-matrix', 'curves', 'recipes']
-HPL_DOWNLOADS = 7
+HPL_DOWNLOADS = 10
 TRANSFORMS = ['coverage-operation', 'geometry-converter', 'geometry-operation', 'geometry-reproject', 'layer-aggregate', 'layer-overlay', 'spatial-predicate']
 REQUIRED_SECTIONS = ['description', 'input', 'options', 'output', 'supported-engines', 'examples', 'error-handling', 'limitations']
 

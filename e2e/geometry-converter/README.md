@@ -23,8 +23,14 @@ fields (`errors`, `error_desc`, `error_fields`, `error_codes`) to an error CSV.
 | `ost-regressions.hpl` | OR01, OR02, OR14, OR22 | EMPTY, curve, valid and invalid rows; normal/error IDs partition the input; values and controls exact. |
 | `coordinate-output.hpl` | OR11, OR13 | XY/XYZ/XYM/EMPTY/line/polygon/valid point; seven normal rows, non-Points/EMPTY NULL, no implicit loss. |
 | `coordinate-errors.hpl` | OR12 | Full NULL tuple normal; partial NULL and NaN error; exact IDs and `GC_*` codes. |
-| `negative-smoke.hpl` | OR21 | Used only in the second Hop installation with a synthetic Geometry runtime lacking `GeometryCodec`; startup must fail clearly. |
+| `negative-smoke.hpl` | OR21 / GeoJSON API | Used twice in the second Hop installation: first without `GeometryCodec`, then retaining it but without the GeoJSON API; both startups must fail clearly. |
 | `streaming-benchmark.hpl` | performance smoke | 100,000 points through the native text conversion path; see `scripts/benchmark-converter.py`. |
+
+The standard installed run also executes the three public `examples/geometry-geojson-*`
+pipelines: RFC 7946, Legacy 2008 with LV95, and JSON-FG with M metadata and an exact
+CircularString. Each decodes JSON to native Geometry/context, re-encodes it and
+checks the decoded EWKT against the local expected CSV. See
+[the examples guide](../../examples/README.md).
 
 ## Notes
 
