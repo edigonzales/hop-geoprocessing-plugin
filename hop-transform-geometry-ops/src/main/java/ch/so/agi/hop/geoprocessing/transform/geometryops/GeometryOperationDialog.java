@@ -1,5 +1,9 @@
 package ch.so.agi.hop.geoprocessing.transform.geometryops;
 
+import ch.so.agi.hop.commons.core.SourceMode;
+import ch.so.agi.hop.commons.core.ValueOrField;
+import ch.so.agi.hop.commons.ui.EditorKind;
+import ch.so.agi.hop.commons.ui.ValueOrFieldControl;
 import ch.so.agi.hop.geoprocessing.core.BufferCapStyle;
 import ch.so.agi.hop.geoprocessing.core.BufferJoinStyle;
 import ch.so.agi.hop.geoprocessing.core.DistanceMode;
@@ -13,7 +17,9 @@ import ch.so.agi.hop.geoprocessing.core.RowMetaSupport;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import org.apache.hop.core.exception.HopTransformException;
 import org.apache.hop.core.row.IRowMeta;
+import org.apache.hop.core.util.StringUtil;
 import org.apache.hop.core.util.Utils;
 import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.ui.core.PropsUi;
@@ -48,9 +54,7 @@ public class GeometryOperationDialog extends BaseTransformDialog {
   private Text wExecutionMode;
   private Combo wPrimaryGeometryField;
   private Combo wSecondaryGeometryField;
-  private Combo wDistanceMode;
-  private TextVar wDistanceValue;
-  private Combo wDistanceField;
+  private ValueOrFieldControl wDistance;
   private Combo wOverlayMode;
   private TextVar wPrecisionScale;
   private Combo wOutputMode;
@@ -141,12 +145,14 @@ public class GeometryOperationDialog extends BaseTransformDialog {
     wExecutionMode = addReadOnlyText("Execution mode");
     wPrimaryGeometryField = addCombo("Primary geometry field");
     wSecondaryGeometryField = addCombo("Secondary geometry field");
-    wDistanceMode = addCombo("Distance mode");
-    for (DistanceMode mode : DistanceMode.values()) {
-      wDistanceMode.add(mode.name());
-    }
-    wDistanceValue = addTextVar("Static distance");
-    wDistanceField = addCombo("Distance field");
+    Label distanceLabel = addLabel("Distance");
+    wDistance = ValueOrFieldControl.builder(content, variables)
+        .editor(EditorKind.TEXT)
+        .fieldProvider(this::distanceFieldNames)
+        .onChange(input::setChanged)
+        .build();
+    wDistance.setLayoutData(defaultGridData());
+    wDistance.setData("label", distanceLabel);
     wOverlayMode = addCombo("Overlay mode");
     for (OverlayMode mode : OverlayMode.values()) {
       wOverlayMode.add(mode.name());
@@ -169,10 +175,11 @@ public class GeometryOperationDialog extends BaseTransformDialog {
     wBufferSingleSided = addCheck("Buffer single sided");
     wFieldStatus = addInfoLabel("");
 
-    attachListeners();
     loadFieldChoices();
     getData();
     refreshVisibility();
+    input.setChanged(changed);
+    attachListeners();
 
     wOk.addListener(SWT.Selection, event -> ok());
     wCancel.addListener(SWT.Selection, event -> cancel());
@@ -190,13 +197,6 @@ public class GeometryOperationDialog extends BaseTransformDialog {
         });
     wPrimaryGeometryField.addModifyListener(event -> input.setChanged());
     wSecondaryGeometryField.addModifyListener(event -> input.setChanged());
-    wDistanceMode.addModifyListener(
-        event -> {
-          input.setChanged();
-          refreshVisibility();
-        });
-    wDistanceValue.addModifyListener(event -> input.setChanged());
-    wDistanceField.addModifyListener(event -> input.setChanged());
     wOverlayMode.addModifyListener(
         event -> {
           input.setChanged();
@@ -219,7 +219,6 @@ public class GeometryOperationDialog extends BaseTransformDialog {
     List<String> messages = new ArrayList<>();
     wPrimaryGeometryField.removeAll();
     wSecondaryGeometryField.removeAll();
-    wDistanceField.removeAll();
     try {
       IRowMeta prev = pipelineMeta.getPrevTransformFields(variables, transformName);
       GeometryFieldSelection primarySelection =
@@ -233,21 +232,25 @@ public class GeometryOperationDialog extends BaseTransformDialog {
       if (primarySelection.fieldNames().isEmpty()) {
         messages.add("No geometry field candidates found on the primary input.");
       }
-      for (String numericFieldName : RowMetaSupport.numericFieldNames(prev)) {
-        wDistanceField.add(numericFieldName);
-      }
     } catch (Exception e) {
       messages.add("Unable to inspect upstream fields: " + rootCauseMessage(e));
     }
+    wDistance.refreshFields();
     setFieldStatus(messages);
+  }
+
+  private String[] distanceFieldNames() throws HopTransformException {
+    IRowMeta previous = pipelineMeta.getPrevTransformFields(variables, transformName);
+    return RowMetaSupport.numericFieldNames(previous).toArray(String[]::new);
   }
 
   private void getData() {
     wTransformName.setText(transformName == null ? "" : transformName);
     selectOperation(input.getOperationId());
-    wDistanceMode.setText((input.getDistanceMode() == null ? DistanceMode.STATIC : input.getDistanceMode()).name());
-    wDistanceValue.setText(defaultText(input.getDistanceValue()));
-    wDistanceField.setText(defaultText(input.getDistanceFieldName()));
+    wDistance.setValue(new ValueOrField(
+        input.getDistanceMode() == DistanceMode.FIELD ? SourceMode.FIELD : SourceMode.CONFIGURED,
+        defaultText(input.getDistanceValue()),
+        defaultText(input.getDistanceFieldName())));
     wOverlayMode.setText(input.getOverlayMode().name());
     wPrecisionScale.setText(defaultText(input.getPrecisionScale()));
     wOutputMode.setText((input.getOutputMode() == null ? GeometryOutputMode.APPEND : input.getOutputMode()).name());
@@ -288,9 +291,7 @@ public class GeometryOperationDialog extends BaseTransformDialog {
         == GeometryOutputMode.APPEND;
 
     toggleControl(wSecondaryGeometryField, binary);
-    toggleControl(wDistanceMode, needsDistance);
-    toggleControl(wDistanceValue, needsDistance && DistanceMode.valueOf(defaultText(wDistanceMode.getText(), DistanceMode.STATIC.name())) == DistanceMode.STATIC);
-    toggleControl(wDistanceField, needsDistance && DistanceMode.valueOf(defaultText(wDistanceMode.getText(), DistanceMode.STATIC.name())) == DistanceMode.FIELD);
+    toggleControl(wDistance, needsDistance);
     toggleControl(wOverlayMode, overlayOperation);
     toggleControl(wPrecisionScale, needsPrecisionScale);
     toggleControl(wOutputField, appendMode);
@@ -334,14 +335,25 @@ public class GeometryOperationDialog extends BaseTransformDialog {
       showValidationWarning("Please enter a precision scale for FIXED_PRECISION overlay mode.");
       return;
     }
+    ValueOrField distance = wDistance.getValue();
+    if (currentDescriptor().requires(ParameterId.DISTANCE)) {
+      if (distance.mode() == SourceMode.FIELD && distance.fieldName().isBlank()) {
+        showValidationWarning("Please select a numeric distance field.");
+        return;
+      }
+      if (distance.mode() == SourceMode.CONFIGURED && !validConfiguredDistance(distance.configuredValue())) {
+        showValidationWarning("Please enter a finite distance or variable.");
+        return;
+      }
+    }
     transformName = wTransformName.getText();
     OperationDescriptor descriptor = currentDescriptor();
     input.setOperationId(descriptor.id());
     input.setPrimaryGeometryFieldName(wPrimaryGeometryField.getText());
     input.setSecondaryGeometryFieldName(wSecondaryGeometryField.getText());
-    input.setDistanceMode(DistanceMode.valueOf(defaultText(wDistanceMode.getText(), DistanceMode.STATIC.name())));
-    input.setDistanceValue(wDistanceValue.getText());
-    input.setDistanceFieldName(wDistanceField.getText());
+    input.setDistanceMode(distance.mode() == SourceMode.FIELD ? DistanceMode.FIELD : DistanceMode.STATIC);
+    input.setDistanceValue(distance.configuredValue());
+    input.setDistanceFieldName(distance.fieldName());
     input.setOverlayMode(OverlayMode.valueOf(defaultText(wOverlayMode.getText(), OverlayMode.STANDARD.name())));
     input.setPrecisionScale(wPrecisionScale.getText());
     input.setOutputMode(GeometryOutputMode.valueOf(defaultText(wOutputMode.getText(), GeometryOutputMode.APPEND.name())));
@@ -351,6 +363,20 @@ public class GeometryOperationDialog extends BaseTransformDialog {
     input.setBufferJoinStyle(BufferJoinStyle.valueOf(defaultText(wBufferJoinStyle.getText(), BufferJoinStyle.ROUND.name())));
     input.setBufferSingleSided(wBufferSingleSided.getSelection());
     dispose();
+  }
+
+  private boolean validConfiguredDistance(String value) {
+    List<String> variableNames = new ArrayList<>();
+    StringUtil.getUsedVariables(value, variableNames, true);
+    if (!variableNames.isEmpty()) {
+      return true;
+    }
+    try {
+      double distance = Double.parseDouble(value);
+      return Double.isFinite(distance);
+    } catch (NumberFormatException e) {
+      return false;
+    }
   }
 
   private void cancel() {

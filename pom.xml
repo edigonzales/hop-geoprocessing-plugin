@@ -38,6 +38,7 @@
   </modules>
 
   <properties>
+    <hop.plugin.commons.version>0.1.0-SNAPSHOT</hop.plugin.commons.version>
     <hop.geometry.type.version>0.2.0-SNAPSHOT</hop.geometry.type.version>
     <jts.version>1.20.0</jts.version>
     <geotools.version>35.1</geotools.version>

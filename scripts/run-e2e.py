@@ -611,6 +611,61 @@ def run_primary_copy_examples(hop_home: Path, env: dict[str, str], work: Path) -
             raise SystemExit(f"Unexpected output from the two primary copies in {name}: {actual!r}")
 
 
+def run_distance_examples(hop_home: Path, env: dict[str, str], work: Path) -> None:
+    input_dir = work / "distance-input"
+    output_dir = work / "distance-output"
+    input_dir.mkdir()
+    output_dir.mkdir()
+    write_input(input_dir / "secondary.csv", ["region", "mask"], [
+        ["10", "POLYGON ((0 0, 3 0, 3 3, 0 3, 0 0))"],
+    ])
+    cases = (
+        (
+            "spatial-predicate", "Spatial Predicate", "distance_lte", "1",
+            [["1", "POINT (1 1)", "0"], ["2", "POINT (5 5)", "3"],
+             ["3", "POINT (4 1)", "0"]],
+            [["id", "matches"], ["1", "Y"], ["2", "N"], ["3", "Y"]],
+            [["id", "matches"], ["1", "Y"], ["2", "Y"], ["3", "N"]],
+        ),
+        (
+            "geometry-operation", "Geometry Operation", "densify", "3",
+            [["1", "LINESTRING (0 0, 4 0)", "5"]],
+            [["id", "centroid"], ["1", "LINESTRING (0 0, 2 0, 4 0)"]],
+            [["id", "centroid"], ["1", "LINESTRING (0 0, 4 0)"]],
+        ),
+    )
+    for name, transform_name, operation, threshold, rows, static_result, field_result in cases:
+        write_input(input_dir / "geometry.csv", ["id", "geometry", "threshold"], rows)
+        pipeline = ET.parse(ROOT / "examples" / f"{name}.hpl")
+        for element in pipeline.iter():
+            if element.text in {"INPUT_DIR", "OUTPUT_DIR"}:
+                element.text = f"E2E_{element.text}"
+            elif element.text and element.text.startswith(("${INPUT_DIR}", "${OUTPUT_DIR}")):
+                element.text = element.text.replace("${", "${E2E_", 1)
+        parameter = ET.SubElement(pipeline.find("info/parameters"), "parameter")
+        ET.SubElement(parameter, "name").text = "DISTANCE"
+        ET.SubElement(parameter, "default_value").text = threshold
+        transforms = {transform.findtext("name"): transform for transform in pipeline.findall("transform")}
+        reader_fields = transforms["Read geometry"].find("fields")
+        distance_field = ET.SubElement(reader_fields, "field")
+        ET.SubElement(distance_field, "name").text = "threshold"
+        ET.SubElement(distance_field, "type").text = "Number"
+        ET.SubElement(distance_field, "decimal").text = "."
+        transform = transforms[transform_name]
+        transform.find("operationId").text = operation
+        ET.SubElement(transform, "distanceValue").text = "${DISTANCE}"
+        ET.SubElement(transform, "distanceFieldName").text = "threshold"
+        mode = ET.SubElement(transform, "distanceMode")
+        for source, expected in (("STATIC", static_result), ("FIELD", field_result)):
+            mode.text = source
+            pipeline_file = work / f"{name}-distance-{source.lower()}.hpl"
+            pipeline.write(pipeline_file, encoding="utf-8", xml_declaration=True)
+            output = output_dir / f"{name}.csv"
+            output.unlink(missing_ok=True)
+            run_pipeline(hop_home, pipeline_file, env, input_dir, output_dir)
+            require_output(output, expected)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--hop-home", required=True, type=Path)
@@ -683,6 +738,7 @@ def main() -> int:
         run_converter_e2e(hop_home, env, input_dir, output_dir)
         run_reproject_e2e(hop_home, env, input_dir, output_dir, work)
         run_primary_copy_examples(hop_home, env, work)
+        run_distance_examples(hop_home, env, work)
 
         subprocess.run(
             ["python3", str(ROOT / "scripts/run-examples.py"), "--hop-home", str(hop_home)],

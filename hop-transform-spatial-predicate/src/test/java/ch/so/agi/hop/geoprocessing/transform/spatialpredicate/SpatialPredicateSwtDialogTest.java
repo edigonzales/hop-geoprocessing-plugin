@@ -2,6 +2,10 @@ package ch.so.agi.hop.geoprocessing.transform.spatialpredicate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.so.agi.hop.commons.core.SourceMode;
+import ch.so.agi.hop.commons.core.ValueOrField;
+import ch.so.agi.hop.commons.ui.ValueOrFieldControl;
+import ch.so.agi.hop.geoprocessing.core.DistanceMode;
 import com.atolcd.hop.core.row.value.ValueMetaGeometry;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicReference;
@@ -10,8 +14,10 @@ import org.apache.hop.core.annotations.Transform;
 import org.apache.hop.core.plugins.PluginRegistry;
 import org.apache.hop.core.plugins.TransformPluginType;
 import org.apache.hop.core.row.IRowMeta;
+import org.apache.hop.core.row.value.ValueMetaNumber;
 import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.core.variables.Variables;
+import org.apache.hop.core.xml.XmlHandler;
 import org.apache.hop.metadata.api.IHopMetadataProvider;
 import org.apache.hop.pipeline.PipelineHopMeta;
 import org.apache.hop.pipeline.PipelineMeta;
@@ -42,6 +48,15 @@ class SpatialPredicateSwtDialogTest {
 
     var meta = new SpatialPredicateMeta();
     meta.setDefault();
+    DistanceMode legacyMode = hasInfoHop ? DistanceMode.FIELD : DistanceMode.STATIC;
+    meta.loadXml(XmlHandler.loadXmlString("""
+        <transform>
+          <operationId>within</operationId>
+          <distanceMode>%s</distanceMode>
+          <distanceValue>${THRESHOLD}</distanceValue>
+          <distanceFieldName>point_distance</distanceFieldName>
+        </transform>
+        """.formatted(legacyMode)).getDocumentElement(), null);
     var predicate = new TransformMeta("Spatial Predicate", meta);
     var points = new TransformMeta("Points", new GeometrySource("point"));
     var polygons = new TransformMeta("Polygons", new GeometrySource("mask"));
@@ -101,6 +116,35 @@ class SpatialPredicateSwtDialogTest {
           }
           assertThat(primary.getItems()).containsExactly("point");
           assertThat(secondary.getItems()).containsExactly("mask");
+          ValueOrFieldControl distance = field(fields, "Distance", ValueOrFieldControl.class);
+          assertThat(distance.getVisible()).isFalse();
+          Combo operation = field(fields, "Operation", Combo.class);
+          operation.select(operation.indexOf("Distance <= (any match)"));
+          operation.notifyListeners(SWT.Modify, new Event());
+          assertThat(distance.getVisible()).isTrue();
+          SourceMode initialSource = hasInfoHop ? SourceMode.FIELD : SourceMode.CONFIGURED;
+          ValueOrField legacy = new ValueOrField(initialSource, "${THRESHOLD}", "point_distance");
+          assertThat(distance.getValue()).isEqualTo(legacy);
+          meta.setChanged(false);
+          distance.setValue(new ValueOrField(initialSource, "3", "other_distance"));
+          distance.setValue(legacy);
+          assertThat(meta.hasChanged()).isFalse();
+          Combo distanceSource = Arrays.stream(distance.getChildren())
+              .filter(Combo.class::isInstance).map(Combo.class::cast).findFirst().orElseThrow();
+          distanceSource.select(0);
+          distanceSource.notifyListeners(SWT.Selection, new Event());
+          distanceSource.select(1);
+          distanceSource.notifyListeners(SWT.Selection, new Event());
+          Composite editors = Arrays.stream(distance.getChildren())
+              .filter(control -> control.getClass() == Composite.class).map(Composite.class::cast).findFirst().orElseThrow();
+          Combo fieldEditor = Arrays.stream(editors.getChildren())
+              .filter(control -> control.getClass() == Composite.class).map(Composite.class::cast)
+              .flatMap(page -> Arrays.stream(page.getChildren()))
+              .filter(Combo.class::isInstance).map(Combo.class::cast).findFirst().orElseThrow();
+          assertThat(meta.hasChanged()).isTrue();
+          assertThat(fieldEditor.getItems()).containsExactly("point_distance");
+          assertThat(distance.getValue()).isEqualTo(
+              new ValueOrField(SourceMode.FIELD, "${THRESHOLD}", "point_distance"));
           field(fields, "Boolean output field", Text.class).setText("edited");
           String button = accept ? "OK" : "Cancel";
           Arrays.stream(shell.getChildren()).filter(Button.class::isInstance)
@@ -120,6 +164,9 @@ class SpatialPredicateSwtDialogTest {
       if (accept) {
         assertThat(result).isEqualTo("Spatial Predicate");
         assertThat(info.getTransformMeta()).isSameAs(polygons);
+        assertThat(meta.getDistanceMode()).isEqualTo(DistanceMode.FIELD);
+        assertThat(meta.getDistanceValue()).isEqualTo("${THRESHOLD}");
+        assertThat(meta.getDistanceFieldName()).isEqualTo("point_distance");
         assertThat(meta.getXml()).contains("<infoTransformName>Polygons</infoTransformName>");
       } else {
         assertThat(result).isNull();
@@ -157,6 +204,7 @@ class SpatialPredicateSwtDialogTest {
       // Hop sources can expose a different schema for each destination.
       if (field != null && next != null && "Spatial Predicate".equals(next.getName())) {
         row.addValueMeta(new ValueMetaGeometry(field));
+        row.addValueMeta(new ValueMetaNumber(field + "_distance"));
       }
     }
   }

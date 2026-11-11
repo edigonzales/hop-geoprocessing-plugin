@@ -104,7 +104,9 @@ def check_safe_path(name: str) -> None:
         raise SystemExit(f"ZIP contains an unsafe path: {name}")
 
 
-def validate_jar(name: str, content: bytes, required: tuple[str, ...]) -> None:
+def validate_jar(
+    name: str, content: bytes, required: tuple[str, ...], *, require_jandex: bool = True
+) -> None:
     with zipfile.ZipFile(io.BytesIO(content)) as jar:
         if jar.testzip() is not None:
             raise SystemExit(f"JAR is corrupt: {name}")
@@ -115,7 +117,7 @@ def validate_jar(name: str, content: bytes, required: tuple[str, ...]) -> None:
         missing = sorted(set(required) - entries)
         if missing:
             raise SystemExit(f"JAR {name} is missing required entries: {missing}")
-        if "META-INF/jandex.idx" not in entries:
+        if require_jandex and "META-INF/jandex.idx" not in entries:
             raise SystemExit(f"JAR is missing Jandex metadata: {name}")
 
 
@@ -149,11 +151,20 @@ def validate(path: Path, version: str, maven_repository: Path) -> dict[str, obje
                 f"Expected exactly {len(PLUGIN_SPECS)} geoprocessing plugin JARs, found {sorted(plugin_jars)}"
             )
 
-        core_jars = {
-            entry for entry in files if entry.startswith(f"{PLUGIN_ROOT}/lib/") and entry.endswith(".jar")
+        library_jars = [
+            entry for entry in entries if entry.startswith(f"{PLUGIN_ROOT}/lib/") and entry.endswith(".jar")
+        ]
+        commons_libraries = {
+            f"{PLUGIN_ROOT}/lib/hop-plugin-commons-core.jar":
+                "ch/so/agi/hop/commons/core/ValueOrField.class",
+            f"{PLUGIN_ROOT}/lib/hop-plugin-commons-ui.jar":
+                "ch/so/agi/hop/commons/ui/ValueOrFieldControl.class",
         }
-        if core_jars != {CORE_JAR}:
-            raise SystemExit(f"Expected exactly {CORE_JAR}, found {sorted(core_jars)}")
+        required_libraries = [CORE_JAR, *commons_libraries]
+        if sorted(library_jars) != sorted(required_libraries):
+            raise SystemExit(f"Expected library JARs {required_libraries}, found {sorted(library_jars)}")
+        for library, class_entry in commons_libraries.items():
+            validate_jar(library, archive.read(library), (class_entry,), require_jandex=False)
 
         forbidden = sorted(
             entry

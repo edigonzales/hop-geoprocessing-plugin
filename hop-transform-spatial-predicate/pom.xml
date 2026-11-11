@@ -15,6 +15,11 @@
 
   <dependencies>
     <dependency>
+      <groupId>ch.so.agi</groupId>
+      <artifactId>hop-plugin-commons-ui</artifactId>
+      <version>${hop.plugin.commons.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.apache.hop</groupId>
       <artifactId>hop-core</artifactId>
       <scope>provided</scope>

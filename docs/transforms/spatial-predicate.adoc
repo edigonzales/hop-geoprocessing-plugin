@@ -33,24 +33,25 @@ convert WKT to native Geometry if needed.
 [[spatial-predicate-options]]
 == Options
 
-The following example shows the dialog with *Within* and `KEEP_MATCHED` selected.
-`v` marks a dropdown. Distance controls appear only for distance predicates;
-the boolean output field and join prefix appear only in their respective result modes.
+The following example shows a configured distance threshold with `KEEP_MATCHED` selected.
+`v` marks a dropdown. The *Distance* control appears only for distance predicates.
+The boolean output field and join prefix appear only in their respective result modes.
 
 [.gui-mockup]
 ----
 +-----------------------------------------------------------------------------------+
 | Spatial Predicate                                                                 |
-| Name                        [Points within Polygons]                              |
+| Name                        [Points near polygons]                                |
 | Connect both producers, then choose the secondary producer in                     |
 | 'Secondary info transform'.                                                       |
 | Optional reject target hop: KEEP_MATCHED and KEEP_UNMATCHED can send              |
 | the opposite set to a second output stream.                                       |
-| Operation                   [Within                                   v]          |
+| Operation                   [Distance <= (any match)                  v]          |
 | Execution mode              [Caches secondary layer            read-only]         |
 | Secondary info transform    [Polygons                                v]           |
 | Primary geometry field      [point                                    v]          |
 | Secondary geometry field    [mask                                     v]          |
+| Distance                    [Configured v] [${DISTANCE}]                          |
 | Result mode                 [KEEP_MATCHED                             v]          |
 | [Help]                           [OK] [Cancel]                                    |
 +-----------------------------------------------------------------------------------+
@@ -155,7 +156,7 @@ Full list: <<reference-matrix-spatial-predicate,Reference Matrix>>
 * optional reject target hop
 ** `KEEP++_++MATCHED` and `KEEP++_++UNMATCHED` can send the opposite filter result to a second output stream
 * `distance`
-** threshold for `distance++_++lte` and `distance++_++gte`
+** threshold for `distance++_++lte` and `distance++_++gte`. Choose *Configured* for a literal or variable, or *Field* for a numeric primary-input column. *Refresh* reloads primary-input suggestions. Switching sources preserves both entries.
 * `BOOLEAN++_++COLUMN`
 ** writes `true/false` to a new column
 * `KEEP++_++MATCHED`
