@@ -24,7 +24,7 @@ final class SpatialPredicateMatcher {
   }
 
   boolean matches(Geometry primaryGeometry, Double distance) throws HopException {
-    if (primaryGeometry == null) {
+    if (primaryGeometry == null || primaryGeometry.isEmpty()) {
       return false;
     }
     if ("disjoint".equals(operationId)) {
@@ -40,18 +40,24 @@ final class SpatialPredicateMatcher {
     if ("distance_gte".equals(operationId)) {
       for (FeatureRow candidate : candidateFeatures(primaryGeometry, distance)) {
         if (candidate.geometry() != null
-            && executor.test("distance_lte", primaryGeometry, candidate.geometry(), distance)) {
+            && !executor.test("distance_gte", primaryGeometry, candidate.geometry(), distance)) {
           return false;
         }
       }
       return true;
     }
-    return !matchingFeatures(primaryGeometry, distance).isEmpty();
+    RelateNG preparedPrimary = executor.prepare(primaryGeometry);
+    for (FeatureRow candidate : candidateFeatures(primaryGeometry, distance)) {
+      if (executor.test(operationId, preparedPrimary, primaryGeometry, candidate.geometry(), distance)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   List<FeatureRow> matchingFeatures(Geometry primaryGeometry, Double distance) throws HopException {
     List<FeatureRow> matches = new ArrayList<>();
-    if (primaryGeometry == null) {
+    if (primaryGeometry == null || primaryGeometry.isEmpty()) {
       return matches;
     }
     RelateNG preparedPrimary = executor.prepare(primaryGeometry);
@@ -67,6 +73,7 @@ final class SpatialPredicateMatcher {
   }
 
   private List<FeatureRow> candidateFeatures(Geometry primaryGeometry, Double distance) throws HopException {
+    secondaryLayerCache.requireCompatibleSrid(primaryGeometry);
     Envelope envelope = executor.searchEnvelope(operationId, primaryGeometry, distance);
     return secondaryLayerCache.query(envelope);
   }

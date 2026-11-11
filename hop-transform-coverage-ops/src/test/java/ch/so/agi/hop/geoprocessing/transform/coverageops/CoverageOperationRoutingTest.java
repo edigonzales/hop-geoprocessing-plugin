@@ -12,6 +12,7 @@ import org.apache.hop.core.IRowSet;
 import org.apache.hop.core.exception.HopException;
 import org.apache.hop.core.row.IRowMeta;
 import org.apache.hop.core.row.RowMeta;
+import org.apache.hop.core.row.value.ValueMetaString;
 import org.apache.hop.core.xml.XmlHandler;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.pipeline.transform.TransformMeta;
@@ -27,6 +28,34 @@ class CoverageOperationRoutingTest {
 
   private final GeometryFactory geometryFactory = new GeometryFactory();
   private final WKTReader wktReader = new WKTReader(geometryFactory);
+
+  @Test
+  void coverageProcessesNullGroupTogether() throws Exception {
+    var meta = new CoverageOperationMeta();
+    meta.setDefault();
+    meta.setOperationId("coverage_validate");
+    meta.setGroupFieldNames("group");
+    var transform = new TestCoverageOperation(
+        new TransformMeta("coverage", meta), meta, new CoverageOperationData(), 0, new PipelineMeta());
+    RowMeta input = new RowMeta();
+    input.addValueMeta(new ValueMetaGeometry("geometry"));
+    input.addValueMeta(new ValueMetaString("group"));
+    Geometry left = wkt("POLYGON ((0 0, 2 0, 2 2, 0 2, 0 0))");
+    Geometry right = wkt("POLYGON ((1 0, 3 0, 3 2, 1 2, 1 0))");
+    transform.setInput(input, List.of(
+        new Object[] {left, null}, new Object[] {left, "A"}, new Object[] {right, null}));
+    BlockingRowSet output = addOutputRowSet(transform, "main");
+    while (transform.processRow()) {
+      // Drain the transform.
+    }
+
+    List<Object[]> rows = drainRows(output);
+    int valid = output.getRowMeta().indexOfValue(meta.getBooleanFieldName());
+    assertThat(rows).hasSize(3);
+    for (Object[] result : rows) {
+      assertThat(result[valid]).isEqualTo(result[1] != null);
+    }
+  }
 
   @Test
   void rejectsActiveRejectHopForNonValidationOperation() throws Exception {

@@ -1,6 +1,7 @@
 package ch.so.agi.hop.geoprocessing.core;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import org.apache.hop.core.row.RowMeta;
@@ -22,6 +23,35 @@ class LayerOverlayExecutorTest {
 
   LayerOverlayExecutorTest() {
     rowMeta.addValueMeta(new ValueMetaInteger("id"));
+  }
+
+  @Test
+  void mixedSecondarySridsAreRejectedBeforeBuildingUnion() {
+    Geometry first = polygon(0, 0, 10, 10);
+    first.setSRID(2056);
+    Geometry second = polygon(20, 20, 30, 30);
+    second.setSRID(4326);
+    assertThatThrownBy(() -> new SpatialIndexBuilder()
+        .build(List.of(feature(1, first), feature(2, second)), rowMeta, true))
+        .hasMessageContaining("EPSG:2056 and EPSG:4326");
+  }
+
+  @Test
+  void allOverlayOperationsCheckSridBeforeProcessing() throws Exception {
+    Geometry primary = polygon(0, 0, 10, 10);
+    primary.setSRID(2056);
+    Geometry secondary = polygon(20, 20, 30, 30);
+    secondary.setSRID(4326);
+    LayerCache cache = new SpatialIndexBuilder()
+        .build(List.of(feature(1, secondary)), rowMeta, true);
+    for (String operation : List.of("intersection", "clip", "erase", "identity")) {
+      assertThatThrownBy(() -> executor.execute(operation, feature(2, primary), cache))
+          .hasMessageContaining("2056 vs 4326");
+    }
+    primary.setSRID(4326);
+    assertThat(executor.execute("erase", feature(2, primary), cache)).hasSize(1);
+    primary.setSRID(0);
+    assertThat(executor.execute("clip", feature(2, primary), cache)).isEmpty();
   }
 
   @Test

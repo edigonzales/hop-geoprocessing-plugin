@@ -12,6 +12,8 @@
 [[layer-overlay-input]]
 == Input
 
+All nonempty geometries with a known positive SRID must use the same SRID across both inputs. SRID 0 is treated as unknown.
+
 Connect two independent producers to Layer Overlay. In the dialog, choose the secondary producer
 from *Secondary info transform*, which lists enabled incoming data hops. Click *OK*
 to assign the hop to the *Secondary layer* info stream. The assignment is saved with the

@@ -1,6 +1,7 @@
 package ch.so.agi.hop.geoprocessing.transform.spatialpredicate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ch.so.agi.hop.geoprocessing.core.FeatureRow;
 import ch.so.agi.hop.geoprocessing.core.SpatialIndexBuilder;
@@ -64,6 +65,50 @@ class SpatialPredicateMatcherTest {
     assertThat(matcher.matchingFeatures(primary, null))
         .extracting(FeatureRow::sourceId)
         .containsExactly(1L);
+  }
+
+  @Test
+  void minimumDistanceIncludesTheBoundaryAndUsesTheNearestFeature() throws Exception {
+    Geometry primary = geometryFactory.createPoint(new Coordinate(0, 0));
+    Geometry near = geometryFactory.createPoint(new Coordinate(3, 0));
+    Geometry far = geometryFactory.createPoint(new Coordinate(30, 0));
+    var cache = new SpatialIndexBuilder().build(
+        List.of(feature(1, near), feature(2, far)), rowMeta, false);
+    var matcher = new SpatialPredicateMatcher(executor, cache, "distance_gte");
+
+    assertThat(matcher.matches(primary, 2.0)).isTrue();
+    assertThat(matcher.matches(primary, 3.0)).isTrue();
+    assertThat(matcher.matches(primary, 4.0)).isFalse();
+    assertThat(matcher.matches(primary, 0.0)).isTrue();
+    assertThat(matcher.matches(null, 0.0)).isFalse();
+  }
+
+  @Test
+  void checksLayerSridBeforeQueryForBooleanAndJoin() throws Exception {
+    Geometry primary = geometryFactory.createPoint(new Coordinate(0, 0));
+    primary.setSRID(2056);
+    Geometry secondary = geometryFactory.createPoint(new Coordinate(30, 0));
+    secondary.setSRID(4326);
+    var cache = new SpatialIndexBuilder().build(List.of(feature(1, secondary)), rowMeta, false);
+    var matcher = new SpatialPredicateMatcher(executor, cache, "intersects");
+
+    assertThatThrownBy(() -> matcher.matches(primary, null)).hasMessageContaining("2056 vs 4326");
+    assertThatThrownBy(() -> matcher.matchingFeatures(primary, null)).hasMessageContaining("2056 vs 4326");
+    primary.setSRID(0);
+    assertThat(matcher.matches(primary, null)).isFalse();
+  }
+
+  @Test
+  void validatesThresholdsEvenForAnEmptyLayer() throws Exception {
+    Geometry primary = geometryFactory.createPoint(new Coordinate(0, 0));
+    var cache = new SpatialIndexBuilder().build(List.of(), rowMeta, false);
+    var matcher = new SpatialPredicateMatcher(executor, cache, "distance_gte");
+    assertThat(matcher.matches(primary, 3.0)).isTrue();
+    assertThat(matcher.matches(geometryFactory.createPoint(), 3.0)).isFalse();
+    for (double invalid : new double[] {-1, Double.NaN, Double.POSITIVE_INFINITY}) {
+      assertThatThrownBy(() -> matcher.matches(primary, invalid))
+          .hasMessageContaining("finite and nonnegative");
+    }
   }
 
   private FeatureRow feature(long sourceId, Geometry geometry) {

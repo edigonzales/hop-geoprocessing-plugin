@@ -67,6 +67,9 @@ class SpatialPredicateExecutorTest {
     Polygon right = polygon(5, 0, 6, 1);
 
     assertThat(executor.test("distance_gte", left, right, 2.0)).isTrue();
+    assertThat(executor.test("distance_gte", left, right, 4.0)).isTrue();
+    assertThat(executor.test("distance_lte", left, right, 4.0)).isTrue();
+    assertThat(executor.test("distance_gte", left, right, 5.0)).isFalse();
     assertThat(executor.test("distance_lte", left, right, 2.0)).isFalse();
   }
 

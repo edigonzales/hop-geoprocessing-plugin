@@ -41,7 +41,7 @@ The field status reports missing or incompatible mappings before accepting the d
 [[layer-aggregate-output]]
 == Output
 
-One row per group containing grouping fields and the configured aggregate geometry; without grouping, one row for the whole layer.
+One row per group containing grouping fields in input schema order and the configured aggregate geometry. Rows with the same grouping values, including nulls, form one group. Without grouping fields, the transform emits one row for the whole layer. Group field names must be unique, and the output field name must be new.
 
 [[layer-aggregate-supported-engines]]
 == Supported engines

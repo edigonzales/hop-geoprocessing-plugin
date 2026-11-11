@@ -13,7 +13,7 @@ topology-preservingly simplifies while keeping row cardinality stable.
 [[coverage-operation-input]]
 == Input
 
-One polygon stream with optional grouping fields. All rows of a coverage/group must be available before results are emitted.
+One polygon stream with optional grouping fields. Rows with the same grouping values, including nulls, form one coverage group. All rows of a coverage/group must be available before results are emitted.
 
 [[coverage-operation-options]]
 == Options

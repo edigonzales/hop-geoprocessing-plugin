@@ -36,8 +36,8 @@ public class SpatialPredicateExecutor {
           "overlaps",
           "touches",
           "within" -> evaluateRelate(operationId, preparedPrimary, primary, secondary);
-      case "distance_gte" -> !primary.isWithinDistance(secondary, Math.abs(requireDistance(distance)));
-      case "distance_lte" -> primary.isWithinDistance(secondary, Math.abs(requireDistance(distance)));
+      case "distance_gte" -> primary.distance(secondary) >= requireDistance(distance);
+      case "distance_lte" -> primary.isWithinDistance(secondary, requireDistance(distance));
       default -> throw new HopException("Unsupported spatial predicate: " + operationId);
     };
   }
@@ -50,7 +50,7 @@ public class SpatialPredicateExecutor {
   public Envelope searchEnvelope(String operationId, Geometry geometry, Double distance) throws HopException {
     Envelope envelope = new Envelope(geometry.getEnvelopeInternal());
     if ("distance_lte".equals(operationId) || "distance_gte".equals(operationId)) {
-      envelope.expandBy(Math.abs(requireDistance(distance)));
+      envelope.expandBy(requireDistance(distance));
     }
     return envelope;
   }
@@ -58,6 +58,9 @@ public class SpatialPredicateExecutor {
   private double requireDistance(Double distance) throws HopException {
     if (distance == null) {
       throw new HopException("Distance is required");
+    }
+    if (!Double.isFinite(distance) || distance < 0) {
+      throw new HopException("Distance must be finite and nonnegative: " + distance);
     }
     return distance;
   }
