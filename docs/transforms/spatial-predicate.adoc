@@ -96,7 +96,7 @@ from data errors.
 [[spatial-predicate-limitations]]
 == Limitations
 
-The secondary layer must fit in memory. INNER_JOIN is unsupported for disjoint and distance_gte.
+The secondary layer must fit in memory. All nonempty geometries with a known positive SRID must use the same SRID across both inputs. SRID 0 is treated as unknown. Distance thresholds must be finite and nonnegative. Previously, negative thresholds were treated as positive magnitudes. The minimum-distance predicate includes equality with the threshold. INNER_JOIN is unsupported for disjoint and distance_gte.
 
 == Detailed reference
 

@@ -20,6 +20,7 @@ public class LayerOverlayExecutor {
       return List.of();
     }
 
+    secondaryCache.requireCompatibleSrid(primaryGeometry);
     return switch (operationId) {
       case "clip" -> clip(primaryFeature, secondaryCache, overlayMode, precisionScale);
       case "erase" -> erase(primaryFeature, secondaryCache, overlayMode, precisionScale);

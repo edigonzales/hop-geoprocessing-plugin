@@ -3,6 +3,7 @@ package ch.so.agi.hop.geoprocessing.core;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.apache.hop.core.exception.HopException;
 import org.apache.hop.core.row.IRowMeta;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -15,11 +16,27 @@ public class LayerCache {
   private final STRtree spatialIndex;
   private final Geometry unionGeometry;
 
-  public LayerCache(List<FeatureRow> features, IRowMeta rowMeta, STRtree spatialIndex, Geometry unionGeometry) {
+  private final Integer knownSrid;
+
+  LayerCache(
+      List<FeatureRow> features,
+      IRowMeta rowMeta,
+      STRtree spatialIndex,
+      Geometry unionGeometry,
+      Integer knownSrid) {
     this.features = Collections.unmodifiableList(new ArrayList<>(features));
     this.rowMeta = rowMeta;
     this.spatialIndex = spatialIndex;
     this.unionGeometry = unionGeometry;
+    this.knownSrid = knownSrid;
+  }
+
+  public void requireCompatibleSrid(Geometry primary) throws HopException {
+    Integer primarySrid = GeometryFieldValueHelper.sridOf(primary);
+    if (knownSrid != null && primarySrid != null && primarySrid > 0
+        && !knownSrid.equals(primarySrid)) {
+      throw new HopException("Geometry SRIDs must match (" + primarySrid + " vs " + knownSrid + ")");
+    }
   }
 
   public List<FeatureRow> getFeatures() {

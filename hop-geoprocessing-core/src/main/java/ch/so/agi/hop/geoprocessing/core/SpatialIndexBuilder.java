@@ -23,13 +23,20 @@ public class SpatialIndexBuilder {
     Integer srid = null;
 
     for (FeatureRow feature : features) {
-      if (feature.geometry() == null) {
+      if (feature.geometry() == null || feature.geometry().isEmpty()) {
         continue;
       }
       index.insert(feature.envelope(), feature);
-      geometries.add(feature.geometry());
-      if (srid == null) {
-        srid = GeometryFieldValueHelper.sridOf(feature.geometry());
+      if (buildUnionGeometry) {
+        geometries.add(feature.geometry());
+      }
+      int featureSrid = feature.geometry().getSRID();
+      if (featureSrid > 0) {
+        if (srid != null && srid != featureSrid) {
+          throw new IllegalStateException(
+              "Secondary layer contains incompatible SRIDs: EPSG:" + srid + " and EPSG:" + featureSrid);
+        }
+        srid = featureSrid;
       }
     }
     index.build();
@@ -48,6 +55,6 @@ public class SpatialIndexBuilder {
       }
     }
 
-    return new LayerCache(features, rowMeta == null ? null : (IRowMeta) rowMeta.clone(), index, unionGeometry);
+    return new LayerCache(features, rowMeta == null ? null : (IRowMeta) rowMeta.clone(), index, unionGeometry, srid);
   }
 }

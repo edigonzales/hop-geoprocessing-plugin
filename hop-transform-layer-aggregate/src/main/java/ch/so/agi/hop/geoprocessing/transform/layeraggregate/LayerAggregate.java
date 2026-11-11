@@ -3,8 +3,8 @@ package ch.so.agi.hop.geoprocessing.transform.layeraggregate;
 import ch.so.agi.hop.geoprocessing.core.GeometryFieldSelection;
 import ch.so.agi.hop.geoprocessing.core.GeometryFieldSelectionResolver;
 import ch.so.agi.hop.geoprocessing.core.GeometryFieldValueHelper;
-import ch.so.agi.hop.geoprocessing.core.TextListSupport;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,9 +56,8 @@ public class LayerAggregate extends BaseTransform<LayerAggregateMeta, LayerAggre
       if (data.outputRowMeta == null) {
         initializeFromInputRowMeta();
       }
-      List<Object> groupValues = groupValues(row);
-      GroupKey key = new GroupKey(groupValues);
-      GroupAccumulator accumulator = groups.computeIfAbsent(key, ignored -> new GroupAccumulator(groupValues));
+      GroupAccumulator accumulator =
+          groups.computeIfAbsent(new GroupKey(groupValues(row)), key -> new GroupAccumulator(key.values()));
       Geometry geometry = GeometryFieldValueHelper.readGeometry(getInputRowMeta(), data.geometryFieldIndex, row);
       if (geometry != null) {
         accumulator.geometries().add(geometry);
@@ -85,18 +84,11 @@ public class LayerAggregate extends BaseTransform<LayerAggregateMeta, LayerAggre
     data.geometryFieldIndex =
         GEOMETRY_FIELD_SELECTION_RESOLVER.requireFieldIndex(
             getInputRowMeta(), meta.getGeometryFieldName(), "Geometry field");
-    List<String> groupFields = TextListSupport.splitCsvOrSemicolon(meta.getGroupFieldNames());
-    data.groupFieldIndexes = new int[groupFields.size()];
-    for (int index = 0; index < groupFields.size(); index++) {
-      data.groupFieldIndexes[index] = getInputRowMeta().indexOfValue(groupFields.get(index));
-      if (data.groupFieldIndexes[index] < 0) {
-        throw new HopException("Unknown group field: " + groupFields.get(index));
-      }
-    }
-    data.outputGeometryFieldIndex = data.outputRowMeta.indexOfValue(meta.getOutputFieldName());
-    if (data.outputGeometryFieldIndex < 0) {
-      throw new HopException(
-          "Output geometry field was not found on the output row: " + meta.getOutputFieldName());
+    data.outputGeometryFieldIndex = data.outputRowMeta.size() - 1;
+    data.groupFieldIndexes = new int[data.outputGeometryFieldIndex];
+    for (int index = 0; index < data.groupFieldIndexes.length; index++) {
+      String name = data.outputRowMeta.getValueMeta(index).getName();
+      data.groupFieldIndexes[index] = getInputRowMeta().indexOfValue(name);
     }
   }
 
@@ -104,10 +96,6 @@ public class LayerAggregate extends BaseTransform<LayerAggregateMeta, LayerAggre
     if (warning != null && !warning.isBlank()) {
       logBasic(warning);
     }
-  }
-
-  private GroupKey groupKey(Object[] row) {
-    return new GroupKey(groupValues(row));
   }
 
   private List<Object> groupValues(Object[] row) {
@@ -120,13 +108,13 @@ public class LayerAggregate extends BaseTransform<LayerAggregateMeta, LayerAggre
 
   private record GroupKey(List<Object> values) {
     private GroupKey {
-      values = List.copyOf(values);
+      values = Collections.unmodifiableList(new ArrayList<>(values));
     }
   }
 
   private record GroupAccumulator(List<Object> groupValues, List<Geometry> geometries) {
     private GroupAccumulator(List<Object> groupValues) {
-      this(List.copyOf(groupValues), new ArrayList<>());
+      this(groupValues, new ArrayList<>());
     }
   }
 }

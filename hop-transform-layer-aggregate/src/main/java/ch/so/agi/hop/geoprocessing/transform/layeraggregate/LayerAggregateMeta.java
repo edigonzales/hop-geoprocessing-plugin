@@ -13,6 +13,7 @@ import java.util.Set;
 import org.apache.hop.core.CheckResult;
 import org.apache.hop.core.ICheckResult;
 import org.apache.hop.core.annotations.Transform;
+import org.apache.hop.core.exception.HopTransformException;
 import org.apache.hop.core.row.IRowMeta;
 import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.metadata.api.HopMetadataProperty;
@@ -52,10 +53,11 @@ public class LayerAggregateMeta extends BaseTransformMeta<LayerAggregate, LayerA
       IRowMeta[] info,
       TransformMeta nextTransform,
       IVariables variables,
-      IHopMetadataProvider metadataProvider) {
-    Set<String> groupFields = new HashSet<>(TextListSupport.splitCsvOrSemicolon(groupFieldNames));
+      IHopMetadataProvider metadataProvider) throws HopTransformException {
+    Set<Integer> groupFields = groupFieldIndexes(rowMeta);
+    validateOutputField(rowMeta);
     for (int index = rowMeta.size() - 1; index >= 0; index--) {
-      if (!groupFields.contains(rowMeta.getValueMeta(index).getName())) {
+      if (!groupFields.contains(index)) {
         rowMeta.removeValueMeta(index);
       }
     }
@@ -90,21 +92,37 @@ public class LayerAggregateMeta extends BaseTransformMeta<LayerAggregate, LayerA
       remarks.add(error("Input geometry field is missing or invalid.", transformMeta));
       return;
     }
-    for (String groupFieldName : TextListSupport.splitCsvOrSemicolon(groupFieldNames)) {
-      if (prev.indexOfValue(groupFieldName) < 0) {
-        remarks.add(error("Unknown group field: " + groupFieldName, transformMeta));
-        return;
-      }
-    }
-    if (outputFieldName == null || outputFieldName.isBlank()) {
-      remarks.add(error("Output geometry field is required.", transformMeta));
-      return;
-    }
-    if (TextListSupport.splitCsvOrSemicolon(groupFieldNames).contains(outputFieldName)) {
-      remarks.add(error("Output geometry field must not be one of the group fields.", transformMeta));
+    try {
+      groupFieldIndexes(prev);
+      validateOutputField(prev);
+    } catch (HopTransformException e) {
+      remarks.add(error(e.getMessage(), transformMeta));
       return;
     }
     remarks.add(ok("Layer aggregate configuration looks valid.", transformMeta));
+  }
+
+  private Set<Integer> groupFieldIndexes(IRowMeta input) throws HopTransformException {
+    Set<Integer> indexes = new HashSet<>();
+    for (String name : TextListSupport.splitCsvOrSemicolon(groupFieldNames)) {
+      int index = input.indexOfValue(name);
+      if (index < 0) {
+        throw new HopTransformException("Unknown group field: " + name);
+      }
+      if (!indexes.add(index)) {
+        throw new HopTransformException("Duplicate group field: " + name);
+      }
+    }
+    return indexes;
+  }
+
+  private void validateOutputField(IRowMeta input) throws HopTransformException {
+    if (outputFieldName == null || outputFieldName.isBlank()) {
+      throw new HopTransformException("Output geometry field is required.");
+    }
+    if (input.indexOfValue(outputFieldName) >= 0) {
+      throw new HopTransformException("Output geometry field already exists: " + outputFieldName);
+    }
   }
 
   public List<OperationDescriptor> listOperations() {

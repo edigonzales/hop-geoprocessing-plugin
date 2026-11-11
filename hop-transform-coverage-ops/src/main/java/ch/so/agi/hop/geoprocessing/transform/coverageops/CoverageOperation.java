@@ -293,7 +293,7 @@ public class CoverageOperation extends BaseTransform<CoverageOperationMeta, Cove
 
   private record GroupKey(List<Object> values) {
     private GroupKey {
-      values = List.copyOf(values);
+      values = Collections.unmodifiableList(new ArrayList<>(values));
     }
   }
 }
