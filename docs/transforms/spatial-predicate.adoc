@@ -13,7 +13,7 @@ boolean, a filter decision, or an inner join.
 [[spatial-predicate-input]]
 == Input
 
-Connect both producers to Spatial Predicate with regular hops. Hop 2.19 may warn
+Connect two independent producers to Spatial Predicate with regular hops. Hop 2.19 may warn
 that their row layouts differ while both hops are still regular. Open Spatial Predicate
 and choose the secondary producer in *Secondary info transform*. Click *OK* to assign
 its hop to the *Secondary layer* info stream. The other hop supplies the primary rows.
@@ -22,6 +22,10 @@ An incoming hop alone does not assign it to the info stream.
 The read-only dropdown lists producers with enabled incoming data hops. It does not accept
 typed names. To switch producers, connect the new producer, remove the old secondary hop
 if it is no longer needed, and choose the new producer in the dialog.
+
+Spatial Predicate requires one primary producer and one secondary INFO row set per
+copy of the predicate. Hop can feed multiple copies of the same primary producer
+into one predicate.
 
 Each geometry selector lists fields from its own stream. Use Select Values upstream to
 convert WKT to native Geometry if needed.
@@ -60,7 +64,9 @@ a point at (5, 5) is filtered out.
 [[spatial-predicate-output]]
 == Output
 
-BOOLEAN_COLUMN appends a boolean. KEEP_MATCHED and KEEP_UNMATCHED filter rows and optionally route the opposite result to a reject target. INNER_JOIN emits one row per match.
+BOOLEAN_COLUMN appends a boolean. KEEP_MATCHED and KEEP_UNMATCHED filter rows and optionally route the opposite result to a reject target. INNER_JOIN emits one row per match. To assign a reject target, start the outgoing hop
+on Spatial Predicate and select *Reject rows*. Hop saves this assignment in the
+pipeline. Deleting the reject hop clears the assignment.
 
 [[spatial-predicate-supported-engines]]
 == Supported engines

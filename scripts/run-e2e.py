@@ -15,6 +15,7 @@ import subprocess
 import struct
 import tempfile
 import zipfile
+from xml.etree import ElementTree as ET
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -579,6 +580,37 @@ def run_negative_installation(
     )
 
 
+def run_primary_copy_examples(hop_home: Path, env: dict[str, str], work: Path) -> None:
+    examples = ROOT / "examples"
+    input_dir = work / "primary-copies-input"
+    output_dir = work / "primary-copies-output"
+    input_dir.mkdir()
+    output_dir.mkdir()
+
+    # Two producer copies must both reach the consumer. Repeat the fixture rows so
+    # Hop's distribution has enough data to exercise both copies.
+    geometry = read_output(examples / "fixtures/geometry.csv")
+    write_input(input_dir / "geometry.csv", geometry[0], geometry[1:] * 8)
+    shutil.copyfile(examples / "fixtures/secondary.csv", input_dir / "secondary.csv")
+    for name in ("spatial-predicate", "layer-overlay"):
+        pipeline = ET.parse(examples / f"{name}.hpl")
+        transforms = {transform.findtext("name"): transform for transform in pipeline.findall("transform")}
+        transforms["Read geometry"].find("distribute").text = "Y"
+        transforms["Prepare primary geometry"].find("copies").text = "2"
+        pipeline_file = work / f"{name}-primary-copies.hpl"
+        pipeline.write(pipeline_file, encoding="utf-8", xml_declaration=True)
+        command = [
+            str(hop_home / "hop-run.sh"), "-r", "local", "-f", str(pipeline_file),
+            "-p", f"INPUT_DIR={input_dir}", "-p", f"OUTPUT_DIR={output_dir}",
+        ]
+        print("==>", " ".join(command), flush=True)
+        subprocess.run(command, check=True, env=env, timeout=300)
+        expected = read_output(examples / "expected" / f"{name}.csv")
+        actual = read_output(output_dir / f"{name}.csv")
+        if actual[0] != expected[0] or sorted(actual[1:]) != sorted(expected[1:] * 8):
+            raise SystemExit(f"Unexpected output from the two primary copies in {name}: {actual!r}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--hop-home", required=True, type=Path)
@@ -650,6 +682,7 @@ def main() -> int:
 
         run_converter_e2e(hop_home, env, input_dir, output_dir)
         run_reproject_e2e(hop_home, env, input_dir, output_dir, work)
+        run_primary_copy_examples(hop_home, env, work)
 
         subprocess.run(
             ["python3", str(ROOT / "scripts/run-examples.py"), "--hop-home", str(hop_home)],

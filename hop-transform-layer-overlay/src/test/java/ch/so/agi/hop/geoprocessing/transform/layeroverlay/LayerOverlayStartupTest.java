@@ -1,6 +1,7 @@
 package ch.so.agi.hop.geoprocessing.transform.layeroverlay;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.atolcd.hop.core.row.value.ValueMetaGeometry;
 import java.util.ArrayList;
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.hop.core.BlockingRowSet;
 import org.apache.hop.core.IRowSet;
+import org.apache.hop.core.exception.HopTransformException;
 import org.apache.hop.core.row.IRowMeta;
 import org.apache.hop.core.row.RowMeta;
 import org.apache.hop.core.row.value.ValueMetaInteger;
@@ -19,6 +21,26 @@ import org.junit.jupiter.api.Test;
 import org.locationtech.jts.io.WKTReader;
 
 class LayerOverlayStartupTest {
+  @Test
+  void validatesPrimarySourcesBeforeReading() throws Exception {
+    var meta = new LayerOverlayMeta();
+    meta.setDefault();
+    meta.setInfoTransformName("secondary");
+    var overlay = new DeferredMetadataOverlay(meta);
+    overlay.input("secondary", new RowMeta(), List.of());
+    assertThatThrownBy(overlay::processRow)
+        .isInstanceOf(HopTransformException.class)
+        .hasMessageContaining("primary input transform, found 0");
+
+    var ambiguous = new DeferredMetadataOverlay(meta);
+    ambiguous.input("secondary", new RowMeta(), List.of());
+    ambiguous.input("first", new RowMeta(), List.of());
+    ambiguous.input("second", new RowMeta(), List.of());
+    assertThatThrownBy(ambiguous::processRow)
+        .isInstanceOf(HopTransformException.class)
+        .hasMessageContaining("primary input transform, found 2: [first, second]");
+  }
+
   @Test
   void firstRowsPublishMetadataBeforeFieldResolutionAndAreRetained() throws Exception {
     LayerOverlayMeta meta = new LayerOverlayMeta();

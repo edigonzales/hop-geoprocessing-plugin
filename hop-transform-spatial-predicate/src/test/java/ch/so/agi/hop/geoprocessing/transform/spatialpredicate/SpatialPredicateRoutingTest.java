@@ -17,6 +17,7 @@ import org.apache.hop.core.row.RowMeta;
 import org.apache.hop.core.row.value.ValueMetaInteger;
 import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.core.variables.Variables;
+import org.apache.hop.core.xml.XmlHandler;
 import org.apache.hop.metadata.api.IHopMetadataProvider;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.pipeline.transform.BaseTransformMeta;
@@ -30,6 +31,24 @@ class SpatialPredicateRoutingTest {
 
   private final GeometryFactory geometryFactory = new GeometryFactory();
   private final WKTReader wktReader = new WKTReader(geometryFactory);
+
+  @Test
+  void rejectsActiveRejectHopForBooleanColumn() throws Exception {
+    var transform = createTransform(SpatialPredicateResultMode.BOOLEAN_COLUMN);
+    addOutputRowSet(transform, "reject");
+    assertThatThrownBy(transform::processRow)
+        .isInstanceOf(HopTransformException.class)
+        .hasMessageContaining("Reject target stream is only supported for KEEP_MATCHED and KEEP_UNMATCHED");
+  }
+
+  @Test
+  void rejectsIndependentPrimaryInputsBeforeReadingRows() throws Exception {
+    var transform = createTransform(SpatialPredicateResultMode.KEEP_MATCHED);
+    transform.addInputRowSet("other", new RowMeta(), List.of());
+    assertThatThrownBy(transform::processRow)
+        .isInstanceOf(HopTransformException.class)
+        .hasMessageContaining("primary").hasMessageContaining("other");
+  }
 
   @Test
   void ordinarySecondaryHopDoesNotCountAsInfoInput() throws Exception {
@@ -179,7 +198,10 @@ class SpatialPredicateRoutingTest {
     var info = meta.getTransformIOMeta().getInfoStreams().get(0);
     info.setTransformMeta(new TransformMeta("secondary", null));
     meta.handleStreamSelection(info);
-    meta.getTransformIOMeta().getTargetStreams().get(0).setSubject("reject");
+    meta.setRejectTransformName("reject");
+    String xml = "<transform>" + meta.getXml() + "</transform>";
+    meta = new SpatialPredicateMeta();
+    meta.loadXml(XmlHandler.loadXmlString(xml).getDocumentElement(), null);
 
     TestSpatialPredicate transform =
         new TestSpatialPredicate(

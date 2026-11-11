@@ -9,6 +9,27 @@ import org.junit.jupiter.api.Test;
 
 class SpatialPredicatePersistenceTest {
   @Test
+  void selectedRejectSurvivesSerializationAndIoReset() throws Exception {
+    var meta = new SpatialPredicateMeta();
+    meta.setDefault();
+    var reject = new org.apache.hop.pipeline.transform.TransformMeta("reject", null);
+    var stream = meta.getTransformIOMeta().getTargetStreams().get(0);
+    stream.setTransformMeta(reject);
+    meta.handleStreamSelection(stream);
+    String xml = "<transform>" + meta.getXml() + "</transform>";
+    var restored = new SpatialPredicateMeta();
+    restored.loadXml(org.apache.hop.core.xml.XmlHandler.loadXmlString(xml).getDocumentElement(), null);
+    restored.resetTransformIoMeta();
+    restored.searchInfoAndTargetTransforms(List.of(reject));
+    assertThat(restored.getRejectTransformName()).isEqualTo("reject");
+    assertThat(restored.cleanAfterHopToRemove(reject)).isFalse();
+    assertThat(restored.cleanAfterHopFromRemove(reject)).isTrue();
+    restored.resetTransformIoMeta();
+    restored.searchInfoAndTargetTransforms(List.of(reject));
+    assertThat(restored.getRejectTransformName()).isEmpty();
+  }
+
+  @Test
   void selectedInfoHopSurvivesResolutionBeforeFirstSave() {
     SpatialPredicateMeta meta = new SpatialPredicateMeta();
     meta.setDefault();

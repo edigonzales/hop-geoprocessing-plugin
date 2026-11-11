@@ -116,6 +116,9 @@ public class CoverageOperation extends BaseTransform<CoverageOperationMeta, Cove
     meta.getFields(data.outputRowMeta, getTransformName(), null, null, this, metadataProvider);
     TransformStreamRouting.RowSetTargets outputTargets =
         TransformStreamRouting.partitionRowSets(getOutputRowSets(), meta.getRejectTransformName());
+    if (!outputTargets.targetRowSets().isEmpty() && !meta.isValidateOperation()) {
+      throw new HopTransformException("Reject target stream is only supported for Validate Coverage.");
+    }
     data.mainOutputRowSets = outputTargets.mainRowSets();
     data.rejectOutputRowSets = outputTargets.targetRowSets();
     GeometryFieldSelection geometrySelection =
