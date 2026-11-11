@@ -66,6 +66,17 @@ class SpatialPredicateRoutingTest {
   }
 
   @Test
+  void withinIgnoresAnEmptyDistanceSavedByTheDialog() throws Exception {
+    TestSpatialPredicate transform = createTransform(SpatialPredicateResultMode.KEEP_MATCHED);
+    transform.getMeta().setDistanceValue("");
+    BlockingRowSet output = addOutputRowSet(transform, "main");
+
+    runTransform(transform);
+
+    assertThat(ids(drainRows(output))).containsExactly(1L);
+  }
+
+  @Test
   void keepMatchedRoutesUnmatchedRowsToRejectTarget() throws Exception {
     TestSpatialPredicate transform = createTransform(SpatialPredicateResultMode.KEEP_MATCHED);
 

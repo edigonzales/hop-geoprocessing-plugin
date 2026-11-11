@@ -6,6 +6,7 @@ import ch.so.agi.hop.geoprocessing.core.GeometryFieldSelection;
 import ch.so.agi.hop.geoprocessing.core.GeometryFieldSelectionResolver;
 import ch.so.agi.hop.geoprocessing.core.GeometryFieldValueHelper;
 import ch.so.agi.hop.geoprocessing.core.LayerCache;
+import ch.so.agi.hop.geoprocessing.core.ParameterId;
 import ch.so.agi.hop.geoprocessing.core.SpatialIndexBuilder;
 import ch.so.agi.hop.geoprocessing.core.SpatialPredicateResultMode;
 import ch.so.agi.hop.geoprocessing.core.TransformStreamRouting;
@@ -136,18 +137,17 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
     data.secondaryGeometryFieldIndex =
         GEOMETRY_FIELD_SELECTION_RESOLVER.requireFieldIndex(
             data.secondaryRowMeta, meta.getSecondaryGeometryFieldName(), "Secondary geometry field");
-    data.distanceFieldIndex =
-        meta.getDistanceMode() == DistanceMode.FIELD
-            ? data.primaryRowMeta.indexOfValue(meta.getDistanceFieldName())
-            : -1;
-    if (meta.getDistanceMode() == DistanceMode.FIELD && data.distanceFieldIndex < 0) {
-      throw new HopTransformException(
-          "Distance field was not found on the primary input: " + meta.getDistanceFieldName());
+    if (meta.descriptor().requires(ParameterId.DISTANCE)) {
+      if (meta.getDistanceMode() == DistanceMode.FIELD) {
+        data.distanceFieldIndex = data.primaryRowMeta.indexOfValue(meta.getDistanceFieldName());
+        if (data.distanceFieldIndex < 0) {
+          throw new HopTransformException(
+              "Distance field was not found on the primary input: " + meta.getDistanceFieldName());
+        }
+      } else if (meta.getDistanceMode() == DistanceMode.STATIC && meta.getDistanceValue() != null) {
+        data.staticDistance = Double.parseDouble(resolve(meta.getDistanceValue()));
+      }
     }
-    data.staticDistance =
-        meta.getDistanceMode() == DistanceMode.STATIC && meta.getDistanceValue() != null
-            ? Double.parseDouble(resolve(meta.getDistanceValue()))
-            : null;
     TransformStreamRouting.RowSetTargets outputTargets =
         TransformStreamRouting.partitionRowSets(getOutputRowSets(), meta.getRejectTransformName());
     data.mainOutputRowSets = outputTargets.mainRowSets();
@@ -198,7 +198,7 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
   }
 
   private Double resolveDistance(Object[] primaryRow) throws HopException {
-    if (!meta.descriptor().requires(ch.so.agi.hop.geoprocessing.core.ParameterId.DISTANCE)) {
+    if (!meta.descriptor().requires(ParameterId.DISTANCE)) {
       return null;
     }
     if (meta.getDistanceMode() == DistanceMode.FIELD) {
