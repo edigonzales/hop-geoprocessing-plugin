@@ -120,7 +120,9 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
     data.primaryRowMeta = data.primaryRowSet.getRowMeta();
     data.secondaryRowMeta = data.secondaryRowSet.getRowMeta();
     if (data.secondaryRowMeta == null) {
-      data.secondaryRowMeta = getPipelineMeta().getTransformFields(this, infoTransformName);
+      data.secondaryRowMeta =
+          getPipelineMeta().getTransformFields(
+              this, getPipelineMeta().findTransform(infoTransformName), getTransformMeta(), null);
     }
     GeometryFieldSelection primarySelection =
         GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(data.primaryRowMeta, meta.getPrimaryGeometryFieldName());

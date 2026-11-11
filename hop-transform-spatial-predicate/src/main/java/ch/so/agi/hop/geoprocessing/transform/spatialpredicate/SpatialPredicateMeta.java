@@ -240,7 +240,7 @@ public class SpatialPredicateMeta
   public void setInfoTransformName(String name) {
     IStream stream = infoStream();
     TransformMeta source = stream.getTransformMeta();
-    if (source != null && !source.getName().equalsIgnoreCase(name)) {
+    if (source != null && (name == null || !name.equalsIgnoreCase(source.getName()))) {
       stream.setTransformMeta(null);
       source = null;
     }
@@ -250,8 +250,9 @@ public class SpatialPredicateMeta
 
   public String getInfoTransformName() {
     IStream stream = infoStream();
-    if (stream.getTransformMeta() != null) {
-      return stream.getTransformName();
+    String activeName = stream.getTransformName();
+    if (activeName != null) {
+      return activeName;
     }
     String subject = stream.getSubject();
     return subject == null ? (infoTransformName == null ? "" : infoTransformName) : subject;

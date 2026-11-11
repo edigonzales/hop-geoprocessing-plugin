@@ -16,21 +16,26 @@ import org.apache.hop.metadata.api.IHopMetadataProvider;
 import org.apache.hop.pipeline.PipelineHopMeta;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.pipeline.transform.BaseTransformMeta;
+import org.apache.hop.pipeline.transform.TransformErrorMeta;
 import org.apache.hop.pipeline.transform.TransformMeta;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Combo;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
-import org.eclipse.swt.widgets.Display;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class SpatialPredicateSwtDialogTest {
-  @Test
-  void showsOnlyFieldsFromTheAssignedStreamsAndCancelsWithoutSaving() throws Exception {
+  @ParameterizedTest
+  @CsvSource({"true, false", "false, false", "false, true"})
+  void preservesOrExplicitlyAssignsTheInfoHop(boolean hasInfoHop, boolean accept)
+      throws Exception {
     HopClientEnvironment.init();
     PluginRegistry.getInstance().registerPluginClass(
         SpatialPredicateMeta.class.getName(), TransformPluginType.class, Transform.class);
@@ -46,9 +51,21 @@ class SpatialPredicateSwtDialogTest {
     pipeline.addTransform(predicate);
     pipeline.addPipelineHop(new PipelineHopMeta(points, predicate));
     var info = meta.getTransformIOMeta().getInfoStreams().get(0);
-    info.setTransformMeta(polygons);
-    meta.handleStreamSelection(info);
+    if (hasInfoHop) {
+      info.setTransformMeta(polygons);
+      meta.handleStreamSelection(info);
+    }
     pipeline.addPipelineHop(new PipelineHopMeta(polygons, predicate));
+    var disabled = new TransformMeta("Disabled", new GeometrySource("disabled"));
+    pipeline.addTransform(disabled);
+    pipeline.addPipelineHop(new PipelineHopMeta(disabled, predicate, false));
+    var errors = new TransformMeta("Errors", new GeometrySource(null));
+    pipeline.addTransform(errors);
+    var errorMeta = new TransformErrorMeta(errors);
+    errorMeta.setEnabled(true);
+    errorMeta.setTargetTransform(predicate);
+    errors.setTransformErrorMeta(errorMeta);
+    pipeline.addPipelineHop(new PipelineHopMeta(errors, predicate));
 
     String before = meta.getXml();
     meta.setChanged(false);
@@ -65,16 +82,29 @@ class SpatialPredicateSwtDialogTest {
           Composite fields = Arrays.stream(shell.getChildren())
               .filter(c -> c.getClass() == Composite.class)
               .map(Composite.class::cast).findFirst().orElseThrow();
-          Text source = field(fields, "Secondary info transform", Text.class);
-          assertThat(source.getText()).isEqualTo("Polygons");
-          assertThat(source.getEditable()).isFalse();
-          assertThat(field(fields, "Primary geometry field", Combo.class).getItems())
-              .containsExactly("point");
-          assertThat(field(fields, "Secondary geometry field", Combo.class).getItems())
-              .containsExactly("mask");
+          Combo source = field(fields, "Secondary info transform", Combo.class);
+          assertThat(source.getStyle() & SWT.READ_ONLY).isNotZero();
+          assertThat(source.getItems()).containsExactly("(Select a producer)", "Points", "Polygons");
+          var primary = field(fields, "Primary geometry field", Combo.class);
+          var secondary = field(fields, "Secondary geometry field", Combo.class);
+          if (hasInfoHop) {
+            assertThat(source.getText()).isEqualTo("Polygons");
+          } else {
+            assertThat(source.getSelectionIndex()).isZero();
+            assertThat(secondary.getItems()).isEmpty();
+            assertThat(Arrays.stream(fields.getChildren())
+                .filter(Label.class::isInstance).map(Label.class::cast).map(Label::getText))
+                .contains("No secondary info transform is assigned yet.");
+            source.select(source.indexOf("Polygons"));
+            source.notifyListeners(SWT.Selection, new Event());
+            assertThat(info.getTransformMeta()).isNull();
+          }
+          assertThat(primary.getItems()).containsExactly("point");
+          assertThat(secondary.getItems()).containsExactly("mask");
           field(fields, "Boolean output field", Text.class).setText("edited");
+          String button = accept ? "OK" : "Cancel";
           Arrays.stream(shell.getChildren()).filter(Button.class::isInstance)
-              .map(Button.class::cast).filter(b -> "Cancel".equals(b.getText()))
+              .map(Button.class::cast).filter(b -> button.equals(b.getText()))
               .findFirst().orElseThrow().notifyListeners(SWT.Selection, new Event());
         } catch (Throwable error) {
           failure.set(error);
@@ -83,18 +113,25 @@ class SpatialPredicateSwtDialogTest {
           }
         }
       });
-      assertThat(dialog.open()).isNull();
+      String result = dialog.open();
       if (failure.get() != null) {
         throw new AssertionError("Spatial Predicate dialog interaction failed", failure.get());
       }
-      assertThat(meta.getXml()).isEqualTo(before);
-      assertThat(meta.hasChanged()).isFalse();
+      if (accept) {
+        assertThat(result).isEqualTo("Spatial Predicate");
+        assertThat(info.getTransformMeta()).isSameAs(polygons);
+        assertThat(meta.getXml()).contains("<infoTransformName>Polygons</infoTransformName>");
+      } else {
+        assertThat(result).isNull();
+        assertThat(meta.getXml()).isEqualTo(before);
+        assertThat(meta.hasChanged()).isFalse();
+      }
     } finally {
       parent.dispose();
     }
   }
 
-  private static <T extends org.eclipse.swt.widgets.Control> T field(
+  private static <T extends Control> T field(
       Composite parent, String label, Class<T> type) {
     return Arrays.stream(parent.getChildren()).filter(type::isInstance).map(type::cast)
         .filter(c -> c.getData("label") instanceof Label l && label.equals(l.getText()))
@@ -109,10 +146,18 @@ class SpatialPredicateSwtDialogTest {
     }
 
     @Override
+    public boolean supportsErrorHandling() {
+      return true;
+    }
+
+    @Override
     public void getFields(
         IRowMeta row, String origin, IRowMeta[] info, TransformMeta next, IVariables variables,
         IHopMetadataProvider metadataProvider) {
-      row.addValueMeta(new ValueMetaGeometry(field));
+      // Hop sources can expose a different schema for each destination.
+      if (field != null && next != null && "Spatial Predicate".equals(next.getName())) {
+        row.addValueMeta(new ValueMetaGeometry(field));
+      }
     }
   }
 }

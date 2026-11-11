@@ -12,10 +12,14 @@ import org.apache.hop.core.BlockingRowSet;
 import org.apache.hop.core.IRowSet;
 import org.apache.hop.core.exception.HopException;
 import org.apache.hop.core.exception.HopTransformException;
+import org.apache.hop.core.row.IRowMeta;
 import org.apache.hop.core.row.RowMeta;
 import org.apache.hop.core.row.value.ValueMetaInteger;
+import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.core.variables.Variables;
+import org.apache.hop.metadata.api.IHopMetadataProvider;
 import org.apache.hop.pipeline.PipelineMeta;
+import org.apache.hop.pipeline.transform.BaseTransformMeta;
 import org.apache.hop.pipeline.transform.TransformMeta;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -35,6 +39,30 @@ class SpatialPredicateRoutingTest {
     assertThatThrownBy(transform::processRow)
         .isInstanceOf(HopTransformException.class)
         .hasMessageContaining("Secondary layer info stream is not connected");
+  }
+
+  @Test
+  void emptyInfoInputUsesTheSchemaForThisDestination() throws Exception {
+    TestSpatialPredicate transform = createTransform(SpatialPredicateResultMode.KEEP_MATCHED);
+    IRowSet secondaryRows = transform.findInputRowSet("secondary");
+    drainRows(secondaryRows);
+    secondaryRows.setRowMeta(null);
+    transform.getPipelineMeta().addTransform(new TransformMeta("secondary",
+        new BaseTransformMeta<SpatialPredicate, SpatialPredicateData>() {
+          @Override
+          public void getFields(
+              IRowMeta row, String origin, IRowMeta[] info, TransformMeta next,
+              IVariables variables, IHopMetadataProvider provider) {
+            if (next == transform.getTransformMeta()) {
+              row.addValueMeta(new ValueMetaGeometry("mask"));
+            }
+          }
+        }));
+    BlockingRowSet output = addOutputRowSet(transform, "main");
+
+    runTransform(transform);
+
+    assertThat(drainRows(output)).isEmpty();
   }
 
   @Test
