@@ -6,8 +6,10 @@ import ch.so.agi.hop.geoprocessing.core.OperationDescriptor;
 import ch.so.agi.hop.geoprocessing.core.OverlayMode;
 import ch.so.agi.hop.geoprocessing.core.ParameterId;
 import ch.so.agi.hop.geoprocessing.core.RowMetaSupport;
+import ch.so.agi.hop.geoprocessing.core.TransformStreamRouting;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.hop.pipeline.transform.TransformMeta;
 import org.apache.hop.core.row.IRowMeta;
 import org.apache.hop.core.util.Utils;
 import org.apache.hop.core.variables.IVariables;
@@ -30,6 +32,8 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 
 public class LayerOverlayDialog extends BaseTransformDialog {
+  private static final String MISSING_INFO =
+      "Connect both producers, then choose the secondary producer in 'Secondary info transform'.";
 
   private static final GeometryFieldSelectionResolver GEOMETRY_FIELD_SELECTION_RESOLVER =
       new GeometryFieldSelectionResolver();
@@ -39,7 +43,7 @@ public class LayerOverlayDialog extends BaseTransformDialog {
 
   private Combo wOperation;
   private Text wExecutionMode;
-  private Text wInfoTransformName;
+  private Combo wInfoTransformName;
   private Combo wPrimaryGeometryField;
   private Combo wSecondaryGeometryField;
   private Combo wOverlayMode;
@@ -111,13 +115,13 @@ public class LayerOverlayDialog extends BaseTransformDialog {
     fdContent.bottom = new FormAttachment(wOk, -margin * 2);
     content.setLayoutData(fdContent);
 
-    addFullWidthLabel(content, "Connect the secondary layer with an info hop before validating the transform.");
+    addFullWidthLabel(content, MISSING_INFO);
     wOperation = addCombo(content, "Operation");
     for (OperationDescriptor descriptor : operations) {
       wOperation.add(descriptor.displayLabel());
     }
     wExecutionMode = addReadOnlyText(content, "Execution mode");
-    wInfoTransformName = addReadOnlyText(content, "Secondary info transform");
+    wInfoTransformName = addCombo(content, "Secondary info transform");
     wPrimaryGeometryField = addCombo(content, "Primary geometry field");
     wSecondaryGeometryField = addCombo(content, "Secondary geometry field");
     wOverlayMode = addCombo(content, "Overlay mode");
@@ -129,8 +133,8 @@ public class LayerOverlayDialog extends BaseTransformDialog {
     wFieldPrefix = addText(content, "Secondary field prefix");
     wFieldStatus = addInfoLabel(content, "");
 
-    loadFieldChoices();
     getData();
+    loadFieldChoices(input.getPrimaryGeometryFieldName(), input.getSecondaryGeometryFieldName());
     refreshVisibility();
 
     wTransformName.addModifyListener(event -> input.setChanged());
@@ -139,6 +143,10 @@ public class LayerOverlayDialog extends BaseTransformDialog {
           input.setChanged();
           refreshVisibility();
         });
+    wInfoTransformName.addListener(SWT.Selection, event -> {
+      input.setChanged();
+      loadFieldChoices(wPrimaryGeometryField.getText(), wSecondaryGeometryField.getText());
+    });
     wPrimaryGeometryField.addModifyListener(event -> input.setChanged());
     wSecondaryGeometryField.addModifyListener(event -> input.setChanged());
     wOverlayMode.addModifyListener(
@@ -157,14 +165,17 @@ public class LayerOverlayDialog extends BaseTransformDialog {
     return transformName;
   }
 
-  private void loadFieldChoices() {
+  private void loadFieldChoices(String primaryField, String secondaryField) {
     List<String> messages = new ArrayList<>();
     wPrimaryGeometryField.removeAll();
     wSecondaryGeometryField.removeAll();
+    pipelineMeta.clearCaches();
+    TransformMeta target = pipelineMeta.findTransform(transformName);
+    TransformMeta source = selectedInfoSource(target);
     try {
-      IRowMeta prev = pipelineMeta.getPrevTransformFields(variables, transformName);
+      IRowMeta prev = TransformStreamRouting.primaryFields(pipelineMeta, variables, target, source);
       GeometryFieldSelection primarySelection =
-          GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(prev, input.getPrimaryGeometryFieldName());
+          GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(prev, primaryField);
       applySelection(wPrimaryGeometryField, primarySelection);
       collectSelectionMessage(messages, primarySelection.warning());
       if (primarySelection.fieldNames().isEmpty()) {
@@ -174,11 +185,11 @@ public class LayerOverlayDialog extends BaseTransformDialog {
       messages.add("Unable to inspect primary input fields: " + rootCauseMessage(e));
     }
 
-    if (!input.getInfoTransformName().isBlank()) {
+    if (source != null) {
       try {
-        IRowMeta infoRowMeta = pipelineMeta.getTransformFields(variables, input.getInfoTransformName());
+        IRowMeta infoRowMeta = pipelineMeta.getTransformFields(variables, source, target, null);
         GeometryFieldSelection secondarySelection =
-            GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(infoRowMeta, input.getSecondaryGeometryFieldName());
+            GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(infoRowMeta, secondaryField);
         applySelection(wSecondaryGeometryField, secondarySelection);
         collectSelectionMessage(messages, secondarySelection.warning());
         if (secondarySelection.fieldNames().isEmpty()) {
@@ -188,7 +199,7 @@ public class LayerOverlayDialog extends BaseTransformDialog {
         messages.add("Unable to inspect secondary info fields: " + rootCauseMessage(e));
       }
     } else {
-      messages.add("No secondary info transform is connected yet.");
+      messages.add("No secondary info transform is assigned yet.");
     }
     setFieldStatus(messages);
   }
@@ -197,13 +208,33 @@ public class LayerOverlayDialog extends BaseTransformDialog {
     wTransformName.setText(transformName == null ? "" : transformName);
     selectOperation(input.getOperationId());
     wExecutionMode.setText(input.descriptor().executionMode().getLabel());
-    wInfoTransformName.setText(input.getInfoTransformName());
+    List<TransformMeta> sources = TransformStreamRouting.infoSources(pipelineMeta, pipelineMeta.findTransform(transformName));
+    wInfoTransformName.add("(Select a producer)");
+    int selection = 0;
+    TransformMeta assigned = input.getTransformIOMeta().getInfoStreams().get(0).getTransformMeta();
+    for (TransformMeta source : sources) {
+      wInfoTransformName.add(source.getName());
+      if (source == assigned) {
+        selection = wInfoTransformName.getItemCount() - 1;
+      }
+    }
+    wInfoTransformName.select(selection);
     wOverlayMode.setText(input.getOverlayMode().name());
     wPrecisionScale.setText(defaultText(input.getPrecisionScale()));
     wOutputFieldName.setText(defaultText(input.getOutputFieldName()));
     wFieldPrefix.setText(defaultText(input.getFieldPrefix()));
     wTransformName.selectAll();
     wTransformName.setFocus();
+  }
+
+  private TransformMeta selectedInfoSource(TransformMeta target) {
+    if (wInfoTransformName.getSelectionIndex() <= 0) {
+      return null;
+    }
+    return TransformStreamRouting.infoSources(pipelineMeta, target).stream()
+        .filter(source -> source.getName().equals(wInfoTransformName.getText()))
+        .findFirst()
+        .orElse(null);
   }
 
   private void selectOperation(String operationId) {
@@ -235,6 +266,11 @@ public class LayerOverlayDialog extends BaseTransformDialog {
     if (Utils.isEmpty(wTransformName.getText())) {
       return;
     }
+    TransformMeta source = selectedInfoSource(pipelineMeta.findTransform(transformName));
+    if (source == null) {
+      showValidationWarning(MISSING_INFO);
+      return;
+    }
     if (wPrimaryGeometryField.getText().isBlank()) {
       showValidationWarning("Please select a primary geometry field.");
       return;
@@ -249,6 +285,9 @@ public class LayerOverlayDialog extends BaseTransformDialog {
       showValidationWarning("Please enter a precision scale for FIXED_PRECISION overlay mode.");
       return;
     }
+    var stream = input.getTransformIOMeta().getInfoStreams().get(0);
+    stream.setTransformMeta(source);
+    input.handleStreamSelection(stream);
     transformName = wTransformName.getText();
     input.setOperationId(operations.get(Math.max(0, wOperation.getSelectionIndex())).id());
     input.setPrimaryGeometryFieldName(wPrimaryGeometryField.getText());

@@ -43,6 +43,7 @@ import org.apache.hop.pipeline.transform.stream.StreamIcon;
 public class CoverageOperationMeta
     extends BaseTransformMeta<CoverageOperation, CoverageOperationData> {
 
+  @HopMetadataProperty private String rejectTransformName = "";
   @HopMetadataProperty private String operationId;
   @HopMetadataProperty private String geometryFieldName;
   @HopMetadataProperty private String groupFieldNames;
@@ -88,6 +89,8 @@ public class CoverageOperationMeta
 
   @Override
   public void setDefault() {
+    rejectTransformName = "";
+    resetTransformIoMeta();
     operationId = "coverage_validate";
     geometryFieldName = "";
     groupFieldNames = "";
@@ -108,7 +111,7 @@ public class CoverageOperationMeta
     if (ioMeta == null) {
       TransformIOMeta transformIOMeta = new TransformIOMeta(true, true, true, false, false, false);
       transformIOMeta.addStream(
-          new Stream(IStream.StreamType.TARGET, null, "Reject rows", StreamIcon.TARGET, null));
+          new Stream(IStream.StreamType.TARGET, null, "Reject rows", StreamIcon.TARGET, rejectTransformName));
       transformIOMeta.setGeneralTargetDescription(
           "Optional QA/reject target for invalid coverage rows");
       setTransformIOMeta(transformIOMeta);
@@ -118,32 +121,20 @@ public class CoverageOperationMeta
   }
 
   @Override
-  public void searchInfoAndTargetTransforms(List<TransformMeta> transforms) {
-    for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
-      targetStream.setTransformMeta(
-          TransformMeta.findTransform(transforms, targetStream.getSubject()));
+  public void handleStreamSelection(IStream stream) {
+    if (stream == rejectStream()) {
+      rememberRejectTarget();
     }
+  }
+
+  @Override
+  public void searchInfoAndTargetTransforms(List<TransformMeta> transforms) {
+    resolveRejectTarget(transforms);
   }
 
   @Override
   public void convertIOMetaToTransformNames() {
-    for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
-      targetStream.setSubject(targetStream.getTransformName());
-    }
-  }
-
-  @Override
-  public boolean cleanAfterHopToRemove(TransformMeta fromTransform) {
-    for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
-      if (fromTransform != null
-          && targetStream.getTransformMeta() != null
-          && fromTransform.getName().equals(targetStream.getTransformMeta().getName())) {
-        targetStream.setTransformMeta(null);
-        targetStream.setSubject(null);
-        return true;
-      }
-    }
-    return false;
+    rememberRejectTarget();
   }
 
   @Override
@@ -313,18 +304,55 @@ public class CoverageOperationMeta
     return "coverage_validate".equals(operationId);
   }
 
-  public String getRejectTransformName() {
-    List<IStream> targetStreams = getTransformIOMeta().getTargetStreams();
-    if (targetStreams.isEmpty()) {
-      return "";
+  public void setRejectTransformName(String name) {
+    IStream stream = rejectStream();
+    String activeName = stream.getTransformName();
+    if (activeName != null && !activeName.equalsIgnoreCase(name)) {
+      stream.setTransformMeta(null);
+      activeName = null;
     }
-    IStream targetStream = targetStreams.get(0);
-    if (targetStream.getTransformMeta() != null) {
-      return targetStream.getTransformMeta().getName();
-    }
-    return targetStream.getSubject() == null ? "" : targetStream.getSubject();
+    rejectTransformName = activeName == null ? (name == null ? "" : name) : activeName;
+    stream.setSubject(rejectTransformName);
   }
 
+  public String getRejectTransformName() {
+    IStream stream = rejectStream();
+    String activeName = stream.getTransformName();
+    if (activeName != null) {
+      return activeName;
+    }
+    String subject = stream.getSubject();
+    return subject == null ? (rejectTransformName == null ? "" : rejectTransformName) : subject;
+  }
+
+  @Override
+  public boolean cleanAfterHopFromRemove(TransformMeta toTransform) {
+    if (toTransform == null || toTransform.getName() == null
+        || !toTransform.getName().equalsIgnoreCase(getRejectTransformName())) {
+      return false;
+    }
+    clearRejectTarget();
+    return true;
+  }
+
+  private IStream rejectStream() {
+    return getTransformIOMeta().getTargetStreams().get(0);
+  }
+
+  private void resolveRejectTarget(List<TransformMeta> transforms) {
+    rememberRejectTarget();
+    rejectStream().setTransformMeta(TransformMeta.findTransform(transforms, rejectTransformName));
+  }
+
+  private void rememberRejectTarget() {
+    rejectTransformName = getRejectTransformName();
+    rejectStream().setSubject(rejectTransformName);
+  }
+
+  private void clearRejectTarget() {
+    rejectStream().setTransformMeta(null);
+    setRejectTransformName("");
+  }
   private ICheckResult error(String message, TransformMeta transformMeta) {
     return new CheckResult(ICheckResult.TYPE_RESULT_ERROR, message, transformMeta);
   }

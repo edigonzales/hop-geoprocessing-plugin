@@ -7,13 +7,11 @@ import ch.so.agi.hop.geoprocessing.core.OperationDescriptor;
 import ch.so.agi.hop.geoprocessing.core.ParameterId;
 import ch.so.agi.hop.geoprocessing.core.RowMetaSupport;
 import ch.so.agi.hop.geoprocessing.core.SpatialPredicateResultMode;
+import ch.so.agi.hop.geoprocessing.core.TransformStreamRouting;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.hop.core.row.IRowMeta;
-import org.apache.hop.core.row.IValueMeta;
-import org.apache.hop.core.row.RowMeta;
 import org.apache.hop.core.variables.IVariables;
-import org.apache.hop.pipeline.PipelineHopMeta;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.pipeline.transform.TransformMeta;
 import org.apache.hop.ui.core.PropsUi;
@@ -203,19 +201,7 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
     TransformMeta target = pipelineMeta.findTransform(transformName);
     TransformMeta source = selectedInfoSource(target);
     try {
-      IRowMeta prev = new RowMeta();
-      for (PipelineHopMeta hop : incomingHops(target)) {
-        TransformMeta primary = hop.getFromTransform();
-        if (primary == source) {
-          continue;
-        }
-        IRowMeta fields = pipelineMeta.getTransformFields(variables, primary, target, null);
-        for (IValueMeta field : fields.getValueMetaList()) {
-          if (prev.searchValueMeta(field.getName()) == null) {
-            prev.addValueMeta(field);
-          }
-        }
-      }
+      IRowMeta prev = TransformStreamRouting.primaryFields(pipelineMeta, variables, target, source);
       GeometryFieldSelection primarySelection =
           GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(prev, primaryField);
       applySelection(wPrimaryGeometryField, primarySelection);
@@ -254,7 +240,7 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
     wTransformName.setText(transformName == null ? "" : transformName);
     selectOperation(input.getOperationId());
     wExecutionMode.setText(input.descriptor().executionMode().getLabel());
-    List<TransformMeta> sources = infoSources(pipelineMeta.findTransform(transformName));
+    List<TransformMeta> sources = TransformStreamRouting.infoSources(pipelineMeta, pipelineMeta.findTransform(transformName));
     wInfoTransformName.add("(Select a producer)");
     int selection = 0;
     TransformMeta assigned = input.getTransformIOMeta().getInfoStreams().get(0).getTransformMeta();
@@ -274,28 +260,11 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
     wTransformName.setFocus();
   }
 
-  private List<PipelineHopMeta> incomingHops(TransformMeta target) {
-    return pipelineMeta.getPipelineHops().stream()
-        .filter(hop -> target != null && hop.getToTransform() == target && hop.isEnabled())
-        .filter(hop -> hop.getFromTransform() != null)
-        .toList();
-  }
-
-  private List<TransformMeta> infoSources(TransformMeta target) {
-    return incomingHops(target).stream()
-        .filter(hop -> !hop.isErrorHop())
-        .map(PipelineHopMeta::getFromTransform)
-        .filter(source -> pipelineMeta.findTransform(source.getName()) == source
-            && !source.isSendingErrorRowsToTransform(target))
-        .distinct()
-        .toList();
-  }
-
   private TransformMeta selectedInfoSource(TransformMeta target) {
     if (wInfoTransformName.getSelectionIndex() <= 0) {
       return null;
     }
-    return infoSources(target).stream()
+    return TransformStreamRouting.infoSources(pipelineMeta, target).stream()
         .filter(source -> source.getName().equals(wInfoTransformName.getText()))
         .findFirst()
         .orElse(null);

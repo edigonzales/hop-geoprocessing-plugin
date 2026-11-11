@@ -6,11 +6,74 @@ import org.apache.hop.core.IRowSet;
 import org.apache.hop.core.exception.HopTransformException;
 import org.apache.hop.core.exception.HopValueException;
 import org.apache.hop.core.row.IRowMeta;
+import org.apache.hop.core.row.IValueMeta;
+import org.apache.hop.core.row.RowMeta;
+import org.apache.hop.core.variables.IVariables;
+import org.apache.hop.pipeline.PipelineHopMeta;
+import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.pipeline.transform.BaseTransform;
+import org.apache.hop.pipeline.transform.TransformMeta;
 
 public final class TransformStreamRouting {
 
   private TransformStreamRouting() {}
+
+  public static List<TransformMeta> infoSources(PipelineMeta pipeline, TransformMeta target) {
+    return incomingHops(pipeline, target).stream()
+        .filter(hop -> !hop.isErrorHop())
+        .map(PipelineHopMeta::getFromTransform)
+        .filter(source -> pipeline.findTransform(source.getName()) == source
+            && !source.isSendingErrorRowsToTransform(target))
+        .distinct()
+        .toList();
+  }
+
+  public static IRowMeta primaryFields(
+      PipelineMeta pipeline, IVariables variables, TransformMeta target, TransformMeta secondary)
+      throws HopTransformException {
+    IRowMeta primaryFields = new RowMeta();
+    for (PipelineHopMeta hop : incomingHops(pipeline, target)) {
+      TransformMeta primary = hop.getFromTransform();
+      if (primary == secondary) {
+        continue;
+      }
+      IRowMeta fields = pipeline.getTransformFields(variables, primary, target, null);
+      for (IValueMeta field : fields.getValueMetaList()) {
+        if (primaryFields.searchValueMeta(field.getName()) == null) {
+          primaryFields.addValueMeta(field);
+        }
+      }
+    }
+    return primaryFields;
+  }
+
+  private static List<PipelineHopMeta> incomingHops(PipelineMeta pipeline, TransformMeta target) {
+    return pipeline.getPipelineHops().stream()
+        .filter(hop -> target != null && hop.getToTransform() == target && hop.isEnabled())
+        .filter(hop -> hop.getFromTransform() != null)
+        .toList();
+  }
+
+  public static List<IRowSet> primaryInputs(List<IRowSet> inputs, String infoTransformName)
+      throws HopTransformException {
+    List<IRowSet> primary = inputs.stream()
+        .filter(rowSet -> !infoTransformName.equalsIgnoreCase(rowSet.getOriginTransformName()))
+        .toList();
+    List<String> origins = primary.stream()
+        .map(IRowSet::getOriginTransformName)
+        .distinct()
+        .toList();
+    if (origins.size() != 1) {
+      throw new HopTransformException(
+          "Expected exactly one primary input transform, found " + origins.size() + ": " + origins);
+    }
+    if (inputs.size() - primary.size() != 1) {
+      throw new HopTransformException(
+          "Expected exactly one secondary INFO row set from " + infoTransformName
+              + ", found " + (inputs.size() - primary.size()));
+    }
+    return primary;
+  }
 
   public static RowSetTargets partitionRowSets(List<IRowSet> outputRowSets, String targetTransformName) {
     if (targetTransformName == null || targetTransformName.isBlank()) {

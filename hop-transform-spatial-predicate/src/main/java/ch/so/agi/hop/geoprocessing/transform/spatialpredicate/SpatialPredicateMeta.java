@@ -40,6 +40,7 @@ import org.apache.hop.pipeline.transform.stream.StreamIcon;
 public class SpatialPredicateMeta
     extends BaseTransformMeta<SpatialPredicate, SpatialPredicateData> {
 
+  @HopMetadataProperty private String rejectTransformName = "";
   @HopMetadataProperty private String operationId;
   @HopMetadataProperty private String infoTransformName = "";
   @HopMetadataProperty private String primaryGeometryFieldName;
@@ -53,6 +54,8 @@ public class SpatialPredicateMeta
 
   @Override
   public void setDefault() {
+    rejectTransformName = "";
+    resetTransformIoMeta();
     operationId = "intersects";
     primaryGeometryFieldName = "";
     secondaryGeometryFieldName = "";
@@ -72,7 +75,7 @@ public class SpatialPredicateMeta
       transformIOMeta.addStream(
           new Stream(IStream.StreamType.INFO, null, "Secondary layer", StreamIcon.INFO, infoTransformName));
       transformIOMeta.addStream(
-          new Stream(IStream.StreamType.TARGET, null, "Reject rows", StreamIcon.TARGET, null));
+          new Stream(IStream.StreamType.TARGET, null, "Reject rows", StreamIcon.TARGET, rejectTransformName));
       transformIOMeta.setGeneralTargetDescription(
           "Optional QA/reject target for the opposite filter result");
       setTransformIOMeta(transformIOMeta);
@@ -85,6 +88,8 @@ public class SpatialPredicateMeta
   public void handleStreamSelection(IStream stream) {
     if (stream == infoStream() && stream.getTransformMeta() != null) {
       setInfoTransformName(stream.getTransformName());
+    } else if (stream == rejectStream()) {
+      rememberRejectTarget();
     }
   }
 
@@ -93,17 +98,13 @@ public class SpatialPredicateMeta
     String name = getInfoTransformName();
     infoStream().setTransformMeta(TransformMeta.findTransform(transforms, name));
     setInfoTransformName(name);
-    for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
-      targetStream.setTransformMeta(TransformMeta.findTransform(transforms, targetStream.getSubject()));
-    }
+    resolveRejectTarget(transforms);
   }
 
   @Override
   public void convertIOMetaToTransformNames() {
     setInfoTransformName(getInfoTransformName());
-    for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
-      targetStream.setSubject(targetStream.getTransformName());
-    }
+    rememberRejectTarget();
   }
 
   @Override
@@ -112,15 +113,6 @@ public class SpatialPredicateMeta
         && fromTransform.getName().equalsIgnoreCase(getInfoTransformName())) {
       setInfoTransformName("");
       return true;
-    }
-    for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
-      if (fromTransform != null
-          && targetStream.getTransformMeta() != null
-          && fromTransform.getName().equals(targetStream.getTransformMeta().getName())) {
-        targetStream.setTransformMeta(null);
-        targetStream.setSubject(null);
-        return true;
-      }
     }
     return false;
   }
@@ -262,18 +254,55 @@ public class SpatialPredicateMeta
     return getTransformIOMeta().getInfoStreams().get(0);
   }
 
-  public String getRejectTransformName() {
-    List<IStream> targetStreams = getTransformIOMeta().getTargetStreams();
-    if (targetStreams.isEmpty()) {
-      return "";
+  public void setRejectTransformName(String name) {
+    IStream stream = rejectStream();
+    String activeName = stream.getTransformName();
+    if (activeName != null && !activeName.equalsIgnoreCase(name)) {
+      stream.setTransformMeta(null);
+      activeName = null;
     }
-    IStream targetStream = targetStreams.get(0);
-    if (targetStream.getTransformMeta() != null) {
-      return targetStream.getTransformMeta().getName();
-    }
-    return targetStream.getSubject() == null ? "" : targetStream.getSubject();
+    rejectTransformName = activeName == null ? (name == null ? "" : name) : activeName;
+    stream.setSubject(rejectTransformName);
   }
 
+  public String getRejectTransformName() {
+    IStream stream = rejectStream();
+    String activeName = stream.getTransformName();
+    if (activeName != null) {
+      return activeName;
+    }
+    String subject = stream.getSubject();
+    return subject == null ? (rejectTransformName == null ? "" : rejectTransformName) : subject;
+  }
+
+  @Override
+  public boolean cleanAfterHopFromRemove(TransformMeta toTransform) {
+    if (toTransform == null || toTransform.getName() == null
+        || !toTransform.getName().equalsIgnoreCase(getRejectTransformName())) {
+      return false;
+    }
+    clearRejectTarget();
+    return true;
+  }
+
+  private IStream rejectStream() {
+    return getTransformIOMeta().getTargetStreams().get(0);
+  }
+
+  private void resolveRejectTarget(List<TransformMeta> transforms) {
+    rememberRejectTarget();
+    rejectStream().setTransformMeta(TransformMeta.findTransform(transforms, rejectTransformName));
+  }
+
+  private void rememberRejectTarget() {
+    rejectTransformName = getRejectTransformName();
+    rejectStream().setSubject(rejectTransformName);
+  }
+
+  private void clearRejectTarget() {
+    rejectStream().setTransformMeta(null);
+    setRejectTransformName("");
+  }
   private void appendPrefixedFields(IRowMeta rowMeta, IRowMeta infoRowMeta, String prefix) {
     Set<String> existingNames = FieldNameSupport.toLowerCaseSet(RowMetaSupport.fieldNames(rowMeta));
     String effectivePrefix = prefix == null || prefix.isBlank() ? "b_" : prefix;

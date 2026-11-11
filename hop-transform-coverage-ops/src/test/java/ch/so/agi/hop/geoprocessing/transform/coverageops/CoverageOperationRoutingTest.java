@@ -1,6 +1,7 @@
 package ch.so.agi.hop.geoprocessing.transform.coverageops;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.atolcd.hop.core.row.value.ValueMetaGeometry;
 import ch.so.agi.hop.geoprocessing.core.CoverageValidationErrorType;
@@ -11,6 +12,7 @@ import org.apache.hop.core.IRowSet;
 import org.apache.hop.core.exception.HopException;
 import org.apache.hop.core.row.IRowMeta;
 import org.apache.hop.core.row.RowMeta;
+import org.apache.hop.core.xml.XmlHandler;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.pipeline.transform.TransformMeta;
 import org.junit.jupiter.api.Test;
@@ -27,12 +29,52 @@ class CoverageOperationRoutingTest {
   private final WKTReader wktReader = new WKTReader(geometryFactory);
 
   @Test
+  void rejectsActiveRejectHopForNonValidationOperation() throws Exception {
+    var meta = new CoverageOperationMeta();
+    meta.setDefault();
+    meta.setOperationId("coverage_simplify");
+    meta.setRejectTransformName("reject");
+    var transform = new TestCoverageOperation(
+        new TransformMeta("coverage", meta), meta, new CoverageOperationData(), 0, new PipelineMeta());
+    RowMeta input = new RowMeta();
+    input.addValueMeta(new ValueMetaGeometry("geometry"));
+    transform.setInput(input, List.<Object[]>of(row(wkt("POLYGON ((0 0, 1 0, 1 2, 0 2, 0 0))"))));
+    addOutputRowSet(transform, "reject");
+    assertThatThrownBy(transform::processRow)
+        .hasMessageContaining("Reject target stream is only supported for Validate Coverage");
+  }
+
+  @Test
+  void selectedRejectSurvivesSerializationAndIoReset() throws Exception {
+    var meta = new CoverageOperationMeta();
+    meta.setDefault();
+    var reject = new TransformMeta("reject", null);
+    var stream = meta.getTransformIOMeta().getTargetStreams().get(0);
+    stream.setTransformMeta(reject);
+    meta.handleStreamSelection(stream);
+    String xml = "<transform>" + meta.getXml() + "</transform>";
+    var restored = new CoverageOperationMeta();
+    restored.loadXml(XmlHandler.loadXmlString(xml).getDocumentElement(), null);
+    restored.resetTransformIoMeta();
+    restored.searchInfoAndTargetTransforms(List.of(reject));
+    assertThat(restored.getRejectTransformName()).isEqualTo("reject");
+    assertThat(restored.cleanAfterHopToRemove(reject)).isFalse();
+    assertThat(restored.cleanAfterHopFromRemove(reject)).isTrue();
+    restored.resetTransformIoMeta();
+    restored.searchInfoAndTargetTransforms(List.of(reject));
+    assertThat(restored.getRejectTransformName()).isEmpty();
+  }
+
+  @Test
   void validateDuplicatesInvalidRowsToRejectTarget() throws Exception {
     CoverageOperationMeta meta = new CoverageOperationMeta();
     meta.setDefault();
     meta.setGeometryFieldName("geometry");
     meta.setGapWidth("0.1");
-    meta.getTransformIOMeta().getTargetStreams().get(0).setSubject("reject");
+    meta.setRejectTransformName("reject");
+    String xml = "<transform>" + meta.getXml() + "</transform>";
+    meta = new CoverageOperationMeta();
+    meta.loadXml(XmlHandler.loadXmlString(xml).getDocumentElement(), null);
 
     TestCoverageOperation transform =
         new TestCoverageOperation(

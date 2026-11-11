@@ -53,7 +53,9 @@ The field status reports missing or incompatible mappings before accepting the d
 [[coverage-operation-output]]
 == Output
 
-One main output row per input in original order. Validation appends boolean, error geometry and error type; invalid rows can also be duplicated to a reject target.
+One main output row per input in original order. Validation appends boolean, error geometry and error type; invalid rows can also be duplicated to a reject target. Start an outgoing hop from
+Coverage Operation and select *Reject rows* to assign it. Hop saves the assignment
+with the pipeline and clears it when that hop is deleted.
 
 [[coverage-operation-supported-engines]]
 == Supported engines

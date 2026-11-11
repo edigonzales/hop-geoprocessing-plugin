@@ -47,6 +47,18 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
+      <groupId>org.apache.hop</groupId>
+      <artifactId>hop-ui-rcp</artifactId>
+      <version>${hop.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>
@@ -71,6 +83,11 @@
       </plugin>
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <HOP_AUDIT_FOLDER>${project.build.directory}/audit</HOP_AUDIT_FOLDER>
+          </systemPropertyVariables>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>io.smallrye</groupId>

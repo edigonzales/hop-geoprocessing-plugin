@@ -41,13 +41,12 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
   @Override
   public boolean processRow() throws HopException {
     Object[] primaryRow = data.initialized
-        ? getRowFrom(data.primaryRowSet)
+        ? readPrimaryRow()
         : initialize();
     if (primaryRow == null) {
       setOutputDone();
       return false;
     }
-    incrementLinesRead();
 
     Geometry primaryGeometry =
         GeometryFieldValueHelper.readGeometry(data.primaryRowMeta, data.primaryGeometryFieldIndex, primaryRow);
@@ -101,42 +100,69 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
       throw new HopTransformException("Secondary layer info stream is not connected");
     }
 
+    List<IRowSet> primaryInputs =
+        TransformStreamRouting.primaryInputs(getInputRowSets(), infoTransformName);
+    data.primaryRowSet = primaryInputs.size() == 1 ? primaryInputs.get(0) : null;
     data.secondaryRowSet = findInputRowSet(infoTransformName);
-    data.primaryRowSet = resolvePrimaryRowSet(infoTransformName);
     if (data.secondaryRowSet == null) {
       throw new HopTransformException("Secondary layer info stream row set was not found: " + infoTransformName);
     }
-    if (data.primaryRowSet == null) {
-      throw new HopTransformException("Primary input row set was not found");
+    TransformStreamRouting.RowSetTargets outputTargets =
+        TransformStreamRouting.partitionRowSets(getOutputRowSets(), meta.getRejectTransformName());
+    if (!outputTargets.targetRowSets().isEmpty()
+        && meta.getResultMode() != SpatialPredicateResultMode.KEEP_MATCHED
+        && meta.getResultMode() != SpatialPredicateResultMode.KEEP_UNMATCHED) {
+      throw new HopTransformException(
+          "Reject target stream is only supported for KEEP_MATCHED and KEEP_UNMATCHED.");
     }
-    // Row metadata is published with the first row, not when the row set is connected.
+    data.mainOutputRowSets = outputTargets.mainRowSets();
+    data.rejectOutputRowSets = outputTargets.targetRowSets();
+
+    // A single primary row set can publish its first row while the INFO layer is still loading.
     Object[] firstSecondaryRow = getRowFrom(data.secondaryRowSet);
-    Object[] firstPrimaryRow = getRowFrom(data.primaryRowSet);
-    if (firstPrimaryRow == null) {
+    Object[] firstPrimaryRow = data.primaryRowSet == null ? null : readPrimaryRow();
+    if (data.primaryRowSet != null && firstPrimaryRow == null) {
       while (getRowFrom(data.secondaryRowSet) != null) {
         // Drain the independent secondary producer when the primary input is empty.
       }
       return null;
     }
-    data.primaryRowMeta = data.primaryRowSet.getRowMeta();
     data.secondaryRowMeta = data.secondaryRowSet.getRowMeta();
     if (data.secondaryRowMeta == null) {
       data.secondaryRowMeta =
           getPipelineMeta().getTransformFields(
               this, getPipelineMeta().findTransform(infoTransformName), getTransformMeta(), null);
     }
-    GeometryFieldSelection primarySelection =
-        GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(data.primaryRowMeta, meta.getPrimaryGeometryFieldName());
     GeometryFieldSelection secondarySelection =
         GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(data.secondaryRowMeta, meta.getSecondaryGeometryFieldName());
-    logSelectionWarning(primarySelection.warning());
     logSelectionWarning(secondarySelection.warning());
-    data.primaryGeometryFieldIndex =
-        GEOMETRY_FIELD_SELECTION_RESOLVER.requireFieldIndex(
-            data.primaryRowMeta, meta.getPrimaryGeometryFieldName(), "Primary geometry field");
     data.secondaryGeometryFieldIndex =
         GEOMETRY_FIELD_SELECTION_RESOLVER.requireFieldIndex(
             data.secondaryRowMeta, meta.getSecondaryGeometryFieldName(), "Secondary geometry field");
+
+    List<FeatureRow> secondaryFeatures = new ArrayList<>();
+    long featureId = 0L;
+    Object[] secondaryRow = firstSecondaryRow;
+    while (secondaryRow != null) {
+      secondaryFeatures.add(
+          FeatureRow.fromRow(data.secondaryRowMeta, data.secondaryGeometryFieldIndex, secondaryRow, featureId++));
+      secondaryRow = getRowFrom(data.secondaryRowSet);
+    }
+
+    // Hop removes exhausted row sets. Its normal reader can now merge all primary copies.
+    if (data.primaryRowSet == null) {
+      firstPrimaryRow = readPrimaryRow();
+      if (firstPrimaryRow == null) {
+        return null;
+      }
+    }
+    data.primaryRowMeta = data.primaryRowSet == null ? getInputRowMeta() : data.primaryRowSet.getRowMeta();
+    GeometryFieldSelection primarySelection =
+        GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(data.primaryRowMeta, meta.getPrimaryGeometryFieldName());
+    logSelectionWarning(primarySelection.warning());
+    data.primaryGeometryFieldIndex =
+        GEOMETRY_FIELD_SELECTION_RESOLVER.requireFieldIndex(
+            data.primaryRowMeta, meta.getPrimaryGeometryFieldName(), "Primary geometry field");
     if (meta.descriptor().requires(ParameterId.DISTANCE)) {
       if (meta.getDistanceMode() == DistanceMode.FIELD) {
         data.distanceFieldIndex = data.primaryRowMeta.indexOfValue(meta.getDistanceFieldName());
@@ -147,19 +173,6 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
       } else if (meta.getDistanceMode() == DistanceMode.STATIC && meta.getDistanceValue() != null) {
         data.staticDistance = Double.parseDouble(resolve(meta.getDistanceValue()));
       }
-    }
-    TransformStreamRouting.RowSetTargets outputTargets =
-        TransformStreamRouting.partitionRowSets(getOutputRowSets(), meta.getRejectTransformName());
-    data.mainOutputRowSets = outputTargets.mainRowSets();
-    data.rejectOutputRowSets = outputTargets.targetRowSets();
-
-    List<FeatureRow> secondaryFeatures = new ArrayList<>();
-    long featureId = 0L;
-    Object[] secondaryRow = firstSecondaryRow;
-    while (secondaryRow != null) {
-      secondaryFeatures.add(
-          FeatureRow.fromRow(data.secondaryRowMeta, data.secondaryGeometryFieldIndex, secondaryRow, featureId++));
-      secondaryRow = getRowFrom(data.secondaryRowSet);
     }
 
     LayerCache secondaryLayerCache =
@@ -188,15 +201,12 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
     }
   }
 
-  private IRowSet resolvePrimaryRowSet(String infoTransformName) throws HopTransformException {
-    for (IRowSet rowSet : getInputRowSets()) {
-      if (!rowSet.getOriginTransformName().equalsIgnoreCase(infoTransformName)) {
-        return rowSet;
-      }
+  private Object[] readPrimaryRow() throws HopException {
+    if (data.primaryRowSet == null) {
+      return getRow();
     }
-    throw new HopTransformException("No primary input row set found");
+    return getRowFrom(data.primaryRowSet);
   }
-
   private Double resolveDistance(Object[] primaryRow) throws HopException {
     if (!meta.descriptor().requires(ParameterId.DISTANCE)) {
       return null;

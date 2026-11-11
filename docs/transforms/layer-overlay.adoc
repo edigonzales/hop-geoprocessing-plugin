@@ -12,34 +12,39 @@
 [[layer-overlay-input]]
 == Input
 
-A primary stream and a secondary info stream. Both fields must use the native Geometry type (for example, convert WKT using Select Values). Both geometry fields must be configured; the secondary layer is cached before output.
+Connect two independent producers to Layer Overlay. In the dialog, choose the secondary producer
+from *Secondary info transform*, which lists enabled incoming data hops. Click *OK*
+to assign the hop to the *Secondary layer* info stream. The assignment is saved with the
+pipeline. To change producers, remove the old hop if it is no longer needed, connect
+the new producer, and select it in the dialog.
+
+Use native Geometry for both fields. Select Values can convert WKT upstream. Layer
+Overlay requires one primary producer and one secondary INFO row set per copy of the
+overlay. Hop can feed multiple copies of the same primary producer into one overlay.
 
 [[layer-overlay-options]]
 == Options
 
-Open the transform from the pipeline canvas. The sketch lists the controls in dialog order;
-`[choose or enter]` represents an editable field selector or a fixed choice as applicable.
-Controls are enabled or shown according to the selected operation/representation; inactive
-mappings remain stored. The detailed reference below explains the operation-specific settings.
-The field status reports missing or incompatible mappings before accepting the dialog.
+The sketch shows *Intersection* in *STANDARD* mode. `v` marks a dropdown.
+*Precision scale* appears for fixed precision when the operation supports it.
 
 [.gui-mockup]
 ----
-+------------------------------------------------------------------------+
-| Layer Overlay                                                          |
-| Name                             [example]                             |
-| Operation                         [choose or enter]                    |
-| Execution mode                    [read only]                          |
-| Secondary info transform          [read only]                          |
-| Primary geometry field            [choose or enter]                    |
-| Secondary geometry field          [choose or enter]                    |
-| Overlay mode                      [choose or enter]                    |
-| Precision scale                   [value]                              |
-| Output geometry field             [value]                              |
-| Secondary field prefix            [value]                              |
-| Status / field validation                                              |
-|                                              [OK] [Cancel]             |
-+------------------------------------------------------------------------+
++-----------------------------------------------------------------------------------+
+| Layer Overlay                                                                     |
+| Name                       [Intersect parcels]                                    |
+| Connect both producers, then choose the secondary producer in                     |
+| 'Secondary info transform'.                                                       |
+| Operation                  [Intersection                                  v]      |
+| Execution mode             [Blocking per layer/group               read-only]     |
+| Secondary info transform   [Masks                                         v]      |
+| Primary geometry field     [geometry                                      v]      |
+| Secondary geometry field   [mask                                          v]      |
+| Overlay mode               [STANDARD                                      v]      |
+| Output geometry field      [overlay_geometry]                                     |
+| Secondary field prefix     [b_]                                                   |
+| [Help]                           [OK] [Cancel]                                    |
++-----------------------------------------------------------------------------------+
 ----
 
 [[layer-overlay-output]]
