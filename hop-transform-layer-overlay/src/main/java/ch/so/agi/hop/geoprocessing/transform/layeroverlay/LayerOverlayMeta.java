@@ -98,6 +98,12 @@ public class LayerOverlayMeta extends BaseTransformMeta<LayerOverlay, LayerOverl
   }
 
   @Override
+  public boolean excludeFromRowLayoutVerification() {
+    // Hop's safe mode compares all predecessor schemas, including the separate INFO layer.
+    return infoStream().getTransformMeta() != null;
+  }
+
+  @Override
   public void getFields(
       IRowMeta rowMeta,
       String origin,
