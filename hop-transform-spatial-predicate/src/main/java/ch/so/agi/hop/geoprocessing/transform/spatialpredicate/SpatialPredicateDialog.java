@@ -1,5 +1,9 @@
 package ch.so.agi.hop.geoprocessing.transform.spatialpredicate;
 
+import ch.so.agi.hop.commons.core.SourceMode;
+import ch.so.agi.hop.commons.core.ValueOrField;
+import ch.so.agi.hop.commons.ui.EditorKind;
+import ch.so.agi.hop.commons.ui.ValueOrFieldControl;
 import ch.so.agi.hop.geoprocessing.core.DistanceMode;
 import ch.so.agi.hop.geoprocessing.core.GeometryFieldSelection;
 import ch.so.agi.hop.geoprocessing.core.GeometryFieldSelectionResolver;
@@ -10,13 +14,14 @@ import ch.so.agi.hop.geoprocessing.core.SpatialPredicateResultMode;
 import ch.so.agi.hop.geoprocessing.core.TransformStreamRouting;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.hop.core.exception.HopTransformException;
 import org.apache.hop.core.row.IRowMeta;
+import org.apache.hop.core.util.StringUtil;
 import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.pipeline.transform.TransformMeta;
 import org.apache.hop.ui.core.PropsUi;
 import org.apache.hop.ui.core.dialog.BaseDialog;
-import org.apache.hop.ui.core.widget.TextVar;
 import org.apache.hop.ui.pipeline.transform.BaseTransformDialog;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.FormAttachment;
@@ -49,9 +54,7 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
   private Combo wInfoTransformName;
   private Combo wPrimaryGeometryField;
   private Combo wSecondaryGeometryField;
-  private Combo wDistanceMode;
-  private TextVar wDistanceValue;
-  private Combo wDistanceField;
+  private ValueOrFieldControl wDistance;
   private Combo wResultMode;
   private Text wBooleanField;
   private Text wFieldPrefix;
@@ -131,12 +134,14 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
     wInfoTransformName = addCombo("Secondary info transform");
     wPrimaryGeometryField = addCombo("Primary geometry field");
     wSecondaryGeometryField = addCombo("Secondary geometry field");
-    wDistanceMode = addCombo("Distance mode");
-    for (DistanceMode mode : DistanceMode.values()) {
-      wDistanceMode.add(mode.name());
-    }
-    wDistanceValue = addTextVar("Static distance");
-    wDistanceField = addCombo("Distance field");
+    Label distanceLabel = addLabel("Distance");
+    wDistance = ValueOrFieldControl.builder(content, variables)
+        .editor(EditorKind.TEXT)
+        .fieldProvider(this::distanceFieldNames)
+        .onChange(input::setChanged)
+        .build();
+    wDistance.setLayoutData(defaultGridData());
+    wDistance.setData("label", distanceLabel);
     wResultMode = addCombo("Result mode");
     for (SpatialPredicateResultMode mode : SpatialPredicateResultMode.values()) {
       wResultMode.add(mode.name());
@@ -147,10 +152,10 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
 
     getData();
     loadFieldChoices(
-        input.getPrimaryGeometryFieldName(), input.getSecondaryGeometryFieldName(),
-        input.getDistanceFieldName());
-    attachListeners();
+        input.getPrimaryGeometryFieldName(), input.getSecondaryGeometryFieldName());
     refreshVisibility();
+    input.setChanged(changed);
+    attachListeners();
 
     wOk.addListener(SWT.Selection, event -> ok());
     wCancel.addListener(SWT.Selection, event -> cancel());
@@ -171,18 +176,10 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
         event -> {
           input.setChanged();
           loadFieldChoices(
-              wPrimaryGeometryField.getText(), wSecondaryGeometryField.getText(),
-              wDistanceField.getText());
+              wPrimaryGeometryField.getText(), wSecondaryGeometryField.getText());
         });
     wPrimaryGeometryField.addModifyListener(event -> input.setChanged());
     wSecondaryGeometryField.addModifyListener(event -> input.setChanged());
-    wDistanceMode.addModifyListener(
-        event -> {
-          input.setChanged();
-          refreshVisibility();
-        });
-    wDistanceValue.addModifyListener(event -> input.setChanged());
-    wDistanceField.addModifyListener(event -> input.setChanged());
     wResultMode.addModifyListener(
         event -> {
           input.setChanged();
@@ -192,11 +189,10 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
     wFieldPrefix.addModifyListener(event -> input.setChanged());
   }
 
-  private void loadFieldChoices(String primaryField, String secondaryField, String distanceField) {
+  private void loadFieldChoices(String primaryField, String secondaryField) {
     List<String> messages = new ArrayList<>();
     wPrimaryGeometryField.removeAll();
     wSecondaryGeometryField.removeAll();
-    wDistanceField.removeAll();
     pipelineMeta.clearCaches();
     TransformMeta target = pipelineMeta.findTransform(transformName);
     TransformMeta source = selectedInfoSource(target);
@@ -209,10 +205,6 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
       if (primarySelection.fieldNames().isEmpty()) {
         messages.add("No geometry field candidates found on the primary input.");
       }
-      for (String numericFieldName : RowMetaSupport.numericFieldNames(prev)) {
-        wDistanceField.add(numericFieldName);
-      }
-      wDistanceField.setText(defaultText(distanceField));
     } catch (Exception e) {
       messages.add("Unable to inspect primary input fields: " + rootCauseMessage(e));
     }
@@ -233,7 +225,18 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
     } else {
       messages.add("No secondary info transform is assigned yet.");
     }
+    wDistance.refreshFields();
     setFieldStatus(messages);
+  }
+
+  private String[] distanceFieldNames() throws HopTransformException {
+    TransformMeta target = pipelineMeta.findTransform(transformName);
+    TransformMeta source = selectedInfoSource(target);
+    if (source == null) {
+      return new String[0];
+    }
+    IRowMeta primary = TransformStreamRouting.primaryFields(pipelineMeta, variables, target, source);
+    return RowMetaSupport.numericFieldNames(primary).toArray(String[]::new);
   }
 
   private void getData() {
@@ -251,8 +254,10 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
       }
     }
     wInfoTransformName.select(selection);
-    wDistanceMode.setText((input.getDistanceMode() == null ? DistanceMode.STATIC : input.getDistanceMode()).name());
-    wDistanceValue.setText(defaultText(input.getDistanceValue()));
+    wDistance.setValue(new ValueOrField(
+        input.getDistanceMode() == DistanceMode.FIELD ? SourceMode.FIELD : SourceMode.CONFIGURED,
+        defaultText(input.getDistanceValue()),
+        defaultText(input.getDistanceFieldName())));
     wResultMode.setText((input.getResultMode() == null ? SpatialPredicateResultMode.BOOLEAN_COLUMN : input.getResultMode()).name());
     wBooleanField.setText(defaultText(input.getBooleanFieldName()));
     wFieldPrefix.setText(defaultText(input.getFieldPrefix()));
@@ -289,12 +294,8 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
     SpatialPredicateResultMode currentResultMode =
         SpatialPredicateResultMode.valueOf(
             defaultText(wResultMode.getText(), SpatialPredicateResultMode.BOOLEAN_COLUMN.name()));
-    DistanceMode currentDistanceMode =
-        DistanceMode.valueOf(defaultText(wDistanceMode.getText(), DistanceMode.STATIC.name()));
 
-    toggleControl(wDistanceMode, needsDistance);
-    toggleControl(wDistanceValue, needsDistance && currentDistanceMode == DistanceMode.STATIC);
-    toggleControl(wDistanceField, needsDistance && currentDistanceMode == DistanceMode.FIELD);
+    toggleControl(wDistance, needsDistance);
     toggleControl(wBooleanField, currentResultMode == SpatialPredicateResultMode.BOOLEAN_COLUMN);
     toggleControl(wFieldPrefix, currentResultMode == SpatialPredicateResultMode.INNER_JOIN);
     content.layout(true, true);
@@ -328,6 +329,17 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
       showValidationWarning("Please select a secondary geometry field.");
       return;
     }
+    ValueOrField distance = wDistance.getValue();
+    if (currentDescriptor().requires(ParameterId.DISTANCE)) {
+      if (distance.mode() == SourceMode.FIELD && distance.fieldName().isBlank()) {
+        showValidationWarning("Please select a numeric distance field.");
+        return;
+      }
+      if (distance.mode() == SourceMode.CONFIGURED && !validConfiguredDistance(distance.configuredValue())) {
+        showValidationWarning("Please enter a finite nonnegative distance or variable.");
+        return;
+      }
+    }
     var stream = input.getTransformIOMeta().getInfoStreams().get(0);
     stream.setTransformMeta(source);
     input.handleStreamSelection(stream);
@@ -335,15 +347,29 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
     input.setOperationId(currentDescriptor().id());
     input.setPrimaryGeometryFieldName(wPrimaryGeometryField.getText());
     input.setSecondaryGeometryFieldName(wSecondaryGeometryField.getText());
-    input.setDistanceMode(DistanceMode.valueOf(defaultText(wDistanceMode.getText(), DistanceMode.STATIC.name())));
-    input.setDistanceValue(wDistanceValue.getText());
-    input.setDistanceFieldName(wDistanceField.getText());
+    input.setDistanceMode(distance.mode() == SourceMode.FIELD ? DistanceMode.FIELD : DistanceMode.STATIC);
+    input.setDistanceValue(distance.configuredValue());
+    input.setDistanceFieldName(distance.fieldName());
     input.setResultMode(
         SpatialPredicateResultMode.valueOf(
             defaultText(wResultMode.getText(), SpatialPredicateResultMode.BOOLEAN_COLUMN.name())));
     input.setBooleanFieldName(wBooleanField.getText());
     input.setFieldPrefix(wFieldPrefix.getText());
     dispose();
+  }
+
+  private boolean validConfiguredDistance(String value) {
+    List<String> variableNames = new ArrayList<>();
+    StringUtil.getUsedVariables(value, variableNames, true);
+    if (!variableNames.isEmpty()) {
+      return true;
+    }
+    try {
+      double distance = Double.parseDouble(value);
+      return Double.isFinite(distance) && distance >= 0;
+    } catch (NumberFormatException e) {
+      return false;
+    }
   }
 
   private void cancel() {
@@ -372,15 +398,6 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
     combo.setData("label", label);
     PropsUi.setLook(combo);
     return combo;
-  }
-
-  private TextVar addTextVar(String labelText) {
-    Label label = addLabel(labelText);
-    TextVar text = new TextVar(variables, content, SWT.SINGLE | SWT.BORDER);
-    text.setLayoutData(defaultGridData());
-    text.setData("label", label);
-    PropsUi.setLook(text);
-    return text;
   }
 
   private Text addText(String labelText) {

@@ -32,9 +32,7 @@ The field status reports missing or incompatible mappings before accepting the d
 | Execution mode                    [read only]                          |
 | Primary geometry field            [choose or enter]                    |
 | Secondary geometry field          [choose or enter]                    |
-| Distance mode                     [choose or enter]                    |
-| Static distance                   [value]                              |
-| Distance field                    [choose or enter]                    |
+| Distance                          [Configured v] [value or variable]   |
 | Overlay mode                      [choose or enter]                    |
 | Precision scale                   [value]                              |
 | Output mode                       [choose or enter]                    |
@@ -139,7 +137,7 @@ SQL/MM true curves from the Hop Geometry value type are accepted. `CIRCULARSTRIN
 * `secondaryGeometryFieldName`
 ** used only for binary same-row operations such as `intersection`, `snap`, and `split`
 * `distance`
-** distance, tolerance, or threshold depending on the operation
+** distance, tolerance, or threshold depending on the operation. Choose *Configured* for a literal or variable, or *Field* for a numeric input column. *Refresh* reloads field suggestions. Switching sources preserves both entries. In *Field* mode the field selector and *Refresh* button replace the configured editor.
 * `outputMode`
 ** `APPEND` or `REPLACE`
 
