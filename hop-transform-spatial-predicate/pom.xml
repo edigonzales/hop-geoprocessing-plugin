@@ -47,6 +47,18 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
+      <groupId>org.apache.hop</groupId>
+      <artifactId>hop-ui-rcp</artifactId>
+      <version>${hop.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>

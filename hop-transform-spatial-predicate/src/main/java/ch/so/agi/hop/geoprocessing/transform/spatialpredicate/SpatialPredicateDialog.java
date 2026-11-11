@@ -10,9 +10,9 @@ import ch.so.agi.hop.geoprocessing.core.SpatialPredicateResultMode;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.hop.core.row.IRowMeta;
-import org.apache.hop.core.util.Utils;
 import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.pipeline.PipelineMeta;
+import org.apache.hop.pipeline.transform.TransformMeta;
 import org.apache.hop.ui.core.PropsUi;
 import org.apache.hop.ui.core.dialog.BaseDialog;
 import org.apache.hop.ui.core.widget.TextVar;
@@ -33,6 +33,9 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Text;
 
 public class SpatialPredicateDialog extends BaseTransformDialog {
+
+  private static final String MISSING_INFO =
+      "Connect the secondary producer using the 'Secondary layer' info hop. A regular input hop is not sufficient.";
 
   private static final GeometryFieldSelectionResolver GEOMETRY_FIELD_SELECTION_RESOLVER =
       new GeometryFieldSelectionResolver();
@@ -116,7 +119,7 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
     fdContent.bottom = new FormAttachment(wOk, -margin * 2);
     content.setLayoutData(fdContent);
 
-    addFullWidthLabel("Connect the secondary layer with an info hop before validating the transform.");
+    addFullWidthLabel(MISSING_INFO);
     addFullWidthLabel(
         "Optional reject target hop: KEEP_MATCHED and KEEP_UNMATCHED can send the opposite set to a second output stream.");
     wOperation = addCombo("Operation");
@@ -184,7 +187,11 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
     wSecondaryGeometryField.removeAll();
     wDistanceField.removeAll();
     try {
-      IRowMeta prev = pipelineMeta.getPrevTransformFields(variables, transformName);
+      pipelineMeta.clearCaches();
+      TransformMeta target = pipelineMeta.findTransform(transformName);
+      TransformMeta[] primarySources =
+          pipelineMeta.findPreviousTransforms(target, false).toArray(TransformMeta[]::new);
+      IRowMeta prev = pipelineMeta.getTransformFields(variables, primarySources);
       GeometryFieldSelection primarySelection =
           GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(prev, input.getPrimaryGeometryFieldName());
       applySelection(wPrimaryGeometryField, primarySelection);
@@ -199,10 +206,10 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
       messages.add("Unable to inspect primary input fields: " + rootCauseMessage(e));
     }
 
-    String infoTransformName = input.getInfoTransformName();
-    if (!infoTransformName.isBlank()) {
+    TransformMeta source = connectedInfoSource();
+    if (source != null) {
       try {
-        IRowMeta infoRowMeta = pipelineMeta.getTransformFields(variables, infoTransformName);
+        IRowMeta infoRowMeta = pipelineMeta.getTransformFields(variables, source);
         GeometryFieldSelection secondarySelection =
             GEOMETRY_FIELD_SELECTION_RESOLVER.resolve(infoRowMeta, input.getSecondaryGeometryFieldName());
         applySelection(wSecondaryGeometryField, secondarySelection);
@@ -223,7 +230,8 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
     wTransformName.setText(transformName == null ? "" : transformName);
     selectOperation(input.getOperationId());
     wExecutionMode.setText(input.descriptor().executionMode().getLabel());
-    wInfoTransformName.setText(input.getInfoTransformName());
+    TransformMeta source = connectedInfoSource();
+    wInfoTransformName.setText(source == null ? "" : source.getName());
     wDistanceMode.setText((input.getDistanceMode() == null ? DistanceMode.STATIC : input.getDistanceMode()).name());
     wDistanceValue.setText(defaultText(input.getDistanceValue()));
     wDistanceField.setText(defaultText(input.getDistanceFieldName()));
@@ -232,6 +240,16 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
     wFieldPrefix.setText(defaultText(input.getFieldPrefix()));
     wTransformName.selectAll();
     wTransformName.setFocus();
+  }
+
+  private TransformMeta connectedInfoSource() {
+    TransformMeta source = input.getTransformIOMeta().getInfoStreams().get(0).getTransformMeta();
+    TransformMeta target = pipelineMeta.findTransform(transformName);
+    if (source == null || target == null || pipelineMeta.findTransform(source.getName()) != source
+        || pipelineMeta.findPipelineHop(source, target) == null) {
+      return null;
+    }
+    return source;
   }
 
   private void selectOperation(String operationId) {
@@ -275,7 +293,12 @@ public class SpatialPredicateDialog extends BaseTransformDialog {
   }
 
   private void ok() {
-    if (Utils.isEmpty(wTransformName.getText())) {
+    if (wTransformName.getText().isBlank()) {
+      showValidationWarning("Please enter a transform name.");
+      return;
+    }
+    if (connectedInfoSource() == null) {
+      showValidationWarning(MISSING_INFO);
       return;
     }
     if (wPrimaryGeometryField.getText().isBlank()) {

@@ -1,6 +1,7 @@
 package ch.so.agi.hop.geoprocessing.transform.spatialpredicate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.atolcd.hop.core.row.value.ValueMetaGeometry;
 import java.util.ArrayList;
@@ -25,6 +26,16 @@ class SpatialPredicateRoutingTest {
 
   private final GeometryFactory geometryFactory = new GeometryFactory();
   private final WKTReader wktReader = new WKTReader(geometryFactory);
+
+  @Test
+  void ordinarySecondaryHopDoesNotCountAsInfoInput() throws Exception {
+    TestSpatialPredicate transform = createTransform(SpatialPredicateResultMode.KEEP_MATCHED);
+    transform.getMeta().setInfoTransformName(null);
+
+    assertThatThrownBy(transform::processRow)
+        .isInstanceOf(HopTransformException.class)
+        .hasMessageContaining("Secondary layer info stream is not connected");
+  }
 
   @Test
   void keepMatchedRoutesUnmatchedRowsToRejectTarget() throws Exception {
@@ -124,9 +135,11 @@ class SpatialPredicateRoutingTest {
     meta.setDefault();
     meta.setOperationId("within");
     meta.setPrimaryGeometryFieldName("geometry");
-    meta.setSecondaryGeometryFieldName("geometry");
+    meta.setSecondaryGeometryFieldName("mask");
     meta.setResultMode(resultMode);
-    meta.getTransformIOMeta().getInfoStreams().get(0).setSubject("secondary");
+    var info = meta.getTransformIOMeta().getInfoStreams().get(0);
+    info.setTransformMeta(new TransformMeta("secondary", null));
+    meta.handleStreamSelection(info);
     meta.getTransformIOMeta().getTargetStreams().get(0).setSubject("reject");
 
     TestSpatialPredicate transform =
@@ -148,7 +161,7 @@ class SpatialPredicateRoutingTest {
             new Object[] {2L, wktReader.read("POINT (5 5)")}));
 
     RowMeta secondaryRowMeta = new RowMeta();
-    secondaryRowMeta.addValueMeta(new ValueMetaGeometry("geometry"));
+    secondaryRowMeta.addValueMeta(new ValueMetaGeometry("mask"));
     transform.addInputRowSet(
         "secondary",
         secondaryRowMeta,

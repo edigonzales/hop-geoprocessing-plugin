@@ -70,7 +70,7 @@ public class SpatialPredicateMeta
     if (ioMeta == null) {
       TransformIOMeta transformIOMeta = new TransformIOMeta(true, true, true, false, false, false);
       transformIOMeta.addStream(
-          new Stream(IStream.StreamType.INFO, null, "Secondary layer", StreamIcon.INFO, null));
+          new Stream(IStream.StreamType.INFO, null, "Secondary layer", StreamIcon.INFO, infoTransformName));
       transformIOMeta.addStream(
           new Stream(IStream.StreamType.TARGET, null, "Reject rows", StreamIcon.TARGET, null));
       transformIOMeta.setGeneralTargetDescription(
@@ -82,14 +82,17 @@ public class SpatialPredicateMeta
   }
 
   @Override
-  public void searchInfoAndTargetTransforms(List<TransformMeta> transforms) {
-    for (IStream infoStream : getTransformIOMeta().getInfoStreams()) {
-      String name = infoStream.getSubject();
-      if (name == null || name.isBlank()) {
-        name = infoTransformName;
-      }
-      infoStream.setTransformMeta(TransformMeta.findTransform(transforms, name));
+  public void handleStreamSelection(IStream stream) {
+    if (stream == infoStream() && stream.getTransformMeta() != null) {
+      setInfoTransformName(stream.getTransformName());
     }
+  }
+
+  @Override
+  public void searchInfoAndTargetTransforms(List<TransformMeta> transforms) {
+    String name = getInfoTransformName();
+    infoStream().setTransformMeta(TransformMeta.findTransform(transforms, name));
+    setInfoTransformName(name);
     for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
       targetStream.setTransformMeta(TransformMeta.findTransform(transforms, targetStream.getSubject()));
     }
@@ -97,14 +100,7 @@ public class SpatialPredicateMeta
 
   @Override
   public void convertIOMetaToTransformNames() {
-    for (IStream infoStream : getTransformIOMeta().getInfoStreams()) {
-      String name = infoStream.getTransformName();
-      if (name == null || name.isBlank()) {
-        name = infoStream.getSubject();
-      }
-      infoTransformName = name == null ? "" : name;
-      infoStream.setSubject(infoTransformName);
-    }
+    setInfoTransformName(getInfoTransformName());
     for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
       targetStream.setSubject(targetStream.getTransformName());
     }
@@ -112,15 +108,10 @@ public class SpatialPredicateMeta
 
   @Override
   public boolean cleanAfterHopToRemove(TransformMeta fromTransform) {
-    for (IStream infoStream : getTransformIOMeta().getInfoStreams()) {
-      if (fromTransform != null
-          && infoStream.getTransformMeta() != null
-          && fromTransform.getName().equals(infoStream.getTransformMeta().getName())) {
-        infoStream.setTransformMeta(null);
-        infoStream.setSubject(null);
-        infoTransformName = "";
-        return true;
-      }
+    if (fromTransform != null && fromTransform.getName() != null
+        && fromTransform.getName().equalsIgnoreCase(getInfoTransformName())) {
+      setInfoTransformName("");
+      return true;
     }
     for (IStream targetStream : getTransformIOMeta().getTargetStreams()) {
       if (fromTransform != null
@@ -247,20 +238,27 @@ public class SpatialPredicateMeta
   }
 
   public void setInfoTransformName(String name) {
-    infoTransformName = name == null ? "" : name;
-    getTransformIOMeta().getInfoStreams().get(0).setSubject(infoTransformName);
+    IStream stream = infoStream();
+    TransformMeta source = stream.getTransformMeta();
+    if (source != null && !source.getName().equalsIgnoreCase(name)) {
+      stream.setTransformMeta(null);
+      source = null;
+    }
+    infoTransformName = source == null ? (name == null ? "" : name) : source.getName();
+    stream.setSubject(infoTransformName);
   }
 
   public String getInfoTransformName() {
-    List<IStream> infoStreams = getTransformIOMeta().getInfoStreams();
-    if (infoStreams.isEmpty()) {
-      return "";
+    IStream stream = infoStream();
+    if (stream.getTransformMeta() != null) {
+      return stream.getTransformName();
     }
-    IStream infoStream = infoStreams.get(0);
-    if (infoStream.getTransformMeta() != null) {
-      return infoStream.getTransformMeta().getName();
-    }
-    return infoStream.getSubject() == null ? infoTransformName : infoStream.getSubject();
+    String subject = stream.getSubject();
+    return subject == null ? (infoTransformName == null ? "" : infoTransformName) : subject;
+  }
+
+  private IStream infoStream() {
+    return getTransformIOMeta().getInfoStreams().get(0);
   }
 
   public String getRejectTransformName() {

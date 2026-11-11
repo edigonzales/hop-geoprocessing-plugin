@@ -13,37 +13,47 @@ boolean, a filter decision, or an inner join.
 [[spatial-predicate-input]]
 == Input
 
-A primary stream and one secondary info stream. Connect the secondary input as an info hop and choose both native Geometry fields; use Select Values to convert source WKT first.
+Connect the primary producer to Spatial Predicate with a regular input hop.
+In Hop 2.19, start a hop on Spatial Predicate and finish it on the secondary producer.
+Choose *Secondary layer* in the hop menu. Although you start the gesture on Spatial Predicate,
+the data flows from the secondary producer into Spatial Predicate. If you already drew a
+regular hop from the secondary producer, remove it before creating the info hop.
+
+The info hop tells Hop to supply a separate layer for comparison. The dialog displays the
+connected producer in the read-only *Secondary info transform* field. Each geometry selector
+lists fields from its own stream. Use Select Values upstream to convert WKT to native Geometry
+if needed.
 
 [[spatial-predicate-options]]
 == Options
 
-Open the transform from the pipeline canvas. The sketch lists the controls in dialog order;
-`[choose or enter]` represents an editable field selector or a fixed choice as applicable.
-Controls are enabled or shown according to the selected operation/representation; inactive
-mappings remain stored. The detailed reference below explains the operation-specific settings.
-The field status reports missing or incompatible mappings before accepting the dialog.
+The following example shows the dialog with *Within* and `KEEP_MATCHED` selected.
+`[v]` marks a dropdown. Distance controls appear only for distance predicates;
+the boolean output field and join prefix appear only in their respective result modes.
 
 [.gui-mockup]
 ----
-+------------------------------------------------------------------------+
-| Spatial Predicate                                                      |
-| Name                             [example]                             |
-| Operation                         [choose or enter]                    |
-| Execution mode                    [read only]                          |
-| Secondary info transform          [read only]                          |
-| Primary geometry field            [choose or enter]                    |
-| Secondary geometry field          [choose or enter]                    |
-| Distance mode                     [choose or enter]                    |
-| Static distance                   [value]                              |
-| Distance field                    [choose or enter]                    |
-| Result mode                       [choose or enter]                    |
-| Boolean output field              [value]                              |
-| Join field prefix                 [value]                              |
-| Status / field validation                                              |
-|                                              [OK] [Cancel]             |
-+------------------------------------------------------------------------+
++-----------------------------------------------------------------------------------+
+| Spatial Predicate                                                                 |
+| Name                        [Points within Polygons]                               |
+| Connect the secondary producer using the 'Secondary layer' info hop.              |
+| A regular input hop is not sufficient.                                            |
+| Optional reject target hop: KEEP_MATCHED and KEEP_UNMATCHED can send               |
+| the opposite set to a second output stream.                                       |
+| Operation                   [Within                                   v]          |
+| Execution mode              [Caches secondary layer            read-only]          |
+| Secondary info transform    [Polygons                          read-only]          |
+| Primary geometry field      [point                                    v]          |
+| Secondary geometry field    [mask                                     v]          |
+| Result mode                 [KEEP_MATCHED                             v]          |
+|                                                                  [OK] [Cancel]    |
++-----------------------------------------------------------------------------------+
 ----
+
+For points within polygons, connect Points as the primary input and Polygons as the
+secondary layer. Choose *Within*, the point and polygon geometry fields, and
+`KEEP_MATCHED`. A point at (1, 1) matches a square from (0, 0) to (3, 3);
+a point at (5, 5) is filtered out.
 
 [[spatial-predicate-output]]
 == Output
@@ -69,7 +79,11 @@ layout so that the default fixture paths resolve.
 [[spatial-predicate-error-handling]]
 == Error handling
 
-Invalid configuration or geometry processing errors stop the transform and pipeline. Validate mappings before running. Predicate filter rejects are normal routing, not data errors.
+If the info hop is missing or disabled, the dialog asks you to connect the secondary producer
+using the *Secondary layer* info hop. A pipeline without a secondary assignment stops with
+`Secondary layer info stream is not connected`. Enable or recreate the info hop and check
+both field mappings before running. Predicate filter rejects are normal routing, separate
+from data errors.
 
 [[spatial-predicate-limitations]]
 == Limitations
