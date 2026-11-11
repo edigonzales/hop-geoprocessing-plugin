@@ -1,6 +1,7 @@
 package ch.so.agi.hop.geoprocessing.transform.spatialpredicate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.atolcd.hop.core.row.value.ValueMetaGeometry;
 import java.util.ArrayList;
@@ -11,10 +12,14 @@ import org.apache.hop.core.BlockingRowSet;
 import org.apache.hop.core.IRowSet;
 import org.apache.hop.core.exception.HopException;
 import org.apache.hop.core.exception.HopTransformException;
+import org.apache.hop.core.row.IRowMeta;
 import org.apache.hop.core.row.RowMeta;
 import org.apache.hop.core.row.value.ValueMetaInteger;
+import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.core.variables.Variables;
+import org.apache.hop.metadata.api.IHopMetadataProvider;
 import org.apache.hop.pipeline.PipelineMeta;
+import org.apache.hop.pipeline.transform.BaseTransformMeta;
 import org.apache.hop.pipeline.transform.TransformMeta;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -25,6 +30,51 @@ class SpatialPredicateRoutingTest {
 
   private final GeometryFactory geometryFactory = new GeometryFactory();
   private final WKTReader wktReader = new WKTReader(geometryFactory);
+
+  @Test
+  void ordinarySecondaryHopDoesNotCountAsInfoInput() throws Exception {
+    TestSpatialPredicate transform = createTransform(SpatialPredicateResultMode.KEEP_MATCHED);
+    transform.getMeta().setInfoTransformName(null);
+
+    assertThatThrownBy(transform::processRow)
+        .isInstanceOf(HopTransformException.class)
+        .hasMessageContaining("Secondary layer info stream is not connected");
+  }
+
+  @Test
+  void emptyInfoInputUsesTheSchemaForThisDestination() throws Exception {
+    TestSpatialPredicate transform = createTransform(SpatialPredicateResultMode.KEEP_MATCHED);
+    IRowSet secondaryRows = transform.findInputRowSet("secondary");
+    drainRows(secondaryRows);
+    secondaryRows.setRowMeta(null);
+    transform.getPipelineMeta().addTransform(new TransformMeta("secondary",
+        new BaseTransformMeta<SpatialPredicate, SpatialPredicateData>() {
+          @Override
+          public void getFields(
+              IRowMeta row, String origin, IRowMeta[] info, TransformMeta next,
+              IVariables variables, IHopMetadataProvider provider) {
+            if (next == transform.getTransformMeta()) {
+              row.addValueMeta(new ValueMetaGeometry("mask"));
+            }
+          }
+        }));
+    BlockingRowSet output = addOutputRowSet(transform, "main");
+
+    runTransform(transform);
+
+    assertThat(drainRows(output)).isEmpty();
+  }
+
+  @Test
+  void withinIgnoresAnEmptyDistanceSavedByTheDialog() throws Exception {
+    TestSpatialPredicate transform = createTransform(SpatialPredicateResultMode.KEEP_MATCHED);
+    transform.getMeta().setDistanceValue("");
+    BlockingRowSet output = addOutputRowSet(transform, "main");
+
+    runTransform(transform);
+
+    assertThat(ids(drainRows(output))).containsExactly(1L);
+  }
 
   @Test
   void keepMatchedRoutesUnmatchedRowsToRejectTarget() throws Exception {
@@ -124,9 +174,11 @@ class SpatialPredicateRoutingTest {
     meta.setDefault();
     meta.setOperationId("within");
     meta.setPrimaryGeometryFieldName("geometry");
-    meta.setSecondaryGeometryFieldName("geometry");
+    meta.setSecondaryGeometryFieldName("mask");
     meta.setResultMode(resultMode);
-    meta.getTransformIOMeta().getInfoStreams().get(0).setSubject("secondary");
+    var info = meta.getTransformIOMeta().getInfoStreams().get(0);
+    info.setTransformMeta(new TransformMeta("secondary", null));
+    meta.handleStreamSelection(info);
     meta.getTransformIOMeta().getTargetStreams().get(0).setSubject("reject");
 
     TestSpatialPredicate transform =
@@ -148,7 +200,7 @@ class SpatialPredicateRoutingTest {
             new Object[] {2L, wktReader.read("POINT (5 5)")}));
 
     RowMeta secondaryRowMeta = new RowMeta();
-    secondaryRowMeta.addValueMeta(new ValueMetaGeometry("geometry"));
+    secondaryRowMeta.addValueMeta(new ValueMetaGeometry("mask"));
     transform.addInputRowSet(
         "secondary",
         secondaryRowMeta,
