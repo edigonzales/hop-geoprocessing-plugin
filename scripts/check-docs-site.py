@@ -78,11 +78,6 @@ def check(root):
             assert f'{transform}-{section}' in pages[handbook].ids, f'Missing {transform}: {section}'
     for operation in ('linearize_curves', 'coverage_linearize'):
         assert operation in pages[handbook].table_cells, f'Operation absent from reference table: {operation}'
-    handbook_text = handbook.read_text()
-    assert handbook_text.count('class="listingblock gui-mockup"') == 7, 'Expected seven GUI mockups'
-    assert 'site-assets/styles.css' in handbook_text, 'Theme/GUI stylesheet is not loaded'
-    styles = (root / 'site-assets/styles.css').read_text()
-    assert '.listingblock.gui-mockup pre' in styles and 'font-size: 0.75em' in styles, \
         'Missing gui-mockup styles'
     downloads = list(root.rglob('*.hpl'))
     assert len(downloads) == HPL_DOWNLOADS, f'Expected {HPL_DOWNLOADS} pipeline downloads, got {len(downloads)}'

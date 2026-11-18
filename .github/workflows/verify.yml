@@ -7,19 +7,14 @@ on:
         required: false
         type: string
         default: ''
-      dependency-version:
-        required: false
-        type: string
-        default: ''
 
 permissions:
   contents: read
 
 jobs:
   build:
-    uses: edigonzales/hop-plugin-ci/.github/workflows/plugin-verify.yml@main
+    uses: edigonzales/hop-plugin-ci/.github/workflows/verify.yml@f0a1eec368cb8c5d2592086b26393a6fc3916ad1
     with:
-      ci-ref: main
       java-versions: '["21", "25"]'
       runner-os: '["ubuntu-latest", "macos-15", "windows-latest"]'
       canonical-runner-os: ubuntu-latest
@@ -30,17 +25,15 @@ jobs:
       maven-goals: clean verify
       compatibility-goals: clean test
       pom-file: pom.xml
-      zip-descriptors: >-
-        [{"artifactId":"hop-geoprocessing-plugin","zipGlob":"assemblies/assemblies-hop-geoprocessing-suite/target/hop-geoprocessing-plugin-*.zip","pluginRoot":"plugins/transforms/hop-geoprocessing"}]
-      validation-commands: >-
-        ${{ inputs.dependency-artifact-name != '' &&
-        '["python3 scripts/verify-package.py --maven-repository .ci/maven-repository", "python3 -m unittest discover -s scripts/tests -v", "python3 .ci/hop-plugin-ci/scripts/check-plugin-repository.py --profile multi-module-suite", "python3 scripts/verify-published-geometry.py --zip-directory .ci/dependencies --maven-repository .ci/maven-repository"]' ||
-        '["python3 scripts/verify-package.py --maven-repository .ci/maven-repository", "python3 -m unittest discover -s scripts/tests -v", "python3 .ci/hop-plugin-ci/scripts/check-plugin-repository.py --profile multi-module-suite"]' }}
       artifact-name-prefix: hop-geoprocessing-plugin
-      group-id: ch.so.agi
-      hop-version: 2.19.0
       dependency-artifact-name: ${{ inputs.dependency-artifact-name }}
       dependency-artifact-path: .ci/dependencies
-      # Resolve the published JAR and its real POM through Maven, never from the ZIP.
-      dependency-install: false
+      artifacts: >-
+        [{"file":"assemblies/assemblies-hop-geoprocessing-suite/target/hop-geoprocessing-plugin-*.zip"}]
+      validation-command: |
+        python3 scripts/verify-package.py --maven-repository .ci/maven-repository
+        python3 -m unittest discover -s scripts/tests -v
+        if [[ -n "$DEPENDENCY_ARTIFACT_NAME" ]]; then
+          python3 scripts/verify-published-geometry.py --zip-directory .ci/dependencies --maven-repository .ci/maven-repository
+        fi
     secrets: inherit

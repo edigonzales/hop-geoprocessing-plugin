@@ -46,7 +46,7 @@ output is in `target/docs-site`. Use `--serve` for a local preview.
 
 Follow [AGENTS.md](AGENTS.md) for the shared CI contracts, generated Maven settings,
 Java versions and installed-Hop checks. The shared Maven parent supplies dependency
-and plugin management, SWT profiles and mandatory DocLint checks.
+and plugin management and SWT profiles.
 
 ```bash
 python3 "$HOP_CI_DIR/scripts/write_maven_settings.py" --output "$MAVEN_SETTINGS"
@@ -73,9 +73,8 @@ provided by their separately installed plugin.
 
 ## CI and publication
 
-The workflows follow `hop-plugin-ci@main` with `ci-ref: main`. Ubuntu/Java 21 builds
-the canonical ZIP with `clean verify`, package checks, the repository contract and
-DocLint. Linux/macOS/Windows × Java 21/25 form the compatibility matrix.
+The shared workflows are pinned to a commit. Ubuntu/Java 21 builds
+the canonical ZIP with `clean verify` and package checks. Linux/macOS/Windows × Java 21/25 form the compatibility matrix.
 Each matrix build uses a fresh Maven repository. A dependency job downloads the
 published Geometry ZIP once; the canonical job compares its JAR bytes with the
 published JAR resolved by Maven. Installed E2E consumes that same ZIP and canonical

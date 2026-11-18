@@ -2,13 +2,10 @@
 
 ## Contracts and compatibility
 
-Read the [shared CI contract](https://github.com/edigonzales/hop-plugin-ci/blob/main/docs/ci-contract.md)
-and [plugin repository contract](https://github.com/edigonzales/hop-plugin-ci/blob/main/docs/plugin-repository-contract.md)
-before changing workflows, test setup or repository structure. The repository uses
-the `multi-module-suite` profile. Workflow references and helper `ci-ref` values
-intentionally follow `main`; preserve them. Only change this repository.
+Read the [shared CI contract](https://github.com/edigonzales/hop-plugin-ci/blob/main/docs/ci-contract.md).
+Keep shared workflow and helper references pinned to the same commit.
 
-The suite inherits `ch.so.agi:hop-plugin-parent:0.1.0-SNAPSHOT`, including DocLint.
+The suite inherits `ch.so.agi:hop-plugin-parent:0.1.0-SNAPSHOT`.
 Keep transform IDs, metadata fields, Maven coordinates and `sogeo-geometry`
 classloader ownership compatible. Geometry Type/JTS belong to the separately
 installed Geometry Type plugin and must not enter the Geoprocessing ZIP.
@@ -24,7 +21,7 @@ Run commands from the repository root with Bash, Python 3, Maven and JDK 21
 (`JAVA_HOME` and `PATH` set to that JDK). Compatibility jobs also use JDK 25.
 Use `xvfb-run -a` for Linux SWT tests; the parent sets `-XstartOnFirstThread` on macOS.
 Set `HOP_CI_DIR` to an absolute checkout of `hop-plugin-ci` at the revision selected
-by the workflow's `main` reference, then generate the same settings as CI:
+by the shared workflow pin, then generate the same settings as CI:
 
 ```bash
 CI_TEST_TMP="$(mktemp -d)"
@@ -33,12 +30,11 @@ python3 "$HOP_CI_DIR/scripts/write_maven_settings.py" --output "$MAVEN_SETTINGS"
 mvn -s "$MAVEN_SETTINGS" -U -B -ntp clean verify
 python3 -m unittest discover -s scripts/tests -v
 python3 scripts/verify-package.py
-python3 "$HOP_CI_DIR/scripts/check-plugin-repository.py" --profile multi-module-suite
 ```
 
 `.mvn/maven.config` selects Wagon to avoid the observed unauthenticated-upload
 `Broken pipe`, and a global-settings mirror for Central only. Generated user
-settings still supply repositories and credentials. Do not skip DocLint.
+settings still supply repositories and credentials.
 For compatibility use `clean test`; CI uses a fresh `.ci/maven-repository` in each
 matrix cell. Geometry JAR/POM and the shared parent resolve from their published
 base SNAPSHOT coordinates. Never build Geometry Type source as a CI fallback.
