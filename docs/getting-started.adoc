@@ -32,11 +32,11 @@ Geometry source installation can hide an obsolete dependency; CI therefore gives
 every Java/OS build its own fresh Maven repository and compares the resolved
 Geometry JAR with the published runtime ZIP.
 
-The suite inherits the shared `hop-plugin-parent:0.1.0-SNAPSHOT`, including DocLint,
-managed dependencies, plugins and the macOS SWT test profile. Follow
+The shared `hop-plugin-parent:0.1.0-SNAPSHOT` configures Maven dependencies,
+plugins and the macOS SWT test profile. Follow
 https://github.com/edigonzales/hop-geoprocessing-plugin/blob/main/AGENTS.md[AGENTS.md]
 for generated settings and the canonical commands. For headless Linux SWT tests,
-run Maven under `xvfb-run -a`. Never disable documentation validation.
+run Maven under `xvfb-run -a`.
 
 The development sync helper rebuilds the assembly and replaces the suite directory
 in a designated development Hop home. The optional converter benchmark checks a
