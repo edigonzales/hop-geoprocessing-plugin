@@ -63,8 +63,7 @@ RFC 7946, Legacy 2008 and JSON-FG roundtrips, preserving context across native f
 
 This runs the original installed pipelines, converter suite, all ten public examples and
 negative tests for missing GeometryCodec and missing GeoJSON API. E2E consumes the canonical ZIP without rebuilding.
-Only successful main builds publish; PRs never publish. Publication resolves the
-published ZIP in a fresh repository and compares it with the canonical bundle.
+Only successful main builds publish the canonical bundle. PRs never publish.
 
 ## Documentation
 
@@ -81,5 +80,5 @@ python3 scripts/check-docs-site.py target/docs-site
 ```
 
 The local Biblios build includes working files; CI uses `--revision "$GITHUB_SHA"`.
-Check rendered anchors, search, example downloads and loaded GUI CSS, and inspect
-GUI mockups visually. Pages deployment is restricted to main.
+Check rendered anchors, search and example downloads, and inspect GUI mockups
+visually. Pages deployment is restricted to main.

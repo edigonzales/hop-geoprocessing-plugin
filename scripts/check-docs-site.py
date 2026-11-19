@@ -78,7 +78,6 @@ def check(root):
             assert f'{transform}-{section}' in pages[handbook].ids, f'Missing {transform}: {section}'
     for operation in ('linearize_curves', 'coverage_linearize'):
         assert operation in pages[handbook].table_cells, f'Operation absent from reference table: {operation}'
-        'Missing gui-mockup styles'
     downloads = list(root.rglob('*.hpl'))
     assert len(downloads) == HPL_DOWNLOADS, f'Expected {HPL_DOWNLOADS} pipeline downloads, got {len(downloads)}'
     search = list(root.rglob('*search*.json'))
