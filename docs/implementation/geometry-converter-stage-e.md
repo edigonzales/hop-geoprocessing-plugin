@@ -8,16 +8,9 @@ ZIP `00638751fcae5637cb9fc3db5db6ec8bd02601347394eb67ada58110332721a3`.
 
 ## 1. Installierte E2E
 
-Isolierte Apache-Hop-2.19.0-Installation; die produktive lokale Hop-Installation wurde
-nicht verändert. Der Lauf verwendet die Stage-E-ZIP und die Stage-B-Geometry-ZIP.
-
-```bash
-python3 scripts/run-e2e.py \
-  --hop-home /tmp/hop-e2e \
-  --plugin-zip handover/stage-e/hop-geoprocessing-plugin-0.1.0-SNAPSHOT.zip \
-  --geometry-zip /Users/stefan/sources/hop-geometry-type-plugin/handover/stage-b/hop-geometry-type-plugin-0.2.0-SNAPSHOT.zip \
-  --negative-hop-home /tmp/hop-e2e-legacy
-```
+Die historische Verifikation lief mit Apache Hop 2.19.0 in isolierten Installationen.
+Der [aktuelle E2E-Aufruf](../../AGENTS.md#installed-hop-and-user-examples) verwendet
+die heute gebauten und veröffentlichten ZIPs.
 
 Ergebnis:
 
@@ -67,7 +60,6 @@ Kanonischer Lauf mit `postgis/postgis:17-3.5`:
 ```bash
 export POSTGIS_TEST_ENABLED=true ...
 mvn -s "$MAVEN_SETTINGS" -U -B -ntp clean verify
-python3 -m unittest discover -s scripts/tests -v
 bash scripts/check-distribution.sh
 ```
 
@@ -103,19 +95,7 @@ Das ist eine lokale Test-Setup-Ergänzung, keine Änderung am Calculator.
 
 `scripts/benchmark-converter.py` mit 100.000 kleinen Punkten, `-Xmx128m`:
 
-```json
-{
-  "rows": 100000,
-  "wall_seconds": 2.63,
-  "max_child_rss_mb": 302.5,
-  "heap": "-Xmx128m",
-  "java": "Temurin 21.0.10",
-  "os": "macOS-27.0.1-arm64",
-  "pipeline": "e2e/geometry-converter/streaming-benchmark.hpl",
-  "plugin_zip_sha256": "7c696337bcdc96ab14192e96e1c88c96b9e21bb8a4b7842489537a7a66e2da30",
-  "geometry_zip_sha256": "00638751fcae5637cb9fc3db5db6ec8bd02601347394eb67ada58110332721a3"
-}
-```
+Der Lauf mass 2,63 Sekunden und 302,5 MiB maximalen RSS der Kindprozesse.
 
 Das ist ein Smoke-Profil, keine harte Zeitvorgabe. Die Zeilenzahl wird exakt geprüft
 (`input=100000, normal=100000, errors=0`); der Lauf ist streaming und hält keine
@@ -142,9 +122,3 @@ Siehe [geometry-converter-acceptance.md](geometry-converter-acceptance.md).
 - `Infinity` als installierter CSV-Fall (Hop-Parser-Grenze); Core-Java-Test vorhanden.
 - Keine offenen Calculator-Nachweise; der Unit-/Verify-Lauf benötigt lokal die oben
   dokumentierte `ImageN`-Classpath-Ergänzung.
-
-## 7. Übergabe
-
-`handover/stage-e` enthält die finalen Hashwerte, E2E-/Benchmark-Ergebnisse,
-`SHA256SUMS`, `manifest.json` und `verify.sh`. Stage-D-Artefakte bleiben historisch
-unverändert.

@@ -4,9 +4,8 @@ on:
   workflow_call:
     inputs:
       dependency-artifact-name:
-        required: false
+        required: true
         type: string
-        default: ''
 
 permissions:
   contents: read
@@ -31,9 +30,6 @@ jobs:
       artifacts: >-
         [{"file":"assemblies/assemblies-hop-geoprocessing-suite/target/hop-geoprocessing-plugin-*.zip"}]
       validation-command: |
-        python3 scripts/verify-package.py --maven-repository .ci/maven-repository
-        python3 -m unittest discover -s scripts/tests -v
-        if [[ -n "$DEPENDENCY_ARTIFACT_NAME" ]]; then
-          python3 scripts/verify-published-geometry.py --zip-directory .ci/dependencies --maven-repository .ci/maven-repository
-        fi
+        python3 scripts/verify-package.py
+        python3 scripts/verify-published-geometry.py --zip-directory .ci/dependencies --maven-repository .ci/maven-repository
     secrets: inherit

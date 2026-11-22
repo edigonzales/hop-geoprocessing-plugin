@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Build the documentation site precisely from this checkout or a specified Git revision."""
 import argparse
-import hashlib
 import http.server
 import json
 import os
@@ -51,7 +50,6 @@ def snapshot(destination, revision=None):
     run('git', '-c', 'user.name=Biblios local snapshot', '-c', 'user.email=biblios@localhost',
         '-c', 'commit.gpgsign=false', 'commit', '-qm', origin, cwd=destination)
     print('Documentation source:', origin, flush=True)
-    return origin
 
 
 def resolve_jar(explicit=None):
@@ -76,13 +74,8 @@ def resolve_jar(explicit=None):
                 partial.replace(jar)
             finally:
                 partial.unlink(missing_ok=True)
-    hasher = hashlib.sha256()
-    with jar.open('rb') as stream:
-        for block in iter(lambda: stream.read(1024 * 1024), b''):
-            hasher.update(block)
-    digest = hasher.hexdigest()
-    print(f'Biblios version: {version}\nBiblios SHA-256: {digest}', flush=True)
-    return jar, version, digest
+    print(f'Biblios version: {version}', flush=True)
+    return jar
 
 
 def main():
@@ -93,12 +86,12 @@ def main():
     parser.add_argument('--port', type=int, default=8080)
     args = parser.parse_args()
     java = str(Path(os.environ['JAVA_HOME']) / 'bin/java') if 'JAVA_HOME' in os.environ else 'java'
-    jar, version, digest = resolve_jar(args.jar)
+    jar = resolve_jar(args.jar)
     output = ROOT / 'target/docs-site'
     with tempfile.TemporaryDirectory(prefix='biblios-source-') as temp:
         source = Path(temp) / 'source'
         source.mkdir()
-        origin = snapshot(source, args.revision)
+        snapshot(source, args.revision)
         config = (source / 'docs/biblios.yml').read_text()
         expected = 'url: ' + SOURCE
         if config.count(expected) != 1:
@@ -113,8 +106,6 @@ def main():
         # The manual links to examples/ with the same relative paths as on GitHub.
         shutil.copytree(source / 'examples', output / 'examples', dirs_exist_ok=True)
     (output / '.nojekyll').touch()
-    (output / 'build-info.json').write_text(
-        json.dumps(dict(source=origin, biblios=version, sha256=digest), indent=2) + '\n')
     run('python3', str(ROOT / 'scripts/check-docs-site.py'), str(output))
     if args.serve:
         handler = lambda *a, **kw: http.server.SimpleHTTPRequestHandler(*a, directory=str(output), **kw)

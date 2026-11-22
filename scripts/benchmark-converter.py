@@ -9,11 +9,10 @@ from __future__ import annotations
 
 import argparse
 import csv
-import json
 import os
-import platform
 import resource
 import subprocess
+import sys
 import tempfile
 import time
 import zipfile
@@ -109,26 +108,9 @@ def main() -> int:
                 f"Benchmark did not process exactly {args.rows} rows.\n" + result.stdout
             )
         max_rss = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
-        if platform.system() == "Darwin":
-            max_rss_mb = max_rss / (1024 * 1024)
-        else:
-            max_rss_mb = max_rss / 1024
-        report = {
-            "rows": args.rows,
-            "wall_seconds": round(elapsed, 3),
-            "max_child_rss_mb": round(max_rss_mb, 1),
-            "heap": f"-Xmx{args.heap}",
-            "java": os.environ.get("JAVA_HOME", "unknown"),
-            "os": platform.platform(),
-            "pipeline": "e2e/geometry-converter/streaming-benchmark.hpl",
-            "plugin_zip_sha256": __import__("hashlib").sha256(
-                args.plugin_zip.read_bytes()
-            ).hexdigest(),
-            "geometry_zip_sha256": __import__("hashlib").sha256(
-                args.geometry_zip.read_bytes()
-            ).hexdigest(),
-        }
-        print(json.dumps(report, indent=2))
+        max_rss_mib = max_rss / (1024**2 if sys.platform == "darwin" else 1024)
+        print(f"{args.rows:,} points with -Xmx{args.heap}: {elapsed:.3f} s, "
+              f"peak child RSS {max_rss_mib:.1f} MiB")
     return 0
 
 

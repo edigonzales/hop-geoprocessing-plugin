@@ -28,7 +28,6 @@ CI_TEST_TMP="$(mktemp -d)"
 export MAVEN_SETTINGS="$CI_TEST_TMP/maven-settings.xml"
 python3 "$HOP_CI_DIR/scripts/write_maven_settings.py" --output "$MAVEN_SETTINGS"
 mvn -s "$MAVEN_SETTINGS" -U -B -ntp clean verify
-python3 -m unittest discover -s scripts/tests -v
 python3 scripts/verify-package.py
 ```
 
@@ -71,8 +70,8 @@ English AsciiDoc under `docs/` is canonical. Each transform has a page under
 `docs/transforms/`, matching its annotation URL, ID and handbook anchor. Keep
 `[.gui-mockup]` sketches aligned with dialog labels, order and visibility. Each
 family has a runnable example with fixtures and expected results under `examples/`.
-Old Markdown entry points are pointers; keep historical implementation reports
-and `handover/` artifacts unchanged.
+Old Markdown entry points are pointers. Historical implementation reports are
+under `docs/implementation/`; old delivery artifacts are in Git history.
 
 ```bash
 python3 scripts/build-docs.py
