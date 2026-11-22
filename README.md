@@ -51,15 +51,14 @@ and plugin management and SWT profiles.
 ```bash
 python3 "$HOP_CI_DIR/scripts/write_maven_settings.py" --output "$MAVEN_SETTINGS"
 mvn -s "$MAVEN_SETTINGS" -U -B -ntp clean verify
-python3 -m unittest discover -s scripts/tests -v
 python3 scripts/verify-package.py
 ```
 
 Maven resolves Geometry and its real POM from the published repositories. Repository
 configuration selects Wagon and a mirror for Central only. For a development Hop
 installation, `scripts/dev-sync-hop-plugin.sh "$HOP_HOME"` rebuilds and replaces the
-suite directory; install Geometry Type separately first. Implementation reports in
-[docs/implementation](docs/implementation) and [handover](handover) are historical records.
+suite directory; install Geometry Type separately first. Historical implementation
+reports are in [docs/implementation](docs/implementation).
 The optional streaming smoke benchmark is `scripts/benchmark-converter.py`.
 
 ## Modules and artifacts

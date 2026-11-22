@@ -58,20 +58,6 @@ def run_pipeline(
     subprocess.run(command, check=True, env=env, timeout=300)
 
 
-def check_output(output_file: Path) -> None:
-    if not output_file.is_file():
-        raise SystemExit(f"Hop did not create the expected output: {output_file}")
-    with output_file.open(newline="", encoding="utf-8") as stream:
-        rows = list(csv.reader(stream, delimiter=";"))
-    if rows != [
-        ["geometry", "centroid"],
-        ["POINT (3 4)", "POINT (3 4)"],
-        ["POINT (7 8)", "POINT (7 8)"],
-    ]:
-        raise SystemExit(f"Unexpected Geoprocessing output: {rows!r}")
-
-
-
 def write_input(path: Path, header: list[str], rows: list[list[str]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as stream:
@@ -91,7 +77,7 @@ def require_output(path: Path, expected: list[list[str]]) -> None:
     actual = read_output(path)
     if actual != expected:
         raise SystemExit(
-            f"Unexpected converter output in {path}.\n"
+            f"Unexpected output in {path}.\n"
             f"--- actual ---\n{actual!r}\n--- expected ---\n{expected!r}"
         )
 
@@ -494,7 +480,7 @@ def run_reproject_e2e(
     print("Installed Geometry Reproject EPSG, XYZM, EMPTY, NULL and error routing OK", flush=True)
 
 
-def make_legacy_geometry_zip(geometry_zip: Path, target: Path, missing_geojson: bool = False) -> Path:
+def make_legacy_geometry_zip(geometry_zip: Path, target: Path, missing_geojson: bool) -> None:
     """Create a test-only Geometry ZIP missing the codec or its new GeoJSON API."""
     with zipfile.ZipFile(geometry_zip) as source, zipfile.ZipFile(
         target, "w", compression=zipfile.ZIP_DEFLATED
@@ -517,37 +503,22 @@ def make_legacy_geometry_zip(geometry_zip: Path, target: Path, missing_geojson: 
                         output_jar.writestr(jar_entry, plugin_jar.read(jar_entry.filename))
                 payload = rewritten.getvalue()
             destination.writestr(entry, payload)
-    return target
 
 
 def run_negative_installation(
     hop_home: Path,
-    plugin_zip: Path,
     geometry_zip: Path,
     env: dict[str, str],
     input_dir: Path,
     work: Path,
-    missing_geojson: bool = False,
+    missing_geojson: bool,
 ) -> None:
-    if (hop_home / PLUGIN_ROOT).exists() or (hop_home / GEOMETRY_ROOT).exists():
-        raise SystemExit(f"Negative Hop home is not clean: {hop_home}")
-    legacy_zip = make_legacy_geometry_zip(
-        geometry_zip,
-        work / ("pre-geojson-geometry.zip" if missing_geojson else "legacy-geometry.zip"),
-        missing_geojson,
-    )
+    legacy_zip = work / ("pre-geojson-geometry.zip" if missing_geojson else "legacy-geometry.zip")
+    make_legacy_geometry_zip(geometry_zip, legacy_zip, missing_geojson)
     extract_plugin(legacy_zip, hop_home, GEOMETRY_ROOT)
-    extract_plugin(plugin_zip, hop_home, PLUGIN_ROOT)
 
-    write_input(
-        input_dir / "negative-smoke.csv",
-        ["id", "wkt"],
-        [["1", "POINT (1 2)"]],
-    )
     output_file = input_dir.parent / "negative-output" / "negative-smoke.csv"
-    output_file.parent.mkdir(exist_ok=True)
-    if output_file.exists():
-        output_file.unlink()
+    output_file.unlink(missing_ok=True)
     command = [
         str(hop_home / "hop-run.sh"),
         "-r",
@@ -715,7 +686,11 @@ def main() -> int:
             env["HOP_JAVA_HOME"] = env["JAVA_HOME"]
 
         run_pipeline(hop_home, ROOT / "e2e/geoprocessing.hpl", env, input_dir, output_dir)
-        check_output(output_dir / "geoprocessing.csv")
+        require_output(output_dir / "geoprocessing.csv", [
+            ["geometry", "centroid"],
+            ["POINT (3 4)", "POINT (3 4)"],
+            ["POINT (7 8)", "POINT (7 8)"],
+        ])
         def curve(kind, points):
             return struct.pack("<BII", 1, kind, len(points)) + b"".join(struct.pack("<dd", *p) for p in points)
         def collection(kind, parts):
@@ -749,27 +724,17 @@ def main() -> int:
             negative_hop = args.negative_hop_home.resolve()
             if not (negative_hop / "hop-run.sh").is_file():
                 raise SystemExit(f"Not an Apache Hop home: {negative_hop}")
-            run_negative_installation(
-                negative_hop,
-                args.plugin_zip.resolve(),
-                args.geometry_zip.resolve(),
-                env,
-                input_dir,
-                work,
-            )
-            # The explicitly supplied negative home is a disposable installation. Reuse it
-            # for the narrower pre-GeoJSON API regression after the original legacy test.
-            shutil.rmtree(negative_hop / PLUGIN_ROOT)
-            shutil.rmtree(negative_hop / GEOMETRY_ROOT)
-            run_negative_installation(
-                negative_hop,
-                args.plugin_zip.resolve(),
-                args.geometry_zip.resolve(),
-                env,
-                input_dir,
-                work,
-                missing_geojson=True,
-            )
+            if (negative_hop / PLUGIN_ROOT).exists() or (negative_hop / GEOMETRY_ROOT).exists():
+                raise SystemExit(f"Negative Hop home is not clean: {negative_hop}")
+            extract_plugin(args.plugin_zip, negative_hop, PLUGIN_ROOT)
+            write_input(input_dir / "negative-smoke.csv", ["id", "wkt"], [["1", "POINT (1 2)"]])
+            (work / "negative-output").mkdir()
+            for missing_geojson in (False, True):
+                if missing_geojson:
+                    shutil.rmtree(negative_hop / GEOMETRY_ROOT)
+                run_negative_installation(
+                    negative_hop, args.geometry_zip, env, input_dir, work, missing_geojson
+                )
 
     print("Installed Hop Geoprocessing E2E OK")
     return 0

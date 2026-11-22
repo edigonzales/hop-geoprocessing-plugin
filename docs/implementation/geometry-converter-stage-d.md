@@ -145,8 +145,3 @@ das Fehlen von `hop-geometry-type.jar`, `jts-core.jar`, `geolatte-geom.jar` und
 - OR17-Metadata-Injection über eine echte Pipeline, OR19-SWT-Nachweis auf einer
   Display-/Xvfb-Plattform;
 - Familien-/Recipe-Dokumentation und Handover-Nachtrag mit E2E-Hashes.
-
-## 9. Übergabe
-
-`handover/stage-d` enthält Transform-JAR, Core-JAR, ZIP, Modul-/Parent-POM,
-`SHA256SUMS`, `manifest.json` und `verify.sh`.

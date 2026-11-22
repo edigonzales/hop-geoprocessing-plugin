@@ -50,5 +50,4 @@ Run `python3 scripts/build-docs.py --serve` from the checkout. Working changes a
 included in a temporary source snapshot; the build never stages or commits them in
 your repository. Generated output is in `target/docs-site`. CI instead builds the
 exact `GITHUB_SHA`, validates links, anchors, downloads, search and loaded GUI
-styles, and deploys Pages exclusively from `main`. The build records its source
-revision and Biblios JAR digest in `build-info.json`.
+styles, and deploys Pages exclusively from `main`.
