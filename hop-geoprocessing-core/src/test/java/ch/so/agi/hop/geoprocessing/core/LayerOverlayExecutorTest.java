@@ -4,8 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
-import org.apache.hop.core.row.RowMeta;
-import org.apache.hop.core.row.value.ValueMetaInteger;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
@@ -19,11 +17,6 @@ class LayerOverlayExecutorTest {
 
   private final GeometryFactory geometryFactory = new GeometryFactory();
   private final LayerOverlayExecutor executor = new LayerOverlayExecutor();
-  private final RowMeta rowMeta = new RowMeta();
-
-  LayerOverlayExecutorTest() {
-    rowMeta.addValueMeta(new ValueMetaInteger("id"));
-  }
 
   @Test
   void mixedSecondarySridsAreRejectedBeforeBuildingUnion() {
@@ -32,7 +25,7 @@ class LayerOverlayExecutorTest {
     Geometry second = polygon(20, 20, 30, 30);
     second.setSRID(4326);
     assertThatThrownBy(() -> new SpatialIndexBuilder()
-        .build(List.of(feature(1, first), feature(2, second)), rowMeta, true))
+        .build(List.of(feature(1, first), feature(2, second)), true))
         .hasMessageContaining("EPSG:2056 and EPSG:4326");
   }
 
@@ -43,7 +36,7 @@ class LayerOverlayExecutorTest {
     Geometry secondary = polygon(20, 20, 30, 30);
     secondary.setSRID(4326);
     LayerCache cache = new SpatialIndexBuilder()
-        .build(List.of(feature(1, secondary)), rowMeta, true);
+        .build(List.of(feature(1, secondary)), true);
     for (String operation : List.of("intersection", "clip", "erase", "identity")) {
       assertThatThrownBy(() -> executor.execute(operation, feature(2, primary), cache))
           .hasMessageContaining("2056 vs 4326");
@@ -60,7 +53,7 @@ class LayerOverlayExecutorTest {
     Geometry secondaryGeometry = polygon(5, 5, 15, 15);
     FeatureRow primaryFeature = feature(100, primaryGeometry);
     LayerCache cache =
-        new SpatialIndexBuilder().build(List.of(feature(1, secondaryGeometry)), rowMeta, true);
+        new SpatialIndexBuilder().build(List.of(feature(1, secondaryGeometry)), true);
 
     List<OverlayFragment> result = executor.execute("intersection", primaryFeature, cache);
     Geometry expected = OverlayNG.overlay(primaryGeometry, secondaryGeometry, OverlayNG.INTERSECTION);
@@ -78,7 +71,7 @@ class LayerOverlayExecutorTest {
     FeatureRow primaryFeature = feature(100, primaryGeometry);
     LayerCache cache =
         new SpatialIndexBuilder()
-            .build(List.of(feature(1, leftHalf), feature(2, rightHalf)), rowMeta, true);
+            .build(List.of(feature(1, leftHalf), feature(2, rightHalf)), true);
 
     List<OverlayFragment> result = executor.execute("clip", primaryFeature, cache);
     Geometry unionGeometry = UnaryUnionNG.union(List.of(leftHalf, rightHalf), new PrecisionModel());
@@ -94,7 +87,7 @@ class LayerOverlayExecutorTest {
     Geometry primaryGeometry = polygon(0, 0, 10, 10);
     Geometry secondaryGeometry = polygon(0, 0, 5, 10);
     FeatureRow primaryFeature = feature(100, primaryGeometry);
-    LayerCache cache = new SpatialIndexBuilder().build(List.of(feature(1, secondaryGeometry)), rowMeta, true);
+    LayerCache cache = new SpatialIndexBuilder().build(List.of(feature(1, secondaryGeometry)), true);
 
     List<OverlayFragment> result = executor.execute("erase", primaryFeature, cache);
     Geometry expected = OverlayNG.overlay(primaryGeometry, secondaryGeometry, OverlayNG.DIFFERENCE);
@@ -108,7 +101,7 @@ class LayerOverlayExecutorTest {
     Geometry primaryGeometry = polygon(0, 0, 10, 10);
     Geometry secondaryGeometry = polygon(0, 0, 5, 10);
     FeatureRow primaryFeature = feature(100, primaryGeometry);
-    LayerCache cache = new SpatialIndexBuilder().build(List.of(feature(1, secondaryGeometry)), rowMeta, true);
+    LayerCache cache = new SpatialIndexBuilder().build(List.of(feature(1, secondaryGeometry)), true);
 
     List<OverlayFragment> result = executor.execute("identity", primaryFeature, cache);
     Geometry expectedIntersection =
@@ -137,7 +130,6 @@ class LayerOverlayExecutorTest {
         new SpatialIndexBuilder()
             .build(
                 List.of(feature(1, polygon(5.0001, 0, 15.0001, 10))),
-                rowMeta,
                 true,
                 OverlayMode.FIXED_PRECISION,
                 1.0);
@@ -156,7 +148,6 @@ class LayerOverlayExecutorTest {
         new SpatialIndexBuilder()
             .build(
                 List.of(feature(1, polygon(5.0001, 0, 15.0001, 10))),
-                rowMeta,
                 true,
                 OverlayMode.FIXED_PRECISION,
                 1.0);
@@ -175,7 +166,6 @@ class LayerOverlayExecutorTest {
         new SpatialIndexBuilder()
             .build(
                 List.of(feature(1, polygon(5.0001, 0, 15.0001, 10))),
-                rowMeta,
                 true,
                 OverlayMode.FIXED_PRECISION,
                 1.0);
@@ -195,7 +185,6 @@ class LayerOverlayExecutorTest {
         new SpatialIndexBuilder()
             .build(
                 List.of(feature(1, polygon(5.0001, 0, 15.0001, 10))),
-                rowMeta,
                 true,
                 OverlayMode.FIXED_PRECISION,
                 1.0);

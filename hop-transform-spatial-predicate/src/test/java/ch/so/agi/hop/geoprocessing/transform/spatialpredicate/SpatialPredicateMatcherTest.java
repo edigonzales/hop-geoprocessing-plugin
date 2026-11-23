@@ -7,7 +7,6 @@ import ch.so.agi.hop.geoprocessing.core.FeatureRow;
 import ch.so.agi.hop.geoprocessing.core.SpatialIndexBuilder;
 import ch.so.agi.hop.geoprocessing.core.SpatialPredicateExecutor;
 import java.util.List;
-import org.apache.hop.core.row.RowMeta;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
@@ -18,7 +17,6 @@ class SpatialPredicateMatcherTest {
 
   private final GeometryFactory geometryFactory = new GeometryFactory();
   private final SpatialPredicateExecutor executor = new SpatialPredicateExecutor();
-  private final RowMeta rowMeta = new RowMeta();
 
   @Test
   void disjointReturnsFalseWhenAnyCandidateIntersectsPrimaryGeometry() throws Exception {
@@ -29,7 +27,6 @@ class SpatialPredicateMatcherTest {
             new SpatialIndexBuilder()
                 .build(
                     List.of(feature(1L, polygon(5, 5, 15, 15)), feature(2L, polygon(100, 100, 110, 110))),
-                    rowMeta,
                     false),
             "disjoint");
 
@@ -43,7 +40,7 @@ class SpatialPredicateMatcherTest {
         new SpatialPredicateMatcher(
             executor,
             new SpatialIndexBuilder()
-                .build(List.of(feature(1L, polygon(100, 100, 110, 110))), rowMeta, false),
+                .build(List.of(feature(1L, polygon(100, 100, 110, 110))), false),
             "disjoint");
 
     assertThat(matcher.matches(primary, null)).isTrue();
@@ -58,7 +55,6 @@ class SpatialPredicateMatcherTest {
             new SpatialIndexBuilder()
                 .build(
                     List.of(feature(1L, polygon(5, 5, 15, 15)), feature(2L, polygon(20, 20, 30, 30))),
-                    rowMeta,
                     false),
             "intersects");
 
@@ -73,7 +69,7 @@ class SpatialPredicateMatcherTest {
     Geometry near = geometryFactory.createPoint(new Coordinate(3, 0));
     Geometry far = geometryFactory.createPoint(new Coordinate(30, 0));
     var cache = new SpatialIndexBuilder().build(
-        List.of(feature(1, near), feature(2, far)), rowMeta, false);
+        List.of(feature(1, near), feature(2, far)), false);
     var matcher = new SpatialPredicateMatcher(executor, cache, "distance_gte");
 
     assertThat(matcher.matches(primary, 2.0)).isTrue();
@@ -89,7 +85,7 @@ class SpatialPredicateMatcherTest {
     primary.setSRID(2056);
     Geometry secondary = geometryFactory.createPoint(new Coordinate(30, 0));
     secondary.setSRID(4326);
-    var cache = new SpatialIndexBuilder().build(List.of(feature(1, secondary)), rowMeta, false);
+    var cache = new SpatialIndexBuilder().build(List.of(feature(1, secondary)), false);
     var matcher = new SpatialPredicateMatcher(executor, cache, "intersects");
 
     assertThatThrownBy(() -> matcher.matches(primary, null)).hasMessageContaining("2056 vs 4326");
@@ -101,7 +97,7 @@ class SpatialPredicateMatcherTest {
   @Test
   void validatesThresholdsEvenForAnEmptyLayer() throws Exception {
     Geometry primary = geometryFactory.createPoint(new Coordinate(0, 0));
-    var cache = new SpatialIndexBuilder().build(List.of(), rowMeta, false);
+    var cache = new SpatialIndexBuilder().build(List.of(), false);
     var matcher = new SpatialPredicateMatcher(executor, cache, "distance_gte");
     assertThat(matcher.matches(primary, 3.0)).isTrue();
     assertThat(matcher.matches(geometryFactory.createPoint(), 3.0)).isFalse();

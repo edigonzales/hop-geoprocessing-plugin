@@ -2,19 +2,17 @@ package ch.so.agi.hop.geoprocessing.core;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.hop.core.row.IRowMeta;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.index.strtree.STRtree;
 
 public class SpatialIndexBuilder {
 
-  public LayerCache build(List<FeatureRow> features, IRowMeta rowMeta, boolean buildUnionGeometry) {
-    return build(features, rowMeta, buildUnionGeometry, OverlayMode.STANDARD, null);
+  public LayerCache build(List<FeatureRow> features, boolean buildUnionGeometry) {
+    return build(features, buildUnionGeometry, OverlayMode.STANDARD, null);
   }
 
   public LayerCache build(
       List<FeatureRow> features,
-      IRowMeta rowMeta,
       boolean buildUnionGeometry,
       OverlayMode overlayMode,
       Double precisionScale) {
@@ -55,6 +53,6 @@ public class SpatialIndexBuilder {
       }
     }
 
-    return new LayerCache(features, rowMeta == null ? null : (IRowMeta) rowMeta.clone(), index, unionGeometry, srid);
+    return new LayerCache(index, unionGeometry, srid);
   }
 }

@@ -176,7 +176,7 @@ public class SpatialPredicate extends BaseTransform<SpatialPredicateMeta, Spatia
     }
 
     LayerCache secondaryLayerCache =
-        new SpatialIndexBuilder().build(secondaryFeatures, data.secondaryRowMeta, false);
+        new SpatialIndexBuilder().build(secondaryFeatures, false);
     data.secondaryLayerCache = secondaryLayerCache;
     data.matcher = new SpatialPredicateMatcher(data.executor, data.secondaryLayerCache, meta.getOperationId());
 

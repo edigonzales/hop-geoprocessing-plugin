@@ -9,11 +9,10 @@ public record OperationDescriptor(
     OperationGroup group,
     OperationArity arity,
     ExecutionMode executionMode,
-    List<ParameterDescriptor> parameterSchema,
-    ResultMode resultMode) {
+    List<ParameterId> parameters) {
 
   public boolean requires(ParameterId parameterId) {
-    return parameterSchema.stream().anyMatch(parameter -> parameter.id() == parameterId);
+    return parameters.contains(parameterId);
   }
 
   public String displayLabel() {

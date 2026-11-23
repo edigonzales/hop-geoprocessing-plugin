@@ -128,7 +128,6 @@ public class LayerOverlay extends BaseTransform<LayerOverlayMeta, LayerOverlayDa
         new SpatialIndexBuilder()
             .build(
                 secondaryFeatures,
-                data.secondaryRowMeta,
                 true,
                 meta.getOverlayMode(),
                 data.staticPrecisionScale);
