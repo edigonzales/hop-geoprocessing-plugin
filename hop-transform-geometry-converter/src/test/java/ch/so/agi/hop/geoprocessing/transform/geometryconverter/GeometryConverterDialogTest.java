@@ -2,145 +2,111 @@ package ch.so.agi.hop.geoprocessing.transform.geometryconverter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.so.agi.hop.geoprocessing.core.converter.ConfigurationIssue;
-import ch.so.agi.hop.geoprocessing.core.converter.ConverterErrorMode;
-import ch.so.agi.hop.geoprocessing.core.converter.ConverterInputFormat;
 import ch.so.agi.hop.geoprocessing.core.converter.ConverterOutputFormat;
-import ch.so.agi.hop.geoprocessing.core.converter.ConverterSridMode;
-import com.atolcd.hop.gis.geometry.codec.GeometryByteOrder;
+import com.atolcd.hop.gis.geometry.codec.GeoJsonProfile;
+import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicReference;
+import org.apache.hop.core.HopClientEnvironment;
+import org.apache.hop.core.annotations.Transform;
+import org.apache.hop.core.plugins.PluginRegistry;
+import org.apache.hop.core.plugins.TransformPluginType;
 import org.apache.hop.core.variables.Variables;
-import org.junit.jupiter.api.Test;
+import org.apache.hop.core.xml.XmlHandler;
+import org.apache.hop.pipeline.PipelineMeta;
+import org.apache.hop.pipeline.transform.TransformMeta;
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.widgets.Button;
+import org.eclipse.swt.widgets.Combo;
+import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Shell;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class GeometryConverterDialogTest {
-  @Test
-  void defaultsAndVisibilityFollowTheSelectedRepresentations() {
-    GeometryConverterDialogModel model = GeometryConverterDialogModel.from(baseMeta());
-
-    assertThat(model.inputUsesCoordinates()).isFalse();
-    assertThat(model.outputUsesCoordinates()).isFalse();
-    assertThat(model.binaryOutput()).isFalse();
-    assertThat(model.sridValueActive()).isFalse();
-
-    model.inputFormat(ConverterInputFormat.COORDINATES);
-    model.outputFormat(ConverterOutputFormat.COORDINATES);
-    assertThat(model.inputUsesCoordinates()).isTrue();
-    assertThat(model.outputUsesCoordinates()).isTrue();
-
-    model.outputFormat(ConverterOutputFormat.WKB_BYTES);
-    assertThat(model.binaryOutput()).isTrue();
-    model.outputFormat(ConverterOutputFormat.WKB_HEX);
-    assertThat(model.binaryOutput()).isTrue();
-    model.outputFormat(ConverterOutputFormat.WKT);
-    assertThat(model.binaryOutput()).isFalse();
-  }
-
-  @Test
-  void modelIsAnIndependentDraft() {
-    GeometryConverterMeta source = baseMeta();
-    GeometryConverterDialogModel model = GeometryConverterDialogModel.from(source);
-    model.inputField("${OTHER}");
-    model.outputFormat(ConverterOutputFormat.EWKT);
-
-    assertThat(source.getInputFieldName()).isEqualTo("geom");
-    assertThat(source.getOutputFormat()).isEqualTo(ConverterOutputFormat.GEOMETRY);
-    assertThat(model.toMeta().getInputFieldName()).isEqualTo("${OTHER}");
-    assertThat(model.toMeta().getOutputFormat()).isEqualTo(ConverterOutputFormat.EWKT);
-  }
-
-  @Test
-  void jsonOptionsStayInDraftUntilAccepted() {
-    GeometryConverterMeta source = baseMeta();
-    GeometryConverterDialogModel draft = GeometryConverterDialogModel.from(source);
-    draft.outputFormat(ConverterOutputFormat.GEOJSON);
-    draft.geoJsonOutputProfile(com.atolcd.hop.gis.geometry.codec.GeoJsonProfile.JSONFG10);
-    draft.geoJsonOutputContextField("context");
-    draft.geoJsonDropM(true);
-    assertThat(source.getOutputFormat()).isEqualTo(ConverterOutputFormat.GEOMETRY);
-    assertThat(source.isGeoJsonDropM()).isFalse();
-    assertThat(source.getGeoJsonOutputContextField()).isEmpty();
-    source.copyFrom(draft.toMeta());
-    assertThat(source.getOutputFormat()).isEqualTo(ConverterOutputFormat.GEOJSON);
-    assertThat(source.isGeoJsonDropM()).isTrue();
-    assertThat(source.getGeoJsonOutputContextField()).isEqualTo("context");
-    assertThat(draft.defaultOutputName(ConverterOutputFormat.GEOJSON)).isEqualTo("geometry_json");
-  }
-
-  @Test
-  void inactiveInvalidSridTextIsNotParsedButActiveInvalidTextIsAValidationError() {
-    GeometryConverterMeta meta = baseMeta();
-    meta.setSridMode(ConverterSridMode.KEEP);
-    meta.setSridValue("not-an-integer");
-    GeometryConverterDialogModel model = GeometryConverterDialogModel.from(meta);
-    assertThat(model.tryValidate(new Variables())).isEmpty();
-
-    model.sridMode(ConverterSridMode.REPLACE);
-    assertThat(model.tryValidate(new Variables()))
-        .extracting(ConfigurationIssue::code)
-        .contains(ConfigurationIssue.GC_CONFIG_INVALID);
-    assertThat(model.canCommitWithDeferredVariables(new Variables())).isFalse();
-  }
-
-  @Test
-  void unresolvedVariableIsDeferredButEmptyResolvedVariableIsNot() {
-    GeometryConverterMeta meta = baseMeta();
-    meta.setInputFieldName("${MISSING}");
-    GeometryConverterDialogModel model = GeometryConverterDialogModel.from(meta);
-    assertThat(model.tryValidate(new Variables()))
-        .extracting(ConfigurationIssue::code)
-        .containsExactly(ConfigurationIssue.GC_UNRESOLVED_VARIABLE);
-    assertThat(model.hasOnlyDeferredVariableIssues(new Variables())).isTrue();
-    assertThat(model.canCommitWithDeferredVariables(new Variables())).isTrue();
-
-    Variables empty = new Variables();
-    empty.setVariable("EMPTY", "");
-    model.inputField("geom");
-    model.outputField("${EMPTY}");
-    assertThat(model.tryValidate(empty))
-        .extracting(ConfigurationIssue::code)
-        .contains(ConfigurationIssue.GC_CONFIG_INVALID);
-    assertThat(model.canCommitWithDeferredVariables(empty)).isFalse();
-  }
-
-  @Test
-  void sameInputAndOutputRepresentationsAndSwappedCoordinatesRemainExpressible() {
-    GeometryConverterMeta meta = baseMeta();
-    meta.setInputFormat(ConverterInputFormat.COORDINATES);
-    meta.setOutputFormat(ConverterOutputFormat.COORDINATES);
-    meta.setInputXFieldName("north");
-    meta.setInputYFieldName("east");
-    meta.setOutputXFieldName("east");
-    meta.setOutputYFieldName("north");
-    meta.setOverwriteExistingFields(true);
-    GeometryConverterDialogModel model = GeometryConverterDialogModel.from(meta);
-
-    assertThat(model.inputFormat()).isEqualTo(ConverterInputFormat.COORDINATES);
-    assertThat(model.outputFormat()).isEqualTo(ConverterOutputFormat.COORDINATES);
-    assertThat(model.inputX()).isEqualTo("north");
-    assertThat(model.outputX()).isEqualTo("east");
-    assertThat(model.overwriteExistingFields()).isTrue();
-    assertThat(model.byteOrder()).isEqualTo(GeometryByteOrder.BIG_ENDIAN);
-    assertThat(model.errorMode()).isEqualTo(ConverterErrorMode.FAIL);
-  }
-
-  @Test
-  void defaultOutputNamesFollowTheExplicitFormatTable() {
-    GeometryConverterDialogModel model = GeometryConverterDialogModel.from(baseMeta());
-    assertThat(model.defaultOutputName(ConverterOutputFormat.GEOMETRY)).isEqualTo("geometry");
-    assertThat(model.defaultOutputName(ConverterOutputFormat.WKT)).isEqualTo("geometry_wkt");
-    assertThat(model.defaultOutputName(ConverterOutputFormat.EWKT)).isEqualTo("geometry_ewkt");
-    assertThat(model.defaultOutputName(ConverterOutputFormat.WKB_BYTES)).isEqualTo("geometry_wkb");
-    assertThat(model.defaultOutputName(ConverterOutputFormat.EWKB_BYTES))
-        .isEqualTo("geometry_ewkb");
-    assertThat(model.defaultOutputName(ConverterOutputFormat.WKB_HEX))
-        .isEqualTo("geometry_wkb_hex");
-    assertThat(model.defaultOutputName(ConverterOutputFormat.EWKB_HEX))
-        .isEqualTo("geometry_ewkb_hex");
-  }
-
-  private static GeometryConverterMeta baseMeta() {
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void geoJsonEditsReachSavedMetadataOnlyAfterOk(boolean accept) throws Exception {
+    HopClientEnvironment.init();
+    PluginRegistry.getInstance().registerPluginClass(
+        GeometryConverterMeta.class.getName(), TransformPluginType.class, Transform.class);
     GeometryConverterMeta meta = new GeometryConverterMeta();
     meta.setDefault();
     meta.setInputFieldName("geom");
-    return meta;
+    meta.setChanged(false);
+    String before = meta.getXml();
+
+    PipelineMeta pipeline = new PipelineMeta();
+    pipeline.addTransform(new TransformMeta("Convert", meta));
+    Display display = Display.getDefault();
+    Shell parent = new Shell(display);
+    GeometryConverterDialog dialog =
+        new GeometryConverterDialog(parent, new Variables(), meta, pipeline);
+    AtomicReference<Throwable> failure = new AtomicReference<>();
+    display.asyncExec(() -> {
+      Shell active = Arrays.stream(display.getShells())
+          .filter(shell -> "Geometry Converter".equals(shell.getText()))
+          .findFirst().orElse(null);
+      try {
+        assertThat(active).isNotNull();
+        widget(dialog, "wOutputFormat", Combo.class).setText(ConverterOutputFormat.GEOJSON.name());
+        assertThat(widget(dialog, "wOutputField", Combo.class).getText()).isEqualTo("geometry_json");
+        widget(dialog, "wGeoJsonOutputProfile", Combo.class).setText(GeoJsonProfile.JSONFG10.name());
+        widget(dialog, "wGeoJsonOutputContext", Combo.class).setText("context");
+        widget(dialog, "wGeoJsonDropM", Button.class).setSelection(true);
+        assertThat(meta.getXml()).isEqualTo(before);
+        Arrays.stream(active.getChildren())
+            .filter(Button.class::isInstance)
+            .map(Button.class::cast)
+            .filter(button -> button.getText().equals(accept ? "OK" : "Cancel"))
+            .findFirst().orElseThrow()
+            .notifyListeners(SWT.Selection, new Event());
+        assertThat(active.isDisposed()).isTrue();
+      } catch (Throwable error) {
+        failure.set(error);
+        if (active == null) {
+          parent.dispose();
+        } else if (!active.isDisposed()) {
+          active.close();
+        }
+      }
+    });
+
+    try {
+      String result = dialog.open();
+      if (failure.get() != null) {
+        throw new AssertionError("Geometry Converter dialog interaction failed", failure.get());
+      }
+      if (accept) {
+        assertThat(result).isEqualTo("Convert");
+        assertThat(meta.hasChanged()).isTrue();
+        GeometryConverterMeta saved = new GeometryConverterMeta();
+        saved.loadXml(
+            XmlHandler.loadXmlString("<transform>" + meta.getXml() + "</transform>", "transform"),
+            null);
+        assertThat(saved.getInputFieldName()).isEqualTo("geom");
+        assertThat(saved.getOutputFormat()).isEqualTo(ConverterOutputFormat.GEOJSON);
+        assertThat(saved.getOutputFieldName()).isEqualTo("geometry_json");
+        assertThat(saved.getGeoJsonOutputProfile()).isEqualTo(GeoJsonProfile.JSONFG10);
+        assertThat(saved.getGeoJsonOutputContextField()).isEqualTo("context");
+        assertThat(saved.isGeoJsonDropM()).isTrue();
+      } else {
+        assertThat(result).isNull();
+        assertThat(meta.hasChanged()).isFalse();
+        assertThat(meta.getXml()).isEqualTo(before);
+      }
+    } finally {
+      if (!parent.isDisposed()) {
+        parent.dispose();
+      }
+    }
+  }
+
+  private static <T> T widget(GeometryConverterDialog dialog, String name, Class<T> type)
+      throws ReflectiveOperationException {
+    Field field = GeometryConverterDialog.class.getDeclaredField(name);
+    field.setAccessible(true);
+    return type.cast(field.get(dialog));
   }
 }

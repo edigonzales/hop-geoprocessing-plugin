@@ -1,31 +1,22 @@
 package ch.so.agi.hop.geoprocessing.core;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import org.apache.hop.core.exception.HopException;
-import org.apache.hop.core.row.IRowMeta;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.index.strtree.STRtree;
 
 public class LayerCache {
 
-  private final List<FeatureRow> features;
-  private final IRowMeta rowMeta;
   private final STRtree spatialIndex;
   private final Geometry unionGeometry;
 
   private final Integer knownSrid;
 
   LayerCache(
-      List<FeatureRow> features,
-      IRowMeta rowMeta,
       STRtree spatialIndex,
       Geometry unionGeometry,
       Integer knownSrid) {
-    this.features = Collections.unmodifiableList(new ArrayList<>(features));
-    this.rowMeta = rowMeta;
     this.spatialIndex = spatialIndex;
     this.unionGeometry = unionGeometry;
     this.knownSrid = knownSrid;
@@ -37,14 +28,6 @@ public class LayerCache {
         && !knownSrid.equals(primarySrid)) {
       throw new HopException("Geometry SRIDs must match (" + primarySrid + " vs " + knownSrid + ")");
     }
-  }
-
-  public List<FeatureRow> getFeatures() {
-    return features;
-  }
-
-  public IRowMeta getRowMeta() {
-    return rowMeta;
   }
 
   public Geometry getUnionGeometry() {
@@ -65,9 +48,5 @@ public class LayerCache {
       return List.of();
     }
     return spatialIndex.query(envelope);
-  }
-
-  public boolean isEmpty() {
-    return features.isEmpty();
   }
 }

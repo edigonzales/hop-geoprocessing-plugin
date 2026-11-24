@@ -2,6 +2,7 @@ package ch.so.agi.hop.geoprocessing.transform.geometryconverter;
 
 import ch.so.agi.hop.geoprocessing.core.RowMetaSupport;
 import ch.so.agi.hop.geoprocessing.core.converter.ConfigurationIssue;
+import ch.so.agi.hop.geoprocessing.core.converter.ConverterConfigurationException;
 import ch.so.agi.hop.geoprocessing.core.converter.ConverterErrorMode;
 import ch.so.agi.hop.geoprocessing.core.converter.ConverterInputFormat;
 import ch.so.agi.hop.geoprocessing.core.converter.ConverterOutputFormat;
@@ -38,7 +39,7 @@ import org.eclipse.swt.widgets.Text;
 /** One SWT dialog for format conversion and point-coordinate field mapping. */
 public class GeometryConverterDialog extends BaseTransformDialog {
   private final GeometryConverterMeta input;
-  private GeometryConverterDialogModel model;
+  private GeometryConverterMeta draft;
 
   private Text wTransformName;
   private Combo wInputFormat;
@@ -67,6 +68,7 @@ public class GeometryConverterDialog extends BaseTransformDialog {
   private Button wGeoJsonEmptyToNull;
   private ScrolledComposite scroller;
   private Label wStatus;
+  private String upstreamFieldError;
   private Composite content;
   private ConverterOutputFormat previousOutputFormat;
 
@@ -192,10 +194,11 @@ public class GeometryConverterDialog extends BaseTransformDialog {
     }
     wStatus = addInfoLabel("");
 
-    attachListeners();
-    loadFieldChoices();
     getData();
+    loadFieldChoices(false);
     refreshVisibility();
+    validateDraft();
+    attachListeners();
 
     wOk.addListener(SWT.Selection, event -> ok());
     wCancel.addListener(SWT.Selection, event -> cancel());
@@ -204,17 +207,14 @@ public class GeometryConverterDialog extends BaseTransformDialog {
   }
 
   private void attachListeners() {
-    wTransformName.addModifyListener(event -> input.setChanged());
     wInputFormat.addModifyListener(
         event -> {
-          input.setChanged();
           refreshVisibility();
-          loadFieldChoices();
+          loadFieldChoices(true);
           validateDraft();
         });
     wOutputFormat.addModifyListener(
         event -> {
-          input.setChanged();
           ConverterOutputFormat selected =
               defaultEnum(
                   wOutputFormat.getText(),
@@ -223,10 +223,9 @@ public class GeometryConverterDialog extends BaseTransformDialog {
           ConverterOutputFormat old =
               previousOutputFormat == null ? selected : previousOutputFormat;
           previousOutputFormat = selected;
-          if (model != null
-              && (wOutputField.getText().isBlank()
-                  || wOutputField.getText().equals(model.defaultOutputName(old)))) {
-            wOutputField.setText(model.defaultOutputName(selected));
+          if (wOutputField.getText().isBlank()
+              || wOutputField.getText().equals(defaultOutputName(old))) {
+            wOutputField.setText(defaultOutputName(selected));
           }
           refreshVisibility();
           validateDraft();
@@ -251,47 +250,33 @@ public class GeometryConverterDialog extends BaseTransformDialog {
             wGeoJsonOutputContext)) {
       combo.addModifyListener(
           event -> {
-            input.setChanged();
             refreshVisibility();
             validateDraft();
           });
     }
     wSridValue.addModifyListener(
-        event -> {
-          input.setChanged();
-          validateDraft();
-        });
+        event -> validateDraft());
     wByteOrder.addModifyListener(
-        event -> {
-          input.setChanged();
-          validateDraft();
-        });
+        event -> validateDraft());
     for (Button option : List.of(wGeoJsonDropZ, wGeoJsonDropM, wGeoJsonEmptyToNull)) {
       option.addListener(
           SWT.Selection,
-          event -> {
-            input.setChanged();
-            validateDraft();
-          });
+          event -> validateDraft());
     }
     wOverwrite.addListener(
         SWT.Selection,
-        event -> {
-          input.setChanged();
-          validateDraft();
-        });
+        event -> validateDraft());
   }
 
-  private void loadFieldChoices() {
-    List<String> messages = new ArrayList<>();
+  private void loadFieldChoices(boolean suggestFields) {
+    upstreamFieldError = null;
     IRowMeta prev = null;
     try {
       prev = pipelineMeta.getPrevTransformFields(variables, transformName);
     } catch (Exception e) {
-      messages.add("Unable to inspect upstream fields: " + rootCauseMessage(e));
+      upstreamFieldError = "Unable to inspect upstream fields: " + rootCauseMessage(e);
     }
     if (prev == null) {
-      setFieldStatus(messages);
       return;
     }
     List<String> geometryFields = RowMetaSupport.geometryFieldNames(prev);
@@ -320,6 +305,9 @@ public class GeometryConverterDialog extends BaseTransformDialog {
     applyChoices(wOutputY, RowMetaSupport.fieldNames(prev));
     applyChoices(wOutputZ, RowMetaSupport.fieldNames(prev));
     applyChoices(wOutputM, RowMetaSupport.fieldNames(prev));
+    if (!suggestFields) {
+      return;
+    }
     if (inputFormat != ConverterInputFormat.COORDINATES
         && wInputField.getText().isBlank()
         && inputCandidates.size() == 1) {
@@ -333,75 +321,88 @@ public class GeometryConverterDialog extends BaseTransformDialog {
         wInputY.setText(numericFields.get(1));
       }
     }
-    setFieldStatus(messages);
+  }
+
+  private static String defaultOutputName(ConverterOutputFormat format) {
+    return switch (format) {
+      case GEOMETRY -> "geometry";
+      case GEOJSON -> "geometry_json";
+      case WKT -> "geometry_wkt";
+      case EWKT -> "geometry_ewkt";
+      case WKB_BYTES -> "geometry_wkb";
+      case EWKB_BYTES -> "geometry_ewkb";
+      case WKB_HEX -> "geometry_wkb_hex";
+      case EWKB_HEX -> "geometry_ewkb_hex";
+      case COORDINATES -> "geometry";
+    };
   }
 
   private void getData() {
-    model = GeometryConverterDialogModel.from(input);
+    draft = (GeometryConverterMeta) input.clone();
     wTransformName.setText(transformName == null ? "" : transformName);
-    wInputFormat.setText(model.inputFormat().name());
-    wInputField.setText(defaultText(model.inputField()));
-    wInputX.setText(defaultText(model.inputX()));
-    wInputY.setText(defaultText(model.inputY()));
-    wInputZ.setText(defaultText(model.inputZ()));
-    wInputM.setText(defaultText(model.inputM()));
-    previousOutputFormat = model.outputFormat();
-    wOutputFormat.setText(model.outputFormat().name());
-    wOutputField.setText(defaultText(model.outputField()));
-    wOutputX.setText(defaultText(model.outputX()));
-    wOutputY.setText(defaultText(model.outputY()));
-    wOutputZ.setText(defaultText(model.outputZ()));
-    wOutputM.setText(defaultText(model.outputM()));
-    wByteOrder.setText(model.byteOrder().name());
-    wSridMode.setText(model.sridMode().name());
-    wSridValue.setText(defaultText(model.sridValue()));
-    wOverwrite.setSelection(model.overwriteExistingFields());
-    wErrorMode.setText(model.errorMode().name());
-    wGeoJsonInputProfile.setText(model.geoJsonInputProfile().name());
-    wGeoJsonOutputProfile.setText(model.geoJsonOutputProfile().name());
-    wGeoJsonInputContext.setText(defaultText(model.geoJsonInputContextField()));
-    wGeoJsonOutputContext.setText(defaultText(model.geoJsonOutputContextField()));
-    wGeoJsonDropZ.setSelection(model.geoJsonDropZ());
-    wGeoJsonDropM.setSelection(model.geoJsonDropM());
-    wGeoJsonEmptyToNull.setSelection(model.geoJsonEmptyToNull());
+    wInputFormat.setText(draft.getInputFormat().name());
+    wInputField.setText(defaultText(draft.getInputFieldName()));
+    wInputX.setText(defaultText(draft.getInputXFieldName()));
+    wInputY.setText(defaultText(draft.getInputYFieldName()));
+    wInputZ.setText(defaultText(draft.getInputZFieldName()));
+    wInputM.setText(defaultText(draft.getInputMFieldName()));
+    previousOutputFormat = draft.getOutputFormat();
+    wOutputFormat.setText(draft.getOutputFormat().name());
+    wOutputField.setText(defaultText(draft.getOutputFieldName()));
+    wOutputX.setText(defaultText(draft.getOutputXFieldName()));
+    wOutputY.setText(defaultText(draft.getOutputYFieldName()));
+    wOutputZ.setText(defaultText(draft.getOutputZFieldName()));
+    wOutputM.setText(defaultText(draft.getOutputMFieldName()));
+    wByteOrder.setText(draft.getByteOrder().name());
+    wSridMode.setText(draft.getSridMode().name());
+    wSridValue.setText(defaultText(draft.getSridValue()));
+    wOverwrite.setSelection(draft.isOverwriteExistingFields());
+    wErrorMode.setText(draft.getErrorMode().name());
+    wGeoJsonInputProfile.setText(draft.getGeoJsonInputProfile().name());
+    wGeoJsonOutputProfile.setText(draft.getGeoJsonOutputProfile().name());
+    wGeoJsonInputContext.setText(defaultText(draft.getGeoJsonInputContextField()));
+    wGeoJsonOutputContext.setText(defaultText(draft.getGeoJsonOutputContextField()));
+    wGeoJsonDropZ.setSelection(draft.isGeoJsonDropZ());
+    wGeoJsonDropM.setSelection(draft.isGeoJsonDropM());
+    wGeoJsonEmptyToNull.setSelection(draft.isGeoJsonEmptyToNull());
     wTransformName.selectAll();
     wTransformName.setFocus();
   }
 
   private void readDraft() {
-    model.inputFormat(
+    draft.setInputFormat(
         defaultEnum(
             wInputFormat.getText(), ConverterInputFormat.class, ConverterInputFormat.WKT_EWKT));
-    model.inputField(wInputField.getText());
-    model.inputX(wInputX.getText());
-    model.inputY(wInputY.getText());
-    model.inputZ(wInputZ.getText());
-    model.inputM(wInputM.getText());
-    model.outputFormat(
+    draft.setInputFieldName(wInputField.getText());
+    draft.setInputXFieldName(wInputX.getText());
+    draft.setInputYFieldName(wInputY.getText());
+    draft.setInputZFieldName(wInputZ.getText());
+    draft.setInputMFieldName(wInputM.getText());
+    draft.setOutputFormat(
         defaultEnum(
             wOutputFormat.getText(), ConverterOutputFormat.class, ConverterOutputFormat.GEOMETRY));
-    model.outputField(wOutputField.getText());
-    model.outputX(wOutputX.getText());
-    model.outputY(wOutputY.getText());
-    model.outputZ(wOutputZ.getText());
-    model.outputM(wOutputM.getText());
-    model.byteOrder(
+    draft.setOutputFieldName(wOutputField.getText());
+    draft.setOutputXFieldName(wOutputX.getText());
+    draft.setOutputYFieldName(wOutputY.getText());
+    draft.setOutputZFieldName(wOutputZ.getText());
+    draft.setOutputMFieldName(wOutputM.getText());
+    draft.setByteOrder(
         defaultEnum(wByteOrder.getText(), GeometryByteOrder.class, GeometryByteOrder.BIG_ENDIAN));
-    model.sridMode(
+    draft.setSridMode(
         defaultEnum(wSridMode.getText(), ConverterSridMode.class, ConverterSridMode.KEEP));
-    model.sridValue(wSridValue.getText());
-    model.overwriteExistingFields(wOverwrite.getSelection());
-    model.errorMode(
+    draft.setSridValue(wSridValue.getText());
+    draft.setOverwriteExistingFields(wOverwrite.getSelection());
+    draft.setErrorMode(
         defaultEnum(wErrorMode.getText(), ConverterErrorMode.class, ConverterErrorMode.FAIL));
-    model.geoJsonInputProfile(
+    draft.setGeoJsonInputProfile(
         defaultEnum(wGeoJsonInputProfile.getText(), GeoJsonProfile.class, GeoJsonProfile.AUTO));
-    model.geoJsonOutputProfile(
+    draft.setGeoJsonOutputProfile(
         defaultEnum(wGeoJsonOutputProfile.getText(), GeoJsonProfile.class, GeoJsonProfile.RFC7946));
-    model.geoJsonInputContextField(wGeoJsonInputContext.getText());
-    model.geoJsonOutputContextField(wGeoJsonOutputContext.getText());
-    model.geoJsonDropZ(wGeoJsonDropZ.getSelection());
-    model.geoJsonDropM(wGeoJsonDropM.getSelection());
-    model.geoJsonEmptyToNull(wGeoJsonEmptyToNull.getSelection());
+    draft.setGeoJsonInputContextField(wGeoJsonInputContext.getText());
+    draft.setGeoJsonOutputContextField(wGeoJsonOutputContext.getText());
+    draft.setGeoJsonDropZ(wGeoJsonDropZ.getSelection());
+    draft.setGeoJsonDropM(wGeoJsonDropM.getSelection());
+    draft.setGeoJsonEmptyToNull(wGeoJsonEmptyToNull.getSelection());
   }
 
   private void refreshVisibility() {
@@ -449,15 +450,26 @@ public class GeometryConverterDialog extends BaseTransformDialog {
   }
 
   private void validateDraft() {
-    if (model == null) {
-      return;
+    List<ConfigurationIssue> issues = draftIssues();
+    List<String> messages = new ArrayList<>();
+    if (upstreamFieldError != null) {
+      messages.add(upstreamFieldError);
     }
+    issues.stream().map(ConfigurationIssue::describe).forEach(messages::add);
+    setFieldStatus(messages.isEmpty() ? List.of("Configuration is valid.") : messages);
+  }
+
+  private List<ConfigurationIssue> draftIssues() {
     readDraft();
-    List<ConfigurationIssue> issues = model.tryValidate(variables);
-    if (issues.isEmpty()) {
-      setFieldStatus(List.of("Configuration is valid."));
-    } else {
-      setFieldStatus(issues.stream().map(ConfigurationIssue::describe).toList());
+    try {
+      draft.toSettings(variables);
+      return List.of();
+    } catch (ConverterConfigurationException e) {
+      return e.issues().isEmpty()
+          ? List.of(
+              ConfigurationIssue.error(
+                  ConfigurationIssue.GC_CONFIG_INVALID, "settings", null, e.getMessage()))
+          : e.issues();
     }
   }
 
@@ -465,8 +477,7 @@ public class GeometryConverterDialog extends BaseTransformDialog {
     if (Utils.isEmpty(wTransformName.getText())) {
       return;
     }
-    readDraft();
-    List<ConfigurationIssue> issues = model.tryValidate(variables);
+    List<ConfigurationIssue> issues = draftIssues();
     boolean onlyDeferred =
         !issues.isEmpty()
             && issues.stream()
@@ -488,7 +499,7 @@ public class GeometryConverterDialog extends BaseTransformDialog {
       box.open();
     }
     transformName = wTransformName.getText();
-    input.copyFrom(model.toMeta());
+    input.copyFrom(draft);
     input.setChanged(true);
     dispose();
   }
